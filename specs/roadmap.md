@@ -10,7 +10,7 @@ Each phase ships a thin vertical slice — end-to-end working functionality — 
 
 - Conversational intake: goal (race distance + finish-time target + date), current fitness level, days available per week, any injury history.
 - Validate goal against supported bounds: HM no faster than sub 1:45:00 (~4:58/km), FM no faster than sub 4:00:00 (~5:41/km). Reject or warn if out of scope.
-- Claude Sonnet 4.6 generates a periodized plan (base → build → peak → taper) using sports-science principles.
+- AI client (`AIClient` abstraction, default provider: Claude Sonnet 4.6) generates a periodized plan (base → build → peak → taper) using sports-science principles.
 - Plan stored in PostgreSQL (user profile + weekly schedule).
 - FastAPI endpoint: `POST /goal`, `GET /plan`.
 - No Strava yet — plan based purely on user-declared inputs.
@@ -57,6 +57,6 @@ Each phase ships a thin vertical slice — end-to-end working functionality — 
 **Deliverable:** Production-ready reliability, observability, and a minimal UI.
 
 - Structured logging + error handling for Strava API failures and model timeouts.
-- Rate limiting on Anthropic API calls.
+- Rate limiting on AI provider API calls.
 - Simple web UI (or CLI) for non-API users.
 - Automated weekly re-plan trigger (cron or Strava webhook).

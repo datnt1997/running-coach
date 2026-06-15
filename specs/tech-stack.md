@@ -15,6 +15,23 @@
   - Chosen for: strongest running/physiology domain knowledge among tested models, reliable JSON-schema structured output, full tool-use/function-calling support for Strava API calls.
   - Fallback consideration: local DeepSeek R1 (via Ollama) for privacy-sensitive analysis if user opts in.
 
+## AI Client Abstraction
+
+All model calls go through a single `AIClient` interface (`ai/client.py`) so the provider can be swapped via config without touching call sites.
+
+```
+AIClient (abstract)
+├── AnthropicClient   — wraps anthropic SDK, translates to/from Anthropic tool-use format
+└── GeminiClient      — wraps google-generativeai SDK, translates to/from Gemini function-calling format
+```
+
+- Selected via env var: `AI_PROVIDER=anthropic` (default) or `AI_PROVIDER=gemini`.
+- The interface exposes: `generate(messages, tools=None, response_format=None) → AIResponse`.
+- Tool definitions are stored in provider-agnostic format inside `ai/tools.py`; each client adapter translates them to its provider's schema at call time.
+- `AIResponse` is a provider-neutral dataclass: `{content: str, tool_calls: list[ToolCall], usage: TokenUsage}`.
+
+**Why:** Anthropic and Gemini use different tool/function-calling schema formats. Abstracting at this layer means a provider switch is a one-line env change, not a codebase-wide refactor.
+
 ## Agent Orchestration
 
 - **Anthropic tool use (function calling)** — native, no orchestration framework needed for v1.
