@@ -55,25 +55,53 @@
 
 6.1 `app/api/goals.py` — `POST /goal` route:
   - Validate request with `GoalRequest`
-  - Call `validate_goal()`
-  - Call `generate_plan()`
-  - Persist goal + plan via repositories
-  - Return `PlanResponse`
-6.2 `app/api/plans.py` — `GET /plan/{plan_id}` route:
-  - Load plan + workouts from DB
-  - Return `PlanResponse`
-6.3 `app/main.py` — FastAPI app wiring, include routers, startup/shutdown lifespan for DB pool
+  - Call `validate_goal()`; return 422 on failure
+  - Persist goal via `GoalRepository.insert()` — this is the only synchronous DB write
+  - Enqueue `_generate_plan_background(goal_id, goal, ai_client)` as a `BackgroundTask`
+  - Return HTTP 202 immediately: `{ "goalId": "<uuid>", "status": "generating" }`
+6.2 `app/api/goals.py` — `_generate_plan_background` background task:
+  - Call `generate_plan(goal, client)`
+  - Persist plan + workouts via `PlanRepository`
+  - On `PlanGenerationError`: update `user_goals.plan_status = 'failed'` and log the error
+  - On success: update `user_goals.plan_status = 'ready'`
+6.3 `app/api/goals.py` — `GET /goal/{goal_id}/plan` route:
+  - Read `user_goals.plan_status` for the given `goal_id`
+  - If `generating`: return 202 `{ "goalId", "status": "generating" }`
+  - If `failed`: return 200 `{ "goalId", "status": "failed", "error": "plan_generation_failed" }`
+  - If `ready`: load plan + workouts via `PlanRepository` and return 200 `PlanResponse` with `"status": "ready"`
+  - If `goal_id` not found: return 404
+6.4 `app/api/goals.py` — `GET /goals` route:
+  - Query all rows from `user_goals` ordered by `created_at DESC`
+  - Return list with `goalId`, `distance`, `targetTime`, `raceDate`, `fitnessLevel`, `daysPerWeek`, `planStatus`, `createdAt`
+6.5 `app/api/goals.py` — `DELETE /goal/{goal_id}` route:
+  - Delete `workout_sessions`, `training_plans`, `user_goals` in a single transaction (cascade via FK or explicit order)
+  - Return 200 `{ "deleted": true }` or 404 if not found
+6.6 `app/db/migrations/` — add `plan_status TEXT NOT NULL DEFAULT 'generating'` column to `user_goals`
+6.7 `app/main.py` — FastAPI app wiring, include routers, startup/shutdown lifespan for DB pool; mount `frontend/dist` as static files at `/app`
 
 ---
 
-## Group 7 — Integration Test
+## Group 7 — React Frontend
 
-7.1 `tests/test_goal_endpoint.py`:
-  - Test: valid HM goal → 200 + plan with correct structure (4 phases, ≥10 weeks, all workouts have required fields)
-  - Test: valid FM goal → 200
-  - Test: HM goal faster than 1:45:00 → 422 `goal_out_of_scope`
+7.1 Scaffold with Vite: `npm create vite@latest frontend -- --template react`; configure `vite.config.js` to proxy `/goal`, `/goals`, `/strava` to `http://localhost:8000`
+7.2 `frontend/src/pages/GoalForm.jsx` — controlled form for all goal fields; client-side validation before submit; on 202 navigate to `/app/goals/:goalId`; display 422 errors inline
+7.3 `frontend/src/pages/PlanView.jsx` — on mount call `GET /goal/:goalId/plan`; if `status === "generating"` show spinner and retry every 3 s; on `"ready"` render week-by-week plan table; on `"failed"` show error message
+7.4 `frontend/src/pages/GoalHistory.jsx` — fetch `GET /goals` on mount; render table with `distance`, `targetTime`, `raceDate`, `planStatus`, link to plan view, and a delete button that calls `DELETE /goal/:goalId` then refreshes the list
+7.5 `frontend/src/App.jsx` — React Router v6 routes: `/app` → `GoalForm`, `/app/goals/:goalId` → `PlanView`, `/app/history` → `GoalHistory`; nav bar with links to form and history
+7.6 `npm run build` outputs to `frontend/dist/`; FastAPI mounts this at `/app` so the single-user tool works from one `uvicorn` process
+
+---
+
+## Group 8 — Integration Test
+
+8.1 `tests/test_goal_endpoint.py`:
+  - Test: valid HM goal → 202 with `{ "goalId", "status": "generating" }`; poll `GET /goal/{goalId}/plan` until 200 + full plan structure (4 phases, ≥10 weeks, all workouts have required fields)
+  - Test: valid FM goal → 202; poll until 200 `totalWeeks >= 12`
+  - Test: HM goal faster than 1:45:00 → 422 `goal_out_of_scope` (no background task queued)
   - Test: FM goal faster than 4:00:00 → 422 `goal_out_of_scope`
   - Test: race date < 10 weeks → 422
-  - Test: `GET /plan/{plan_id}` → returns same plan
-7.2 Tests hit real local Postgres (no mocks on DB); use `httpx.AsyncClient` against the FastAPI app
-7.3 Add `tests/conftest.py` with DB setup/teardown fixtures (create tables before, drop after)
+  - Test: `GET /goal/{unknown_uuid}/plan` → 404
+  - Test: `GET /goals` → 200 list including the submitted goal
+  - Test: `DELETE /goal/{goalId}` → 200; subsequent `GET /goal/{goalId}/plan` → 404
+8.2 Tests hit real local Postgres (no mocks on DB); use `httpx.AsyncClient` against the FastAPI app
+8.3 Add `tests/conftest.py` with DB setup/teardown fixtures (create tables before, drop after)

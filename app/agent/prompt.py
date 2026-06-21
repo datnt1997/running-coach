@@ -78,3 +78,78 @@ def build_messages(goal: GoalRequest, today: date | None = None) -> list[dict]:
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": build_user_prompt(goal, today=today)},
     ]
+
+
+# ---------------------------------------------------------------------------
+# Activity analysis prompts
+# ---------------------------------------------------------------------------
+
+_ANALYSIS_SYSTEM_PROMPT = """\
+You are an expert running coach analyzing a completed run against its planned workout.
+
+Assess adherence across three dimensions:
+- pace_adherence: was the actual pace within the prescribed zone? ('on_target', 'too_fast', 'too_slow')
+- hr_adherence: was average HR consistent with the prescribed effort zone? ('on_target', 'above_prescribed', 'below_prescribed')
+- load_adherence: was total load (volume × intensity) appropriate? ('on_target', 'overreaching', 'underloaded')
+
+Zone reference (using default HRmax 180 bpm when actual HRmax unknown):
+Z1 <65% · Z2 65-75% · Z3 75-85% · Z4 85-92% · Z5 92-100%
+
+Call the analyze_activity tool with your assessment and a brief rationale.
+"""
+
+
+def build_activity_analysis_messages(
+    planned,
+    actual,
+) -> list[dict]:
+    from datetime import timedelta
+
+    pace_str = "unknown"
+    if actual.distance > 0:
+        pace_secs = actual.moving_time / (actual.distance / 1000)
+        t = timedelta(seconds=int(pace_secs))
+        mins, secs = divmod(int(t.total_seconds()), 60)
+        pace_str = f"{mins}:{secs:02d} /km"
+
+    user_content = (
+        f"Planned workout:\n"
+        f"- Type: {planned.workout_type}\n"
+        f"- Distance: {planned.distance_km} km\n"
+        f"- Target zone: {planned.pace_zone}\n\n"
+        f"Actual activity:\n"
+        f"- Distance: {actual.distance / 1000:.2f} km\n"
+        f"- Moving time: {timedelta(seconds=actual.moving_time)}\n"
+        f"- Avg pace: {pace_str}\n"
+        f"- Avg heart rate: {actual.average_heartrate if actual.average_heartrate else 'not recorded'} bpm\n"
+    )
+
+    return [
+        {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+def build_weekly_summary_messages(week_number: int, analyses: list[dict]) -> list[dict]:
+    if not analyses:
+        body = f"Week {week_number} had no recorded activities. State that no data is available."
+    else:
+        rows = []
+        for a in analyses:
+            rows.append(
+                f"- {a.get('day_of_week', '?')} {a.get('workout_type', '?')}: "
+                f"planned {a.get('planned_distance_km', '?')} km ({a.get('pace_zone', '?')}), "
+                f"actual {float(a['distance_km']):.1f} km | "
+                f"pace: {a.get('pace_adherence', 'n/a')}, "
+                f"HR: {a.get('hr_adherence', 'n/a')}, "
+                f"load: {a.get('load_adherence', 'n/a')}"
+            )
+        body = (
+            f"Summarize week {week_number} training adherence in 2-3 sentences.\n\n"
+            + "\n".join(rows)
+        )
+
+    return [
+        {"role": "system", "content": "You are a running coach writing a concise weekly performance summary."},
+        {"role": "user", "content": body},
+    ]

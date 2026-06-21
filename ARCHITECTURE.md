@@ -3,14 +3,14 @@
 
 > **What changed from v1:** Replaced the static JSONB profile blob with an Entity State Machine
 > borrowed from Personal_AI_OS. Added Differential Prompting, memory lifecycle management,
-> a Sports Science Module (Node.js-only math), and a raw data lake. The 4-tier structure
+> a Sports Science Module (pure-Python math), and a raw data lake. The 4-tier structure
 > is preserved but each tier is now smarter.
 
 ---
 
 ## The Core Problem (Restated)
 
-Gemini forgets context when it hits the context window. But there are actually **two sub-problems**:
+Claude forgets context when it hits the context window. But there are actually **two sub-problems**:
 
 1. **Volume problem** — months of raw training logs exceed the context window
 2. **Staleness problem** — even when data fits in context, old facts (healed injuries, abandoned goals) stay in the prompt and poison the agent's advice
@@ -26,9 +26,9 @@ V1 solved problem 1. V2 solves both.
 │  PRINCIPLE 1: "Right context" not "all context"                     │
 │  Only inject what is currently true and currently relevant.         │
 │                                                                     │
-│  PRINCIPLE 2: "Node.js does math, Gemini writes poetry"             │
-│  ACWR, HR zones, cardiac drift → pure JS functions, never LLM.     │
-│  Coaching narrative, advice, motivation → Gemini.                   │
+│  PRINCIPLE 2: "Python does math, Claude writes poetry"              │
+│  ACWR, HR zones, cardiac drift → pure Python functions, never LLM. │
+│  Coaching narrative, advice, motivation → Claude.                   │
 │                                                                     │
 │  PRINCIPLE 3: Facts have a lifecycle                                │
 │  active (healed injury) → inactive → archived (past query only)    │
@@ -47,7 +47,7 @@ V1 solved problem 1. V2 solves both.
 Every chat request assembles context from 4 tiers:
 
 ┌────────────────────────────────────────────────────────────────────────┐
-│                         GEMINI PROMPT                                  │
+│                         CLAUDE PROMPT                                  │
 │                                                                        │
 │  ┌──────────────────────┐  ┌──────────────────────────────────────┐   │
 │  │  TIER 2              │  │  TIER 3                              │   │
@@ -82,7 +82,7 @@ Every chat request assembles context from 4 tiers:
 
 ### Tier 2 — Active Facts (Entity State Machine)
 **What:** Everything currently true about this athlete — goals, injuries, fitness level, preferences, psychology.  
-**How:** Key-value rows in `athlete_facts` table. Context injection queries `status = 'active'`, deduplicated by `DISTINCT ON (category)` ordered by `created_at DESC` — so only the latest state of each fact is shown to Gemini.  
+**How:** Key-value rows in `athlete_facts` table. Context injection queries `status = 'active'`, deduplicated by `DISTINCT ON (category)` ordered by `created_at DESC` — so only the latest state of each fact is shown to Claude.  
 **Updated by:** Memory Extraction Agent (runs after Weekly Reflection cron).
 
 This replaces the JSONB blob from v1. The critical difference:
@@ -152,7 +152,7 @@ Readiness: Good — entering Build Phase on schedule
 ...
 ```
 
-Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sports Science Module before being passed to Gemini.
+Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sports Science Module before being passed to Claude.
 
 ---
 
@@ -161,7 +161,7 @@ Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sp
 
 **4a — Semantic Search (pgvector):** Triggered on every chat request. Embeds the user's message and finds the 3 most similar past sessions, summaries, or messages. Good for questions like "how was my cadence trending last month?"
 
-**4b — Archived Facts (Tool Use):** Gemini can call `search_historical_facts(topic)` when it detects the user is asking about the past. Queries `athlete_facts` rows with `status = 'inactive'` or `archived`. Good for "how did I handle that knee injury in 2024?"
+**4b — Archived Facts (Tool Use):** Claude can call `search_historical_facts(topic)` when it detects the user is asking about the past. Queries `athlete_facts` rows with `status = 'inactive'` or `archived`. Good for "how did I handle that knee injury in 2024?"
 
 **Size target:** Top 3 semantic results + archived facts on demand, ~500 tokens combined.
 
@@ -175,7 +175,7 @@ Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sp
 │                                                                         │
 │  ┌──────────────┐  ┌───────────────┐  ┌─────────────────────────────┐  │
 │  │  Web App     │  │  Telegram Bot │  │  Cron Jobs                  │  │
-│  │  (Next.js)   │  │  (Telegraf)   │  │  ├─ Sun 23:00 weekly-summary│  │
+│  │  (TBD)       │  │  (Telegraf)   │  │  ├─ Sun 23:00 weekly-summary│  │
 │  └──────┬───────┘  └───────┬───────┘  │  ├─ Sun 23:30 memory-extract│  │
 │         │                  │          │  ├─ 1st of month memory-decay│  │
 │  ┌──────────────────────┐  │          │  └─ Mon 07:00 resting-hr-ask │  │
@@ -186,7 +186,7 @@ Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sp
           │                  │
           ▼                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  LAYER 2 — API (Node.js / Express)                                      │
+│  LAYER 2 — API (Python / FastAPI)                                       │
 │                                                                         │
 │  POST /chat            POST /sync/strava      POST /api/goals          │
 │  GET  /api/goals/:id   PATCH /api/goals/:id   GET  /athlete/:id        │
@@ -196,10 +196,10 @@ Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sp
           ┌──────────────────────┼──────────────────────┐
           ▼                      ▼                      ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐
-│  Memory Service  │  │  Gemini Service  │  │  Sync Service            │
+│  Memory Service  │  │  Claude Service  │  │  Sync Service            │
 │                  │  │                  │  │                          │
 │  readActiveFacts │  │  buildPrompt()   │  │  stravaWebhook()         │
-│  readSummaries   │  │  callGemini()    │  │  stravaStreams()          │
+│  readSummaries   │  │  callClaude()    │  │  stravaStreams()          │
 │  readSessions    │  │  streamReply()   │  │  normalizeActivity()     │
 │  semanticSearch  │  │  callTool()      │  │  → sportsScience.*       │
 │  writeFact()     │  │                  │  │  → weather.service.*     │
@@ -213,7 +213,7 @@ Note: all numeric analysis (cardiac drift, ACWR, zone) is pre-computed by the Sp
          │
          ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  LAYER 3 — SPORTS SCIENCE MODULE (Pure Node.js — zero LLM)           │
+│  LAYER 3 — SPORTS SCIENCE MODULE (Pure Python — zero LLM)            │
 │                                                                      │
 │  acwr(acute, chronic)          cardiacDrift(firstHalf, secondHalf)   │
 │  hrZones(maxHR)                pacePerKm(distanceM, durationS)       │
@@ -357,7 +357,7 @@ CREATE TABLE memories_semantic (
   source_type TEXT NOT NULL,     -- 'session' | 'summary' | 'message' | 'fact'
   source_id   UUID,
   content     TEXT NOT NULL,
-  embedding   vector(768),       -- Gemini text-embedding-004
+  embedding   vector(1536),      -- Anthropic text-embedding model
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX ON memories_semantic
@@ -368,11 +368,11 @@ CREATE INDEX ON memories_semantic
 
 ## Sports Science Module
 
-Pure Node.js. No async, no LLM calls. Every function is deterministic and unit-testable.
+Pure Python. No async, no LLM calls. Every function is deterministic and unit-testable.
 All thresholds are sourced from `SPORTS_SCIENCE_RESEARCH.md`.
 
 Functions are grouped into **Tier A** (computed every session) and **Tier B** (estimated every 4–6 weeks).
-The final `formatSessionContext()` function produces **Tier C** — the pre-digested string passed to Gemini.
+The final `format_session_context()` function produces **Tier C** — the pre-digested string passed to Claude.
 
 ```javascript
 // src/science/sports-science.js
@@ -548,8 +548,8 @@ export const vo2maxFromRacePace = (paceSecPerKm, distanceKm) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// TIER C — Formatted context string passed to Gemini
-// Gemini receives pre-digested labels, never raw numbers to compute.
+// TIER C — Formatted context string passed to Claude
+// Claude receives pre-digested labels, never raw numbers to compute.
 // ─────────────────────────────────────────────────────────────
 
 export const formatSessionContext = ({
@@ -589,9 +589,9 @@ export const formatSessionContext = ({
 };
 ```
 
-**Rule:** If a calculation has a formula, it lives here. Gemini receives the `formatSessionContext()` output, never raw numbers to compute.
+**Rule:** If a calculation has a formula, it lives here. Claude receives the `format_session_context()` output, never raw numbers to compute.
 
-**Example Tier C output passed to Gemini:**
+**Example Tier C output passed to Claude:**
 ```
 acwrStatus: "0.94 (optimal)"
 sessionLoad: "68 TRIMP"
@@ -650,7 +650,7 @@ Domains: sports | health | physiological | nutrition | psychology | gear
 Categories: snake_case, descriptive (e.g. "achilles_injury", "race_goal", "threshold_pace")
 `;
 
-  const extracted = await callGemini(prompt, { responseFormat: 'json' });
+  const extracted = await call_claude(prompt, response_format='json');
 
   // Step 4: Insert only what changed
   for (const item of extracted) {
@@ -757,7 +757,7 @@ async function assembleContext(athleteId, userMessage) {
 ```
 
 **Estimated total tokens per request:** ~2,800 tokens  
-**Cost at Gemini 2.0 Flash ($0.075/1M tokens):** ~$0.0002/request → $0.002/day for 10 requests
+**Cost at Claude Sonnet 4.6 ($3/1M input tokens):** ~$0.008/request → $0.08/day for 10 requests
 
 ---
 
@@ -823,7 +823,7 @@ Fetch full activity from Strava API (summary endpoint)
         │
         ├──► formatSessionContext(metrics) → Tier C string
         │
-        ├──► Generate text summary of session (one Gemini call using Tier C context)
+        ├──► Generate text summary of session (one Claude call using Tier C context)
         │    "Easy run 12km @ 5:52/km. HR Zone 2 ✓ (drift 4.1% normal at 27°C).
         │     TRIMP 52, ACWR 0.91 (optimal). No spike flag."
         │
@@ -872,12 +872,12 @@ assembleContext() — parallel fetch of all 4 tiers
         └── Tier 1: last 20 messages
         │
         ▼
-Call Gemini 2.0 Flash with assembled prompt + Tools available:
+Call Claude Sonnet 4.6 with assembled prompt + Tools available:
   - search_historical_facts(topic)  ← for past archived facts
   - log_training_note(note)         ← for agent to flag something
         │
         ▼
-Gemini responds: "With a sub-3:30 goal and 72km base, losing one tempo won't
+Claude responds: "With a sub-3:30 goal and 72km base, losing one tempo won't
 hurt you. But a sore knee 2 days before a quality session is a yellow flag.
 Replace Thursday's tempo with an easy 8km. If it persists past Sunday, we
 reassess the Build Phase entry..."
@@ -914,7 +914,7 @@ the same Goal Processing Service after input is captured.
 │  ├─ Goal time: 3:30:00          │     │  POST /chat { message, athleteId }   │
 │  └─ Current weekly km: 55km     │     │          │                           │
 │                                 │     │          ▼                           │
-│  POST /api/goals {              │     │  Gemini detects goal-setting intent  │
+│  POST /api/goals {              │     │  Claude detects goal-setting intent  │
 │    raceName, raceDate,          │     │  Extracts structured data:           │
 │    goalTime, currentWeeklyKm    │     │    race: "HCMC Marathon"             │
 │  }                              │     │    date: "2026-12-07"                │
@@ -1006,7 +1006,7 @@ the same Goal Processing Service after input is captured.
                                    │
                                    ▼
           ┌────────────────────────────────────────────────────┐
-          │  STEP 5: Gemini generates goal assessment           │
+          │  STEP 5: Claude generates goal assessment            │
           │  (one call — coaching narrative only)               │
           │                                                      │
           │  Context injected:                                   │
@@ -1015,7 +1015,7 @@ the same Goal Processing Service after input is captured.
           │    [Feasibility result + LT gap if known]            │
           │    [Last 4 weekly summaries if athlete has history]  │
           │                                                      │
-          │  Gemini writes:                                      │
+          │  Claude writes:                                      │
           │    - Feasibility assessment ("This is ambitious      │
           │       but achievable with 32 weeks...")              │
           │    - Phase overview ("Weeks 1–11 focus on base...")  │
@@ -1027,7 +1027,7 @@ the same Goal Processing Service after input is captured.
           ┌────────────────────────────────────────────────────┐
           │  STEP 6: Store + embed                              │
           │                                                      │
-          │  Store Gemini assessment → training_goals.gemini_assessment │
+          │  Store Claude assessment → training_goals.claude_assessment │
           │  Store as message → messages table                   │
           │  Embed assessment → memories_semantic (Tier 4)      │
           └────────────────────────┬───────────────────────────┘
@@ -1035,7 +1035,7 @@ the same Goal Processing Service after input is captured.
                   ┌────────────────┴───────────────┐
                   ▼                                ▼
      Web UI response:                     Chat response:
-     ┌───────────────────┐               Gemini streams
+     ┌───────────────────┐               Claude streams
      │ Goal Summary Card │               assessment back
      │ ─────────────────│               to Telegram/Web
      │ Sub-3:30 Marathon │               chat interface
@@ -1048,7 +1048,7 @@ the same Goal Processing Service after input is captured.
      │ Peak  w22–27      │
      │ Taper w28–32      │
      │ ─────────────────│
-     │ [Gemini assessment│
+     │ [Claude assessment│
      │  narrative...]    │
      └───────────────────┘
 ```
@@ -1144,7 +1144,7 @@ CREATE TABLE training_goals (
   phases              JSONB NOT NULL,          -- [{ phase, weeks, focus }]
   feasibility         TEXT NOT NULL,           -- 'true' | 'stretch' | 'risky' | 'false' | 'unknown'
   feasibility_reason  TEXT,
-  gemini_assessment   TEXT,                    -- initial coaching narrative from Gemini
+  claude_assessment   TEXT,                    -- initial coaching narrative from Claude
   status              TEXT NOT NULL DEFAULT 'active',  -- 'active' | 'completed' | 'abandoned'
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
@@ -1166,7 +1166,7 @@ sports.required_lt_pace "4:37/km"
 
 ### Weekly Phase Tracker (Sunday cron addition)
 
-The Sunday weekly-summary cron also updates `sports.weeks_to_race` and `sports.training_phase` so Gemini always knows where in the plan the athlete is:
+The Sunday weekly-summary cron also updates `sports.weeks_to_race` and `sports.training_phase` so Claude always knows where in the plan the athlete is:
 
 ```javascript
 // Added to weekly-summary.js (runs Sunday 23:00)
@@ -1211,8 +1211,8 @@ if (activeGoal.rows[0]) {
 │  4. recentMaxLongRun(sessions, 6)      ← rolling 6-week window       │
 │  5. total_km, weekly_trimp totals                                    │
 │                                                                      │
-│  Gemini (coaching narrative only):                                   │
-│  6. Gemini receives Tier B output + last 5 sessions                  │
+│  Claude (coaching narrative only):                                   │
+│  6. Claude receives Tier B output + last 5 sessions                  │
 │  7. Writes coaching narrative (~300 words)                           │
 │  8. INSERT into training_block_summaries                             │
 │     (with zone_distribution, weekly_trimp, acwr, is_polarized)      │
@@ -1225,7 +1225,7 @@ if (activeGoal.rows[0]) {
 │                                                                      │
 │  1. Load current active facts (existing knowledge)                   │
 │  2. Load this week's messages + new weekly summary                   │
-│  3. Differential prompt → Gemini extracts ONLY new/changed facts     │
+│  3. Differential prompt → Claude extracts ONLY new/changed facts     │
 │  4. INSERT new/changed rows into athlete_facts                       │
 │  5. Embed new facts → memories_semantic                              │
 └──────────────────────────────────────────────────────────────────────┘
@@ -1260,47 +1260,49 @@ if (activeGoal.rows[0]) {
 
 ```
 running-coach/
-├── src/
+├── app/
 │   ├── api/
-│   │   ├── routes/
-│   │   │   ├── chat.js
-│   │   │   ├── sync.js
-│   │   │   └── athlete.js
-│   │   └── middleware/
-│   │       └── auth.js
-│   ├── services/
-│   │   ├── memory.service.js       ← assembleContext(), writeFact(), archiveFact()
-│   │   ├── gemini.service.js       ← buildPrompt(), callGemini(), streamReply()
-│   │   ├── embedding.service.js    ← text → vector via text-embedding-004
-│   │   ├── goal.service.js         ← processGoal(), archiveGoal(), updatePhase()
-│   │   ├── strava.service.js       ← OAuth, webhook, activity fetch
-│   │   ├── streams.service.js      ← Strava Streams API (per-second HR/pace for drift calc)
-│   │   ├── weather.service.js      ← OpenWeatherMap historical API (temp + humidity)
-│   │   └── datalake.service.js     ← save/read raw JSON time-series files
-│   ├── science/
-│   │   └── sports-science.js       ← pure JS math: ACWR, HR zones, drift, TRIMP
-│   ├── bot/
-│   │   └── telegram.bot.js
-│   ├── cron/
-│   │   ├── weekly-summary.js       ← Sun 23:00
-│   │   ├── memory-extraction.js    ← Sun 23:30 (differential prompting)
-│   │   ├── memory-decay.js         ← 1st of month 02:00
-│   │   └── resting-hr-ask.js       ← Mon 07:00 (prompt for resting HR if missing)
+│   │   ├── goals.py
+│   │   ├── plans.py
+│   │   ├── strava.py
+│   │   ├── activities.py
+│   │   ├── summaries.py
+│   │   └── ui.py
+│   ├── agent/
+│   │   ├── planner.py              ← generate_plan(), parse tool output
+│   │   ├── analyzer.py             ← analyze_activity(), build_weekly_summary()
+│   │   ├── matching.py             ← pure Python: match activity to planned workout
+│   │   ├── prompt.py               ← build_messages(), system prompts
+│   │   └── validation.py
+│   ├── ai/
+│   │   ├── client.py               ← AIClient ABC: generate(messages, tools) → AIResponse
+│   │   ├── anthropic_client.py     ← Claude Sonnet 4.6 (default)
+│   │   ├── gemini_client.py        ← Gemini fallback
+│   │   ├── factory.py              ← get_ai_client() selected by AI_PROVIDER env var
+│   │   └── tools.py                ← provider-agnostic tool schemas (TOOLS, ANALYZE_ACTIVITY_TOOL)
 │   ├── db/
-│   │   ├── schema.sql
-│   │   └── index.js
-│   └── app.js
-├── data/
-│   └── streams/                    ← Data Lake: raw GPS/HR JSON files
-│       └── strava_12345678.json    ← per-second HR, pace, cadence from Streams API
-├── web/                            ← Next.js frontend
-│   ├── app/
-│   │   ├── chat/page.tsx
-│   │   ├── dashboard/page.tsx
-│   │   └── api/
-│   └── components/
+│   │   ├── connection.py           ← psycopg-pool, get_db() dependency
+│   │   ├── repositories.py         ← GoalRepository, PlanRepository, StravaConnectionRepository, …
+│   │   └── migrations/
+│   │       ├── 001_initial.sql
+│   │       └── 002_strava.sql
+│   ├── models/
+│   │   ├── goal.py                 ← GoalRequest (Pydantic)
+│   │   └── plan.py                 ← PlanResponse, PlanWeek, WorkoutSession, PlannedWorkout
+│   ├── strava/
+│   │   ├── client.py               ← StravaClient, get_valid_access_token()
+│   │   └── models.py               ← ActivityDetail, TokenSet
+│   ├── config.py                   ← env vars, validate_config()
+│   └── main.py                     ← FastAPI app, lifespan
+├── tests/
+│   ├── conftest.py                 ← FakeAIClient, FakeStravaClient, db_pool fixture
+│   └── test_*.py
+├── docker/
+│   └── docker-compose.yml          ← PostgreSQL 16
+├── scripts/
+│   └── register_strava_webhook.py
 ├── .env.example
-└── package.json
+└── pyproject.toml
 ```
 
 ---
@@ -1309,35 +1311,36 @@ running-coach/
 
 | Layer | Choice | Why |
 |---|---|---|
-| Backend | Node.js + Express | Your experience |
-| AI Model | Gemini 2.0 Flash | Fast, cheap, long context |
-| Embeddings | `text-embedding-004` (Gemini) | Same API key |
+| Language | Python 3.12+ | Primary language for backend and agent logic |
+| Backend | FastAPI + Pydantic v2 | Async HTTP, structured request/response contracts |
+| AI Model | Claude Sonnet 4.6 (`claude-sonnet-4-6`) | Strongest sports-physiology domain knowledge, reliable tool use |
+| AI Fallback | Gemini 2.5 Flash (`AI_PROVIDER=gemini`) | 10× cheaper; swappable via env var, no code changes |
 | Database | PostgreSQL + pgvector | Single DB, no separate vector store |
-| Sports Science | Pure Node.js | Deterministic, testable, no LLM hallucination |
+| Sports Science | Pure Python | Deterministic, testable, no LLM hallucination |
 | Data Lake | Local JSON files (`data/streams/`) | Keeps DB lean, raw data preserved |
 | Strava | OAuth2 + Webhook + Streams API | Real-time push + per-second HR/pace data |
 | OpenWeatherMap | Historical weather API | Temperature + humidity at run location (device-reported temp unreliable) |
-| Web | Next.js (App Router) | Full-stack in one repo |
 | Telegram | Telegraf.js | Lightweight |
-| Cron | node-cron | 4 jobs: summary, extraction, decay, resting-hr-ask |
-| Auth | NextAuth.js | Web + API |
+| Cron | APScheduler / cron | 4 jobs: summary, extraction, decay, resting-hr-ask |
 | Deploy | Railway or Render | Simple solo ops |
 
 ---
 
 ## Key Packages
 
-```json
-{
-  "@google/generative-ai": "^0.21.0",
-  "pg": "^8.13.0",
-  "pgvector": "^0.2.0",
-  "telegraf": "^4.16.0",
-  "strava-v3": "^2.1.0",
-  "axios": "^1.8.0",
-  "node-cron": "^3.0.0",
-  "express": "^4.21.0"
-}
+```toml
+# pyproject.toml dependencies
+fastapi = ">=0.115.0"
+uvicorn = { extras = ["standard"], version = ">=0.30.0" }
+anthropic = ">=0.40.0"
+psycopg = { extras = ["binary"], version = ">=3.2.0" }
+psycopg-pool = ">=3.2.0"
+pydantic = ">=2.0.0"
+python-dotenv = ">=1.0.0"
+httpx = ">=0.27.0"
+
+# Optional: Gemini fallback
+google-generativeai = ">=0.8.0"  # pip install running-coach[gemini]
 ```
 
 ---
@@ -1347,8 +1350,12 @@ running-coach/
 ```bash
 # .env.example
 
-# AI
-GEMINI_API_KEY=
+# AI — primary provider
+ANTHROPIC_API_KEY=
+AI_PROVIDER=anthropic          # set to 'gemini' to use Gemini fallback
+
+# Gemini fallback (only needed when AI_PROVIDER=gemini)
+# GEMINI_API_KEY=
 
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/running_coach
@@ -1359,14 +1366,14 @@ TELEGRAM_BOT_TOKEN=
 # Strava (OAuth2 + Webhooks + Streams API — same credentials)
 STRAVA_CLIENT_ID=
 STRAVA_CLIENT_SECRET=
-STRAVA_VERIFY_TOKEN=        # for webhook subscription verification
+STRAVA_WEBHOOK_VERIFY_TOKEN=   # for webhook subscription verification
+STRAVA_REDIRECT_URI=http://localhost:8000/strava/callback
 
 # OpenWeatherMap (historical weather at run location + time)
 OPENWEATHER_API_KEY=
 
 # App
 APP_URL=https://your-domain.com
-NODE_ENV=production
 ```
 
 ---
@@ -1378,7 +1385,7 @@ NODE_ENV=production
 - [ ] Goal-setting flow: web form + chat path both working
 - [ ] Sports Science goal functions: `parseGoalTime`, `targetPaceFromGoalTime`, `weeksUntilRace`, `trainingPhases`, `goalFeasibility`
 - [ ] Active facts context injection working (goal facts visible in every prompt)
-- [ ] Basic Gemini chat: Tier 1 (working memory) + Tier 2 (active facts)
+- [ ] Basic Claude chat: Tier 1 (working memory) + Tier 2 (active facts)
 - [ ] Telegram bot: `/goal`, `/log`, `/ask`, `/facts`
 
 ### Phase 2 — Sports Science + Integrations (Week 3-4)
@@ -1399,7 +1406,7 @@ NODE_ENV=production
 - [ ] Tool Use: `search_historical_facts` for Tier 4b
 
 ### Phase 4 — Web App (Week 7-8)
-- [ ] Next.js dashboard: training calendar, active facts panel
+- [ ] Web dashboard: training calendar, active facts panel
 - [ ] Chat interface with streaming
 - [ ] Activity charts: pace, HR, cadence, ACWR trend
 - [ ] Training plan generation (JSON output for calendar rendering)
@@ -1413,7 +1420,7 @@ NODE_ENV=production
 | `memories_long` JSONB blob | `athlete_facts` Entity State Machine | Healed injuries stayed in context forever |
 | No memory lifecycle | `active → inactive → archived` | Stale facts polluted advice |
 | No deduplication | `DISTINCT ON (category)` + Differential Prompting | Memory grew without new information |
-| LLM computes metrics | Sports Science Module (pure JS, Tier A/B/C) | Math errors → bad training advice |
+| LLM computes metrics | Sports Science Module (pure Python, Tier A/B/C) | Math errors → bad training advice |
 | ACWR from km | ACWR from TRIMP (Banister 1991) | 15km easy ≠ 15km tempo in physiological stress |
 | No cardiac drift context | Temperature-adjusted drift threshold | 18% drift at 30°C is normal, not a fitness failure |
 | No spike detection | `singleSessionSpike()` — +10% = +64% injury risk | Weekly ACWR can look fine while one run causes injury |

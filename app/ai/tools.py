@@ -48,6 +48,36 @@ _WEEK_SCHEMA = {
     "required": ["week_number", "phase", "workouts"],
 }
 
+ANALYZE_ACTIVITY_TOOL = {
+    "name": "analyze_activity",
+    "description": "Analyze a completed run against its planned workout across three adherence dimensions",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pace_adherence": {
+                "type": "string",
+                "enum": ["on_target", "too_fast", "too_slow"],
+                "description": "Was the actual pace within the prescribed zone?",
+            },
+            "hr_adherence": {
+                "type": "string",
+                "enum": ["on_target", "above_prescribed", "below_prescribed"],
+                "description": "Was average HR consistent with the prescribed effort zone?",
+            },
+            "load_adherence": {
+                "type": "string",
+                "enum": ["on_target", "overreaching", "underloaded"],
+                "description": "Was total load (volume × intensity) appropriate?",
+            },
+            "rationale": {
+                "type": "string",
+                "description": "Brief 1-2 sentence coaching rationale for the adherence assessment",
+            },
+        },
+        "required": ["pace_adherence", "hr_adherence", "load_adherence", "rationale"],
+    },
+}
+
 TOOLS = [
     {
         "name": "generate_training_plan",
