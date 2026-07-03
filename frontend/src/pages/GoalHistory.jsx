@@ -92,23 +92,24 @@ export default function GoalHistory() {
                 <td>{g.targetTime}</td>
                 <td>{g.raceDate}</td>
                 <td>{FITNESS_LABEL[g.fitnessLevel] || g.fitnessLevel}</td>
+                <td><StatusBadge status={g.planStatus} /></td>
                 <td>
-                  {g.planStatus === 'ready' ? (
-                    <Link to={`/goals/${g.goalId}`}>
-                      <StatusBadge status={g.planStatus} />
-                    </Link>
-                  ) : (
-                    <StatusBadge status={g.planStatus} />
-                  )}
-                </td>
-                <td>
-                  <button
-                    className="btn-danger btn-sm"
-                    disabled={deleting === g.goalId}
-                    onClick={() => handleDelete(g.goalId)}
-                  >
-                    {deleting === g.goalId ? '…' : 'Delete'}
-                  </button>
+                  <div className="row-actions">
+                    {g.planStatus !== 'failed' && (
+                      <Link to={`/goals/${g.goalId}`}>
+                        <button className="btn-sm">
+                          {g.planStatus === 'ready' ? 'View Plan' : 'Track'}
+                        </button>
+                      </Link>
+                    )}
+                    <button
+                      className="btn-danger btn-sm"
+                      disabled={deleting === g.goalId}
+                      onClick={() => handleDelete(g.goalId)}
+                    >
+                      {deleting === g.goalId ? '…' : 'Delete'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

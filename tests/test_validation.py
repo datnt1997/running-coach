@@ -28,17 +28,17 @@ def _race_date(weeks: int = 16, extra_days: int = 0) -> date:
 # --- Half marathon target-time bounds -------------------------------------
 
 def test_hm_at_exactly_bound_accepted():
-    goal = _goal("half_marathon", "1:45:00", _race_date())
+    goal = _goal("half_marathon", "1:44:00", _race_date())
     validate_goal(goal, today=TODAY)  # should not raise
 
 
 def test_hm_one_second_slower_accepted():
-    goal = _goal("half_marathon", "1:45:01", _race_date())
+    goal = _goal("half_marathon", "1:44:01", _race_date())
     validate_goal(goal, today=TODAY)  # should not raise
 
 
 def test_hm_one_second_faster_rejected():
-    goal = _goal("half_marathon", "1:44:59", _race_date())
+    goal = _goal("half_marathon", "1:43:59", _race_date())
     with pytest.raises(GoalOutOfScopeError):
         validate_goal(goal, today=TODAY)
 
@@ -46,12 +46,12 @@ def test_hm_one_second_faster_rejected():
 # --- Full marathon target-time bounds -------------------------------------
 
 def test_fm_at_exactly_bound_accepted():
-    goal = _goal("full_marathon", "4:00:00", _race_date(weeks=20))
+    goal = _goal("full_marathon", "3:59:00", _race_date(weeks=20))
     validate_goal(goal, today=TODAY)  # should not raise
 
 
 def test_fm_one_second_faster_rejected():
-    goal = _goal("full_marathon", "3:59:59", _race_date(weeks=20))
+    goal = _goal("full_marathon", "3:58:59", _race_date(weeks=20))
     with pytest.raises(GoalOutOfScopeError):
         validate_goal(goal, today=TODAY)
 

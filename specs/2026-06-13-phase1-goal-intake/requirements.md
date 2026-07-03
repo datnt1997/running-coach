@@ -51,7 +51,7 @@ Build the end-to-end path from a user submitting their goal to receiving a perso
 ```json
 {
   "error": "goal_out_of_scope",
-  "message": "Target time 1:38:00 is faster than the supported ceiling for half marathon (sub 1:45:00). This agent is not designed for elite-level plans."
+  "message": "Target time 1:38:00 is faster than the supported ceiling for half marathon (1:44:00). This agent is not designed for elite-level plans."
 }
 ```
 
@@ -180,8 +180,8 @@ Served as static files from `frontend/dist/` by FastAPI (`GET /app/{path}` + ind
 
 | Distance | Fastest supported | Action if exceeded |
 |---|---|---|
-| Half Marathon | 1:45:00 | Return 422 with `goal_out_of_scope` |
-| Full Marathon | 4:00:00 | Return 422 with `goal_out_of_scope` |
+| Half Marathon | 1:44:00 | Return 422 with `goal_out_of_scope` |
+| Full Marathon | 3:59:00 | Return 422 with `goal_out_of_scope` |
 
 Minimum race date lead time: 10 weeks from `POST /goal` date (plan cannot be generated if race is too soon).
 

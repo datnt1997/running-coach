@@ -28,7 +28,7 @@
 ## Group 4 — Goal Validation
 
 4.1 `app/agent/validation.py` — `validate_goal(goal: GoalRequest) -> None` raises `GoalOutOfScopeError` for:
-  - HM target faster than 1:45:00
+  - HM target faster than 1:44:00
   - FM target faster than 4:00:00
   - Race date less than 10 weeks from today
 4.2 Unit tests for all validation edge cases (exact boundary, 1 second over, 1 second under)
@@ -97,7 +97,7 @@
 8.1 `tests/test_goal_endpoint.py`:
   - Test: valid HM goal → 202 with `{ "goalId", "status": "generating" }`; poll `GET /goal/{goalId}/plan` until 200 + full plan structure (4 phases, ≥10 weeks, all workouts have required fields)
   - Test: valid FM goal → 202; poll until 200 `totalWeeks >= 12`
-  - Test: HM goal faster than 1:45:00 → 422 `goal_out_of_scope` (no background task queued)
+  - Test: HM goal faster than 1:44:00 → 422 `goal_out_of_scope` (no background task queued)
   - Test: FM goal faster than 4:00:00 → 422 `goal_out_of_scope`
   - Test: race date < 10 weeks → 422
   - Test: `GET /goal/{unknown_uuid}/plan` → 404

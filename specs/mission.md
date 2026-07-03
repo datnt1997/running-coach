@@ -10,8 +10,8 @@ A runner training for one of two supported race distances, within a defined targ
 
 | Distance | Slowest supported | Fastest supported |
 |---|---|---|
-| Half Marathon (21.1 km) | No lower bound | **sub 1:45:00** (~4:58/km) |
-| Full Marathon (42.2 km) | No lower bound | **sub 4:00:00** (~5:41/km) |
+| Half Marathon (21.1 km) | No lower bound | **1:44:00** (~4:55/km) |
+| Full Marathon (42.2 km) | No lower bound | **3:59:00** (~5:39/km) |
 
 The user sets their own finish-time goal anywhere within this range — sub 2:15 HM, sub 1:55 HM, sub 4:30 FM, sub 4:00 FM, etc. Goals faster than the upper bounds (e.g. sub 1:40 HM, sub 3:45 FM) are out of scope — those athletes need elite-level coaching beyond what this agent is designed for.
 
