@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/goal': 'http://localhost:8000',
+      '/fitness-chat': 'http://localhost:8000',
       '/goals': 'http://localhost:8000',
       '/plan': 'http://localhost:8000',
       '/strava': 'http://localhost:8000',

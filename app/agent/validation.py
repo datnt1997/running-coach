@@ -12,8 +12,8 @@ class GoalOutOfScopeError(Exception):
 # Fastest target time we will plan for. A target FASTER than the bound is
 # rejected as out of scope.
 BOUNDS = {
-    "half_marathon": time(1, 45, 0),
-    "full_marathon": time(4, 0, 0),
+    "half_marathon": time(1, 44, 0),
+    "full_marathon": time(3, 59, 0),
 }
 
 MIN_WEEKS_LEAD = 10

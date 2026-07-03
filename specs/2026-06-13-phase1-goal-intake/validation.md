@@ -45,11 +45,11 @@ Run with: `pytest tests/test_validation.py -v`
 
 | Check | Criterion |
 |---|---|
-| HM at exactly 1:45:00 | Accepted (boundary is exclusive — sub 1:45 is out of scope) |
-| HM at 1:45:01 | Accepted |
-| HM at 1:44:59 | Rejected |
-| FM at exactly 4:00:00 | Accepted |
-| FM at 3:59:59 | Rejected |
+| HM at exactly 1:44:00 | Accepted (boundary is exclusive — sub 1:44 is out of scope) |
+| HM at 1:44:01 | Accepted |
+| HM at 1:43:59 | Rejected |
+| FM at exactly 3:59:00 | Accepted |
+| FM at 3:58:59 | Rejected |
 | Race date exactly 10 weeks out | Accepted |
 | Race date 9 weeks + 6 days | Rejected |
 

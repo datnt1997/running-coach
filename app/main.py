@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import activities, goals, plans, summaries
+from app.api import activities, fitness_chat, goals, plans, summaries
 from app.api import strava, ui
 from app.config import validate_config
 from app.db.connection import close_pool, init_pool
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Running Coach", version="0.2.0", lifespan=lifespan)
 
 app.include_router(goals.router)
+app.include_router(fitness_chat.router)
 app.include_router(plans.router)
 app.include_router(strava.router)
 app.include_router(ui.router)

@@ -103,6 +103,28 @@ class FakeAIClient:
         )
 
 
+class FakeFitnessChatAIClient:
+    """Returns a plain follow-up question by default, or a classification JSON block."""
+
+    def __init__(self, classify: bool = False, fitness_level: str = "intermediate"):
+        self.classify = classify
+        self.fitness_level = fitness_level
+
+    async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
+        if self.classify:
+            content = (
+                "Based on everything you've shared, you're in great shape for this plan!\n\n"
+                "```json\n"
+                f'{{"fitness_level": "{self.fitness_level}", "vdot": 43, '
+                '"weekly_km": 40, "longest_run_km": 18, '
+                '"reasoning": "VDOT 43 from 10K 52:00; 40 km/week; longest run 18 km"}'
+                "\n```"
+            )
+        else:
+            content = "What's your most recent race time, and what distance was it?"
+        return AIResponse(content=content, usage=TokenUsage(input_tokens=50, output_tokens=30))
+
+
 class FakeAnalysisAIClient:
     """Handles both plan generation and activity analysis tool calls."""
 
