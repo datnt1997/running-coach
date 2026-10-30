@@ -41,7 +41,7 @@ export default function FitnessChat({ onResult }) {
         onResult(data.fitnessLevel, data.vdot, data.weeklyKm, data.longestRunKm, data.reasoning)
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong — please try again.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Đã xảy ra lỗi — vui lòng thử lại.' }])
     } finally {
       setLoading(false)
     }
@@ -79,14 +79,14 @@ export default function FitnessChat({ onResult }) {
       <div className="fc-input-row">
         <input
           type="text"
-          placeholder="Type your answer…"
+          placeholder="Nhập câu trả lời…"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={loading}
           autoFocus
         />
-        <button type="button" onClick={handleSend} disabled={loading || !input.trim()}>Send</button>
+        <button type="button" onClick={handleSend} disabled={loading || !input.trim()}>Gửi</button>
       </div>
     </div>
   )

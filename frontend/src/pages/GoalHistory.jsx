@@ -2,21 +2,21 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const DISTANCE_LABEL = {
-  half_marathon: 'Half Marathon',
-  full_marathon: 'Full Marathon',
+  half_marathon: 'Bán Marathon',
+  full_marathon: 'Marathon',
 }
 
 const FITNESS_LABEL = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
+  beginner: 'Người mới',
+  intermediate: 'Trung cấp',
+  advanced: 'Nâng cao',
 }
 
 function StatusBadge({ status }) {
   const map = {
-    ready: ['status-ready', 'Ready'],
-    generating: ['status-generating', 'Generating…'],
-    failed: ['status-failed', 'Failed'],
+    ready: ['status-ready', 'Sẵn sàng'],
+    generating: ['status-generating', 'Đang tạo…'],
+    failed: ['status-failed', 'Thất bại'],
   }
   const [cls, label] = map[status] || ['', status]
   return <span className={`status-badge ${cls}`}>{label}</span>
@@ -35,21 +35,21 @@ export default function GoalHistory() {
       const data = await res.json()
       setGoals(data.goals)
     } catch {
-      setError('Failed to load goal history.')
+      setError('Không thể tải lịch sử mục tiêu.')
     } finally {
       setLoading(false)
     }
   }
 
   async function handleDelete(goalId) {
-    if (!confirm('Delete this goal and its training plan?')) return
+    if (!confirm('Xóa mục tiêu này và kế hoạch tập luyện của nó?')) return
     setDeleting(goalId)
     try {
       const res = await fetch(`/goal/${goalId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setGoals(g => g.filter(x => x.goalId !== goalId))
     } catch {
-      alert('Delete failed — please try again.')
+      alert('Xóa thất bại — vui lòng thử lại.')
     } finally {
       setDeleting(null)
     }
@@ -57,30 +57,30 @@ export default function GoalHistory() {
 
   useEffect(() => { load() }, [])
 
-  if (loading) return <p>Loading…</p>
+  if (loading) return <p>Đang tải…</p>
   if (error) return <p className="api-error">{error}</p>
 
   return (
     <div className="history-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h1 style={{ margin: 0 }}>Goal History</h1>
-        <Link to="/"><button>+ New Goal</button></Link>
+        <h1 style={{ margin: 0 }}>Lịch Sử Mục Tiêu</h1>
+        <Link to="/new"><button>+ Mục Tiêu Mới</button></Link>
       </div>
 
       {goals.length === 0 ? (
         <p style={{ color: '#6c757d' }}>
-          No goals yet. <Link to="/">Create your first goal.</Link>
+          Chưa có mục tiêu nào. <Link to="/new">Tạo mục tiêu đầu tiên của bạn.</Link>
         </p>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Submitted</th>
-              <th>Distance</th>
-              <th>Target</th>
-              <th>Race Date</th>
-              <th>Fitness</th>
-              <th>Status</th>
+              <th>Ngày gửi</th>
+              <th>Quãng đường</th>
+              <th>Mục tiêu</th>
+              <th>Ngày thi đấu</th>
+              <th>Thể lực</th>
+              <th>Trạng thái</th>
               <th></th>
             </tr>
           </thead>
@@ -98,7 +98,7 @@ export default function GoalHistory() {
                     {g.planStatus !== 'failed' && (
                       <Link to={`/goals/${g.goalId}`}>
                         <button className="btn-sm">
-                          {g.planStatus === 'ready' ? 'View Plan' : 'Track'}
+                          {g.planStatus === 'ready' ? 'Xem kế hoạch' : 'Theo dõi'}
                         </button>
                       </Link>
                     )}
@@ -107,7 +107,7 @@ export default function GoalHistory() {
                       disabled={deleting === g.goalId}
                       onClick={() => handleDelete(g.goalId)}
                     >
-                      {deleting === g.goalId ? '…' : 'Delete'}
+                      {deleting === g.goalId ? '…' : 'Xóa'}
                     </button>
                   </div>
                 </td>

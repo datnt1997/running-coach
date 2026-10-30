@@ -1,4 +1,5 @@
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import Dashboard from './pages/Dashboard.jsx'
 import GoalForm from './pages/GoalForm.jsx'
 import GoalHistory from './pages/GoalHistory.jsx'
 import PlanView from './pages/PlanView.jsx'
@@ -9,13 +10,15 @@ export default function App() {
       <nav>
         <span className="nav-brand">Running Coach</span>
         <div className="nav-links">
-          <NavLink to="/" end>New Goal</NavLink>
-          <NavLink to="/history">History</NavLink>
+          <NavLink to="/new">Mục Tiêu Mới</NavLink>
+          <NavLink to="/history">Lịch Sử</NavLink>
+          <NavLink to="/" end>Tuần Này</NavLink>
         </div>
       </nav>
       <main>
         <Routes>
-          <Route path="/" element={<GoalForm />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/new" element={<GoalForm />} />
           <Route path="/goals/:goalId" element={<PlanView />} />
           <Route path="/history" element={<GoalHistory />} />
         </Routes>

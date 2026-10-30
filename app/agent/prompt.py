@@ -43,6 +43,9 @@ breakdown counts must sum to total_weeks.
 - Each week must contain one workout entry per day you prescribe, honoring the \
 athlete's available training days per week (rest/cross days may fill remaining \
 days).
+- Write the plan summary and every workout's notes in Vietnamese (tiếng Việt). \
+Keep day, type, phase and pace_zone values in English exactly as specified by \
+the tool schema.
 - Every workout must have a day, type, distance_km (0 for rest), and pace_zone.
 """
 

@@ -46,6 +46,7 @@ def _build_plan_response(plan: dict) -> PlanResponse:
         plan_id=str(plan["id"]),
         goal_id=str(plan["goal_id"]),
         summary=plan["summary"],
+        start_date=plan["start_date"],
         total_weeks=plan["total_weeks"],
         phase_breakdown=phase_breakdown,
         weeks=[weeks_map[n] for n in sorted(weeks_map)],
@@ -175,7 +176,7 @@ async def get_goal_plan(
     if plan is None:
         raise HTTPException(status_code=500, detail="Plan marked ready but not found in DB")
 
-    response_data = _build_plan_response(plan).model_dump(by_alias=True)
+    response_data = _build_plan_response(plan).model_dump(mode="json", by_alias=True)
     response_data["status"] = "ready"
     return JSONResponse(status_code=200, content=response_data)
 
