@@ -14,11 +14,11 @@ docker compose -f docker/docker-compose.yml up -d
 # Run the server (reload on changes)
 uvicorn app.main:app --reload
 
-# Start the disposable test database (port 5434, in memory)
+# Start the disposable test database (port 5434, in memory, localhost only)
 docker compose -f docker/docker-compose.yml --profile test up -d db-test
 
 # Run all tests (requires TEST_DATABASE_URL; never uses DATABASE_URL)
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5434/running_coach_test pytest
+TEST_DATABASE_URL=postgresql://user:password@localhost:5434/running_coach_test pytest
 
 # Run a single test file or test
 pytest tests/test_goal_endpoint.py
