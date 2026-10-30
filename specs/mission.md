@@ -24,6 +24,7 @@ Generic training plan apps give static schedules that ignore how the runner actu
 - User states a goal and receives a personalized, science-based training plan within the first session.
 - Plan automatically adapts each week based on Strava activity data (pace, heart rate, load).
 - User crosses the finish line of their target event having trained consistently and injury-free.
+- The app supports multiple languages. The MVP ships in Vietnamese (UI, coach chat, plan notes and summaries); English can be added later without redesigning the app.
 
 ## Out of Scope (v1)
 

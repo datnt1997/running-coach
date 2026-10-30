@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { dayLabel, phaseLabel, typeLabel } from '../lib/labels.js'
 
 const POLL_MS = 3000
 
@@ -26,7 +27,7 @@ export default function PlanView() {
     try {
       const res = await fetch(`/goal/${goalId}/plan`)
       if (res.status === 404) {
-        setError('Goal not found.')
+        setError('Không tìm thấy mục tiêu.')
         clearInterval(timer.current)
         return
       }
@@ -36,11 +37,11 @@ export default function PlanView() {
         setPlan(data)
         clearInterval(timer.current)
       } else if (data.status === 'failed') {
-        setError('Plan generation failed. Please go back and try submitting your goal again.')
+        setError('Tạo kế hoạch thất bại. Vui lòng quay lại và thử gửi lại mục tiêu của bạn.')
         clearInterval(timer.current)
       }
     } catch {
-      setError('Network error — please refresh.')
+      setError('Lỗi mạng — vui lòng làm mới trang.')
       clearInterval(timer.current)
     }
   }
@@ -54,29 +55,29 @@ export default function PlanView() {
   if (error) return (
     <div>
       <p className="api-error" style={{ marginBottom: '1rem' }}>{error}</p>
-      <Link to="/">← New goal</Link>
+      <Link to="/new">← Mục tiêu mới</Link>
     </div>
   )
 
   if (status !== 'ready') return (
     <div className="generating">
       <div className="spinner" />
-      <p>Generating your training plan…</p>
-      <p className="hint">This usually takes 10–15 seconds.</p>
+      <p>Đang tạo kế hoạch tập luyện của bạn…</p>
+      <p className="hint">Quá trình này thường mất 10–15 giây.</p>
     </div>
   )
 
   return (
     <div className="plan-page">
-      <h1>Your Training Plan</h1>
+      <h1>Kế Hoạch Tập Luyện Của Bạn</h1>
 
       <p className="plan-summary">{plan.summary}</p>
 
       <div className="plan-meta">
-        <span className="badge">{plan.totalWeeks} weeks</span>
+        <span className="badge">{plan.totalWeeks} tuần</span>
         {Object.entries(plan.phaseBreakdown).map(([phase, weeks]) => (
           <span key={phase} className={`badge ${PHASE_CLASS[phase] || ''}`}>
-            {phase} · {weeks}w
+            {phaseLabel(phase)} · {weeks} tuần
           </span>
         ))}
       </div>
@@ -84,26 +85,26 @@ export default function PlanView() {
       {plan.weeks.map(week => (
         <details key={week.weekNumber} open={week.weekNumber <= 2}>
           <summary>
-            Week {week.weekNumber}
+            Tuần {week.weekNumber}
             <span className={`phase-tag ${PHASE_CLASS[week.phase] || ''}`}>
-              {week.phase}
+              {phaseLabel(week.phase)}
             </span>
           </summary>
           <table>
             <thead>
               <tr>
-                <th>Day</th>
-                <th>Type</th>
-                <th>Distance</th>
-                <th>Zone</th>
-                <th>Notes</th>
+                <th>Ngày</th>
+                <th>Loại</th>
+                <th>Quãng đường</th>
+                <th>Vùng</th>
+                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
               {week.workouts.map((w, i) => (
                 <tr key={i}>
-                  <td><strong>{w.day}</strong></td>
-                  <td style={{ textTransform: 'capitalize' }}>{w.type}</td>
+                  <td><strong>{dayLabel(w.day)}</strong></td>
+                  <td>{typeLabel(w.type)}</td>
                   <td>{w.distanceKm} km</td>
                   <td>{w.paceZone}</td>
                   <td style={{ color: '#6c757d', fontSize: '.85rem' }}>{w.notes}</td>
@@ -115,7 +116,7 @@ export default function PlanView() {
       ))}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link to="/history">← Back to history</Link>
+        <Link to="/history">← Quay lại lịch sử</Link>
       </p>
     </div>
   )
