@@ -25,15 +25,15 @@ services:
     container_name: running-coach-db-test
     profiles: ["test"]
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: running_coach_test
     ports:
-      - "${POSTGRES_TEST_PORT:-5434}:5432"
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-5434}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d running_coach_test"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d running_coach_test"]
       interval: 5s
       timeout: 5s
       retries: 5
