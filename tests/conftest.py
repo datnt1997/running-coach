@@ -7,6 +7,22 @@ os.environ.setdefault("STRAVA_CLIENT_SECRET", "test_client_secret")
 os.environ.setdefault("STRAVA_WEBHOOK_VERIFY_TOKEN", "test_verify_token")
 os.environ.setdefault("STRAVA_REDIRECT_URI", "http://localhost:8000/strava/callback")
 
+# Tests DROP all tables, so they must never see the dev DATABASE_URL from .env.
+# Point the app at TEST_DATABASE_URL (which must name a *_test database), or at
+# an empty value so DB tests skip. load_dotenv() does not override existing vars.
+from dotenv import load_dotenv
+
+load_dotenv()  # so TEST_DATABASE_URL can live in .env
+_TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
+if _TEST_DATABASE_URL:
+    _db_name = _TEST_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
+    if not _db_name.endswith("_test"):
+        raise RuntimeError(
+            f"Refusing to run tests: TEST_DATABASE_URL database '{_db_name}' "
+            "must end with '_test' (tests drop all tables)."
+        )
+os.environ["DATABASE_URL"] = _TEST_DATABASE_URL
+
 import pathlib
 from datetime import date, datetime, timedelta, timezone
 
@@ -200,7 +216,7 @@ class FakeStravaClient:
 @pytest_asyncio.fixture
 async def db_pool():
     if not DATABASE_URL:
-        pytest.skip("DATABASE_URL not configured")
+        pytest.skip("TEST_DATABASE_URL not configured")
 
     async with await AsyncConnection.connect(DATABASE_URL, autocommit=True) as conn:
         await conn.execute(f"DROP TABLE IF EXISTS {_ALL_TABLES} CASCADE")

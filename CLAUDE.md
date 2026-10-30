@@ -14,15 +14,18 @@ docker compose -f docker/docker-compose.yml up -d
 # Run the server (reload on changes)
 uvicorn app.main:app --reload
 
-# Run all tests (requires DATABASE_URL)
-pytest
+# Start the disposable test database (port 5434, in memory)
+docker compose -f docker/docker-compose.yml --profile test up -d db-test
+
+# Run all tests (requires TEST_DATABASE_URL; never uses DATABASE_URL)
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5434/running_coach_test pytest
 
 # Run a single test file or test
 pytest tests/test_goal_endpoint.py
 pytest tests/test_goal_endpoint.py::test_create_goal_and_plan
 ```
 
-Tests that need a database skip automatically if `DATABASE_URL` is not set. The `db_pool` fixture drops and recreates all tables using the migration files on each run.
+Tests that need a database skip automatically if `TEST_DATABASE_URL` is not set. The `db_pool` fixture drops and recreates all tables on each run, so `tests/conftest.py` ignores `DATABASE_URL` and refuses any test database whose name does not end in `_test`.
 
 ## Architecture
 

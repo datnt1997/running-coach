@@ -19,5 +19,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Disposable Postgres for pytest: in-memory, own port, only started with --profile test.
+  db-test:
+    image: postgres:16
+    container_name: running-coach-db-test
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: running_coach_test
+    ports:
+      - "${POSTGRES_TEST_PORT:-5434}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d running_coach_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pgdata:
