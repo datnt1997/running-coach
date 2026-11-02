@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FitnessChat from '../components/FitnessChat.jsx'
+import { t } from '../i18n/index.js'
+import { distanceLabel, levelLabel } from '../lib/labels.js'
 import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
 const today = new Date()
@@ -16,8 +18,6 @@ const INITIAL = {
   daysPerWeek: 4,
   injuryHistory: '',
 }
-
-const LEVEL_LABELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' }
 
 export default function GoalForm() {
   const navigate = useNavigate()
@@ -41,6 +41,7 @@ export default function GoalForm() {
   const racePreview = assessRace(raceDist, raceTime)
   const vdotPreview = assessVdot(vdotInput)
   const manualPreview = manualMode === 'race' ? racePreview : vdotPreview
+  const [assessBefore, assessAfter] = t('goal.assessDesc').split('{vdot}')
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }))
@@ -51,14 +52,14 @@ export default function GoalForm() {
   function validate() {
     const e = {}
     if (!/^\d{1,2}:\d{2}:\d{2}$/.test(form.targetTime))
-      e.targetTime = 'Use format H:MM:SS (e.g. 1:55:00)'
+      e.targetTime = t('goal.targetFormat')
     if (!form.raceDate)
-      e.raceDate = 'Required'
+      e.raceDate = t('goal.required')
     else if (form.raceDate < MIN_RACE_DATE)
-      e.raceDate = 'Race date must be at least 10 weeks from today'
+      e.raceDate = t('goal.raceTooSoon')
     const days = Number(form.daysPerWeek)
     if (!Number.isInteger(days) || days < 3 || days > 7)
-      e.daysPerWeek = 'Must be between 3 and 7'
+      e.daysPerWeek = t('goal.daysRange')
     return e
   }
 
@@ -81,10 +82,10 @@ export default function GoalForm() {
       })
       const data = await res.json()
       if (res.status === 422) {
-        setApiError(data.detail?.message || 'Goal is out of supported scope.')
+        setApiError(data.detail?.message || t('goal.outOfScope'))
         return
       }
-      if (!res.ok) throw new Error('Unexpected server error')
+      if (!res.ok) throw new Error(t('goal.serverError'))
       navigate(`/goals/${data.goalId}`)
     } catch (err) {
       setApiError(err.message)
@@ -110,35 +111,35 @@ export default function GoalForm() {
   function confirmManual() {
     if (!manualPreview) return
     const reasoning = manualMode === 'race'
-      ? `VDOT ${manualPreview.vdot} from your ${RACE_DISTANCES[raceDist].label} time`
-      : `VDOT ${manualPreview.vdot} (entered directly)`
+      ? t('goal.manualReasoningRace', { vdot: manualPreview.vdot, distance: distanceLabel(raceDist) })
+      : t('goal.manualReasoningVdot', { vdot: manualPreview.vdot })
     handleAssessmentResult(manualPreview.level, manualPreview.vdot, 0, 0, reasoning)
   }
 
   return (
     <div className="goal-form-page">
       <div className="goal-form-header">
-        <h1 className="goal-form-title">Set Your Race Goal</h1>
-        <p className="goal-form-subtitle">Answer a few questions and we'll build a personalised, science-based training plan.</p>
+        <h1 className="goal-form-title">{t('goal.title')}</h1>
+        <p className="goal-form-subtitle">{t('goal.subtitle')}</p>
       </div>
 
       <form className="goal-form" onSubmit={handleSubmit} noValidate>
 
         {/* ── Section 1: Race Goal ── */}
         <section className="form-section">
-          <h2 className="form-section__title">Race Goal</h2>
+          <h2 className="form-section__title">{t('goal.sectionRace')}</h2>
 
           <label className="field">
-            <span className="field__label">Distance</span>
+            <span className="field__label">{t('goal.distance')}</span>
             <select className="field__input" value={form.distance} onChange={e => set('distance', e.target.value)}>
-              <option value="half_marathon">Half Marathon (21.1 km)</option>
-              <option value="full_marathon">Full Marathon (42.2 km)</option>
+              <option value="half_marathon">{t('goal.halfOption')}</option>
+              <option value="full_marathon">{t('goal.fullOption')}</option>
             </select>
           </label>
 
           <div className="field-row">
             <label className="field">
-              <span className="field__label">Target Time <span className="field__hint">H:MM:SS</span></span>
+              <span className="field__label">{t('goal.targetTime')} <span className="field__hint">H:MM:SS</span></span>
               <input
                 className="field__input"
                 type="text"
@@ -150,7 +151,7 @@ export default function GoalForm() {
             </label>
 
             <label className="field">
-              <span className="field__label">Race Date</span>
+              <span className="field__label">{t('goal.raceDate')}</span>
               <input
                 className="field__input"
                 type="date"
@@ -165,11 +166,11 @@ export default function GoalForm() {
 
         {/* ── Section 2: Training Capacity ── */}
         <section className="form-section">
-          <h2 className="form-section__title">Training Capacity</h2>
+          <h2 className="form-section__title">{t('goal.sectionCapacity')}</h2>
 
           {/* Fitness Assessment */}
           <div className="field">
-            <span className="field__label">Current Fitness</span>
+            <span className="field__label">{t('goal.currentFitness')}</span>
 
             {/* State A: not yet assessed, chat closed */}
             {!assessed && !chatOpen && (
@@ -183,20 +184,20 @@ export default function GoalForm() {
                 {!showManual ? (
                   <div className="assessment-card__body">
                     <p className="assessment-card__desc">
-                      We use <strong>VDOT</strong> — the same method real coaches use — to calibrate your exact training zones. Chat with the coach, or enter your numbers if you know them.
+                      {assessBefore}<strong>VDOT</strong>{assessAfter}
                     </p>
                     <button
                       type="button"
                       className="btn-assess"
                       onClick={() => setChatOpen(true)}
                     >
-                      Start Assessment
+                      {t('goal.startAssessment')}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
                       </svg>
                     </button>
                     <button type="button" className="link-subtle" onClick={() => setShowManual(true)}>
-                      I know my race time or VDOT
+                      {t('goal.alreadyKnow')}
                     </button>
                   </div>
                 ) : (
@@ -207,30 +208,30 @@ export default function GoalForm() {
                         className={`seg-toggle__btn${manualMode === 'race' ? ' seg-toggle__btn--active' : ''}`}
                         onClick={() => setManualMode('race')}
                       >
-                        Race Time
+                        {t('goal.modeRace')}
                       </button>
                       <button
                         type="button"
                         className={`seg-toggle__btn${manualMode === 'vdot' ? ' seg-toggle__btn--active' : ''}`}
                         onClick={() => setManualMode('vdot')}
                       >
-                        VDOT
+                        {t('goal.modeVdot')}
                       </button>
                     </div>
 
                     {manualMode === 'race' ? (
                       <div className="field-row">
                         <label className="field">
-                          <span className="field__label">Distance</span>
+                          <span className="field__label">{t('goal.distance')}</span>
                           <select className="field__input" value={raceDist} onChange={e => setRaceDist(e.target.value)}>
                             {Object.entries(RACE_DISTANCES).map(([key, d]) => (
-                              <option key={key} value={key}>{d.label}</option>
+                              <option key={key} value={key}>{distanceLabel(key)}</option>
                             ))}
                           </select>
                         </label>
                         <label className="field">
                           <span className="field__label">
-                            Your Time <span className="field__hint">{RACE_DISTANCES[raceDist].timeHint}</span>
+                            {t('goal.yourTime')} <span className="field__hint">{RACE_DISTANCES[raceDist].timeHint}</span>
                           </span>
                           <input
                             className="field__input"
@@ -245,7 +246,7 @@ export default function GoalForm() {
                     ) : (
                       <label className="field">
                         <span className="field__label">
-                          Your VDOT <span className="field__hint">20 – 85</span>
+                          {t('goal.yourVdot')} <span className="field__hint">20 – 85</span>
                         </span>
                         <input
                           className="field__input"
@@ -263,14 +264,14 @@ export default function GoalForm() {
                       <div className="manual-preview">
                         <span className="vdot-pill">VDOT {manualPreview.vdot}</span>
                         <span className={`level-badge level-badge--${manualPreview.level}`}>
-                          {LEVEL_LABELS[manualPreview.level]}
+                          {levelLabel(manualPreview.level)}
                         </span>
                       </div>
                     )}
 
                     <div className="manual-actions">
                       <button type="button" className="link-subtle" onClick={() => setShowManual(false)}>
-                        ← Back
+                        {t('common.back')}
                       </button>
                       <button
                         type="button"
@@ -278,7 +279,7 @@ export default function GoalForm() {
                         disabled={!manualPreview}
                         onClick={confirmManual}
                       >
-                        Use this
+                        {t('common.use')}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
                         </svg>
@@ -300,22 +301,22 @@ export default function GoalForm() {
             {assessed && assessmentData && (
               <div className="assessment-result">
                 <div className={`level-badge level-badge--${assessmentData.level}`}>
-                  {LEVEL_LABELS[assessmentData.level]}
+                  {levelLabel(assessmentData.level)}
                 </div>
                 <div className="assessment-result__meta">
                   <span className="vdot-pill">VDOT {assessmentData.vdot}</span>
                   {assessmentData.weeklyKm > 0 && (
-                    <span className="meta-chip">{assessmentData.weeklyKm} km/week</span>
+                    <span className="meta-chip">{t('goal.weeklyKm', { km: assessmentData.weeklyKm })}</span>
                   )}
                   {assessmentData.longestRunKm > 0 && (
-                    <span className="meta-chip">{assessmentData.longestRunKm} km long run</span>
+                    <span className="meta-chip">{t('goal.longRunKm', { km: assessmentData.longestRunKm })}</span>
                   )}
                 </div>
                 {assessmentData.reasoning && (
                   <p className="assessment-result__reasoning">{assessmentData.reasoning}</p>
                 )}
                 <button type="button" className="link-subtle" onClick={handleReassess}>
-                  Reassess →
+                  {t('goal.reassess')}
                 </button>
               </div>
             )}
@@ -323,7 +324,7 @@ export default function GoalForm() {
 
           <label className="field">
             <span className="field__label">
-              Days Per Week
+              {t('goal.daysPerWeek')}
               <span className="field__hint">3 – 7</span>
             </span>
             <div className="days-picker">
@@ -345,16 +346,16 @@ export default function GoalForm() {
         {/* ── Section 3: Health Notes ── */}
         <section className="form-section">
           <h2 className="form-section__title">
-            Health Notes
-            <span className="section-optional">optional</span>
+            {t('goal.sectionHealth')}
+            <span className="section-optional">{t('goal.optional')}</span>
           </h2>
 
           <label className="field">
-            <span className="field__label">Injury History</span>
+            <span className="field__label">{t('goal.injuryHistory')}</span>
             <textarea
               className="field__input"
               rows={3}
-              placeholder="e.g. left knee tendinopathy, recovered 6 months ago"
+              placeholder={t('goal.injuryPlaceholder')}
               value={form.injuryHistory}
               onChange={e => set('injuryHistory', e.target.value)}
             />
@@ -367,11 +368,11 @@ export default function GoalForm() {
           {submitting ? (
             <>
               <span className="btn-submit__spinner" />
-              Building your plan…
+              {t('goal.building')}
             </>
           ) : (
             <>
-              Generate My Plan
+              {t('goal.submit')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
               </svg>

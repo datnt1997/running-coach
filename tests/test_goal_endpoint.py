@@ -20,6 +20,8 @@ def _assert_plan_quality(plan: dict) -> None:
     phases = set(plan["phaseBreakdown"].keys())
     assert {"base", "build", "peak", "taper"}.issubset(phases)
     assert plan["totalWeeks"] == len(plan["weeks"])
+    assert date.fromisoformat(plan["startDate"])  # raises if not a valid ISO date
+    assert plan["language"] == "vi"
 
     week_totals = []
     for week in plan["weeks"]:

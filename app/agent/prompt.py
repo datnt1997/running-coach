@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.i18n import language_instruction
 from app.models.goal import GoalRequest
 
 SYSTEM_PROMPT = """\
@@ -43,6 +44,8 @@ breakdown counts must sum to total_weeks.
 - Each week must contain one workout entry per day you prescribe, honoring the \
 athlete's available training days per week (rest/cross days may fill remaining \
 days).
+- Keep day, type, phase and pace_zone values in English exactly as specified by \
+the tool schema.
 - Every workout must have a day, type, distance_km (0 for rest), and pace_zone.
 """
 
@@ -75,7 +78,7 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
 
 def build_messages(goal: GoalRequest, today: date | None = None) -> list[dict]:
     return [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": f"{SYSTEM_PROMPT}\n{language_instruction()}"},
         {"role": "user", "content": build_user_prompt(goal, today=today)},
     ]
 
@@ -125,7 +128,7 @@ def build_activity_analysis_messages(
     )
 
     return [
-        {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
+        {"role": "system", "content": f"{_ANALYSIS_SYSTEM_PROMPT}\n{language_instruction()}"},
         {"role": "user", "content": user_content},
     ]
 
@@ -150,6 +153,10 @@ def build_weekly_summary_messages(week_number: int, analyses: list[dict]) -> lis
         )
 
     return [
-        {"role": "system", "content": "You are a running coach writing a concise weekly performance summary."},
+        {
+            "role": "system",
+            "content": "You are a running coach writing a concise weekly performance summary.\n"
+            + language_instruction(),
+        },
         {"role": "user", "content": body},
     ]

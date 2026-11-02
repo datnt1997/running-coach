@@ -1,25 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-const DISTANCE_LABEL = {
-  half_marathon: 'Half Marathon',
-  full_marathon: 'Full Marathon',
-}
-
-const FITNESS_LABEL = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-}
+import { t } from '../i18n/index.js'
+import { distanceLabel, levelLabel } from '../lib/labels.js'
 
 function StatusBadge({ status }) {
-  const map = {
-    ready: ['status-ready', 'Ready'],
-    generating: ['status-generating', 'Generating…'],
-    failed: ['status-failed', 'Failed'],
-  }
-  const [cls, label] = map[status] || ['', status]
-  return <span className={`status-badge ${cls}`}>{label}</span>
+  const known = ['ready', 'generating', 'failed'].includes(status)
+  const cls = known ? `status-${status}` : ''
+  return <span className={`status-badge ${cls}`}>{known ? t(`status.${status}`) : status}</span>
 }
 
 export default function GoalHistory() {
@@ -35,21 +22,21 @@ export default function GoalHistory() {
       const data = await res.json()
       setGoals(data.goals)
     } catch {
-      setError('Failed to load goal history.')
+      setError(t('history.loadError'))
     } finally {
       setLoading(false)
     }
   }
 
   async function handleDelete(goalId) {
-    if (!confirm('Delete this goal and its training plan?')) return
+    if (!confirm(t('history.confirmDelete'))) return
     setDeleting(goalId)
     try {
       const res = await fetch(`/goal/${goalId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setGoals(g => g.filter(x => x.goalId !== goalId))
     } catch {
-      alert('Delete failed — please try again.')
+      alert(t('history.deleteFailed'))
     } finally {
       setDeleting(null)
     }
@@ -57,30 +44,30 @@ export default function GoalHistory() {
 
   useEffect(() => { load() }, [])
 
-  if (loading) return <p>Loading…</p>
+  if (loading) return <p>{t('common.loading')}</p>
   if (error) return <p className="api-error">{error}</p>
 
   return (
     <div className="history-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h1 style={{ margin: 0 }}>Goal History</h1>
-        <Link to="/"><button>+ New Goal</button></Link>
+        <h1 style={{ margin: 0 }}>{t('history.title')}</h1>
+        <Link to="/new"><button>{t('history.new')}</button></Link>
       </div>
 
       {goals.length === 0 ? (
         <p style={{ color: '#6c757d' }}>
-          No goals yet. <Link to="/">Create your first goal.</Link>
+          {t('history.empty')} <Link to="/new">{t('dashboard.createFirst')}</Link>
         </p>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Submitted</th>
-              <th>Distance</th>
-              <th>Target</th>
-              <th>Race Date</th>
-              <th>Fitness</th>
-              <th>Status</th>
+              <th>{t('history.submitted')}</th>
+              <th>{t('table.distance')}</th>
+              <th>{t('history.target')}</th>
+              <th>{t('history.raceDate')}</th>
+              <th>{t('history.fitness')}</th>
+              <th>{t('history.status')}</th>
               <th></th>
             </tr>
           </thead>
@@ -88,17 +75,17 @@ export default function GoalHistory() {
             {goals.map(g => (
               <tr key={g.goalId}>
                 <td style={{ whiteSpace: 'nowrap' }}>{g.createdAt.slice(0, 10)}</td>
-                <td>{DISTANCE_LABEL[g.distance] || g.distance}</td>
+                <td>{distanceLabel(g.distance)}</td>
                 <td>{g.targetTime}</td>
                 <td>{g.raceDate}</td>
-                <td>{FITNESS_LABEL[g.fitnessLevel] || g.fitnessLevel}</td>
+                <td>{levelLabel(g.fitnessLevel)}</td>
                 <td><StatusBadge status={g.planStatus} /></td>
                 <td>
                   <div className="row-actions">
                     {g.planStatus !== 'failed' && (
                       <Link to={`/goals/${g.goalId}`}>
                         <button className="btn-sm">
-                          {g.planStatus === 'ready' ? 'View Plan' : 'Track'}
+                          {g.planStatus === 'ready' ? t('history.viewPlan') : t('history.track')}
                         </button>
                       </Link>
                     )}
@@ -107,7 +94,7 @@ export default function GoalHistory() {
                       disabled={deleting === g.goalId}
                       onClick={() => handleDelete(g.goalId)}
                     >
-                      {deleting === g.goalId ? '…' : 'Delete'}
+                      {deleting === g.goalId ? '…' : t('history.delete')}
                     </button>
                   </div>
                 </td>

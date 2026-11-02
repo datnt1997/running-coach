@@ -3,11 +3,12 @@ import pathlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api import activities, fitness_chat, goals, plans, summaries
 from app.api import strava, ui
+from app import config
 from app.config import validate_config
 from app.db.connection import close_pool, init_pool
 
@@ -51,13 +52,18 @@ if FRONTEND_DIST.exists():
     if _assets.exists():
         app.mount("/app/assets", StaticFiles(directory=str(_assets)), name="static-assets")
 
+    def _index_html() -> HTMLResponse:
+        # The SPA reads <html lang> to pick its dictionary; keep it in sync with APP_LANGUAGE.
+        html = (FRONTEND_DIST / "index.html").read_text()
+        return HTMLResponse(html.replace('<html lang="vi">', f'<html lang="{config.APP_LANGUAGE}">', 1))
+
     @app.get("/app/{full_path:path}")
-    async def serve_spa(full_path: str) -> FileResponse:
+    async def serve_spa(full_path: str) -> Response:
         file = FRONTEND_DIST / full_path
         if file.is_file():
             return FileResponse(str(file))
-        return FileResponse(str(FRONTEND_DIST / "index.html"))
+        return _index_html()
 
     @app.get("/app")
-    async def serve_spa_root() -> FileResponse:
-        return FileResponse(str(FRONTEND_DIST / "index.html"))
+    async def serve_spa_root() -> HTMLResponse:
+        return _index_html()

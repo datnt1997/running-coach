@@ -6,6 +6,7 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")
+APP_LANGUAGE = os.getenv("APP_LANGUAGE", "vi")
 
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
@@ -14,6 +15,12 @@ STRAVA_REDIRECT_URI = os.getenv("STRAVA_REDIRECT_URI")
 
 
 def validate_config():
+    from app.i18n import LANGUAGES
+
+    if APP_LANGUAGE not in LANGUAGES:
+        raise RuntimeError(
+            f"Unsupported APP_LANGUAGE '{APP_LANGUAGE}'. Registered: {', '.join(sorted(LANGUAGES))}"
+        )
     missing = []
     if not ANTHROPIC_API_KEY and AI_PROVIDER == "anthropic":
         missing.append("ANTHROPIC_API_KEY")

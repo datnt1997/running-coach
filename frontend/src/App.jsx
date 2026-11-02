@@ -2,15 +2,17 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import GoalForm from './pages/GoalForm.jsx'
 import GoalHistory from './pages/GoalHistory.jsx'
 import PlanView from './pages/PlanView.jsx'
+import { t } from './i18n/index.js'
 
 export default function App() {
   return (
     <BrowserRouter basename="/app">
       <nav>
-        <span className="nav-brand">Running Coach</span>
+        <span className="nav-brand">{t('nav.brand')}</span>
         <div className="nav-links">
-          <NavLink to="/" end>New Goal</NavLink>
-          <NavLink to="/history">History</NavLink>
+          <NavLink to="/new">{t('nav.newGoal')}</NavLink>
+          <NavLink to="/history">{t('nav.history')}</NavLink>
+          <NavLink to="/" end>{t('nav.thisWeek')}</NavLink>
         </div>
       </nav>
       <main>

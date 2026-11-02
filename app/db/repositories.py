@@ -110,17 +110,18 @@ class PlanRepository:
         total_weeks: int,
         summary: str,
         start_date: date | None = None,
+        language: str = "vi",
     ) -> UUID:
         if start_date is None:
             start_date = date.today()
         async with self.conn.cursor() as cur:
             await cur.execute(
                 """
-                INSERT INTO training_plans (goal_id, total_weeks, summary, start_date)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO training_plans (goal_id, total_weeks, summary, start_date, language)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (goal_id, total_weeks, summary, start_date),
+                (goal_id, total_weeks, summary, start_date, language),
             )
             row = await cur.fetchone()
             return row[0]
@@ -160,7 +161,7 @@ class PlanRepository:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-                SELECT id, goal_id, total_weeks, summary, start_date
+                SELECT id, goal_id, total_weeks, summary, start_date, language
                 FROM training_plans
                 WHERE id = %s
                 """,
@@ -198,7 +199,7 @@ class PlanRepository:
     async def get_plan_by_goal_id(self, goal_id: UUID) -> dict | None:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT id, goal_id, total_weeks, summary, start_date FROM training_plans WHERE goal_id = %s",
+                "SELECT id, goal_id, total_weeks, summary, start_date, language FROM training_plans WHERE goal_id = %s",
                 (goal_id,),
             )
             plan = await cur.fetchone()

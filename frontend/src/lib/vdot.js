@@ -3,10 +3,10 @@
 // same VO2max proxy professional coaches use to set training paces.
 
 export const RACE_DISTANCES = {
-  '5k': { meters: 5000, label: '5K', timeHint: 'MM:SS', placeholder: '24:30' },
-  '10k': { meters: 10000, label: '10K', timeHint: 'MM:SS', placeholder: '52:00' },
-  half_marathon: { meters: 21097.5, label: 'Half Marathon', timeHint: 'H:MM:SS', placeholder: '1:55:00' },
-  full_marathon: { meters: 42195, label: 'Marathon', timeHint: 'H:MM:SS', placeholder: '4:00:00' },
+  '5k': { meters: 5000, timeHint: 'MM:SS', placeholder: '24:30' },
+  '10k': { meters: 10000, timeHint: 'MM:SS', placeholder: '52:00' },
+  half_marathon: { meters: 21097.5, timeHint: 'H:MM:SS', placeholder: '1:55:00' },
+  full_marathon: { meters: 42195, timeHint: 'H:MM:SS', placeholder: '4:00:00' },
 }
 
 // "MM:SS" or "H:MM:SS" / "HH:MM:SS" → total seconds, or null if invalid.

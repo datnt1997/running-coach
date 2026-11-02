@@ -36,6 +36,11 @@ MIGRATION_003 = (
     / "app" / "db" / "migrations" / "003_plan_status.sql"
 )
 
+MIGRATION_004 = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "app" / "db" / "migrations" / "004_plan_language.sql"
+)
+
 _ALL_TABLES = (
     "weekly_summaries, activity_analyses, strava_connections, "
     "workout_sessions, training_plans, user_goals"
@@ -207,6 +212,7 @@ async def db_pool():
         await conn.execute(MIGRATION_001.read_text())
         await conn.execute(MIGRATION_002.read_text())
         await conn.execute(MIGRATION_003.read_text())
+        await conn.execute(MIGRATION_004.read_text())
 
     pool = await db_connection.init_pool()
     try:
