@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
+from app.i18n import chat_starter, language_instruction
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -52,11 +53,12 @@ When you have collected all three signals and are ready to classify, write a sho
 Rules for the JSON block:
 - fitness_level must be exactly one of: beginner, intermediate, advanced
 - vdot must be a whole number between 20 and 80
-- Do not include the JSON block until you have all three signals"""
+- Do not include the JSON block until you have all three signals
+
+Reply to the runner warmly and naturally. The JSON block's keys and values (fitness_level etc.) stay in English."""
 
 _JSON_BLOCK_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
 _VALID_LEVELS = {"beginner", "intermediate", "advanced"}
-_FIRST_CALL_STARTER = "Xin chào! Mình muốn được giúp xác định trình độ thể lực của mình."
 
 
 class ChatMessage(BaseModel):
@@ -84,14 +86,16 @@ async def fitness_chat(
     req: FitnessChatRequest,
     ai_client: AIClient = Depends(get_ai_client_dep),
 ) -> FitnessChatResponse:
-    messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    messages: list[dict] = [
+        {"role": "system", "content": f"{_SYSTEM_PROMPT}\n\n{language_instruction()}"}
+    ]
 
     for msg in req.history:
         messages.append({"role": msg.role, "content": msg.content})
 
     user_text = req.message.strip()
     # Anthropic requires at least one user message in the conversation
-    messages.append({"role": "user", "content": user_text or _FIRST_CALL_STARTER})
+    messages.append({"role": "user", "content": user_text or chat_starter()})
 
     response = await ai_client.generate(messages)
     content = response.content

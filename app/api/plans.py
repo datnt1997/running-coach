@@ -41,6 +41,8 @@ def _build_plan_response(plan: dict) -> PlanResponse:
         plan_id=str(plan["id"]),
         goal_id=str(plan["goal_id"]),
         summary=plan["summary"],
+        start_date=plan["start_date"],
+        language=plan["language"],
         total_weeks=plan["total_weeks"],
         phase_breakdown=phase_breakdown,
         weeks=weeks,

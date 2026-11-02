@@ -4,6 +4,7 @@ from app.agent.prompt import build_messages
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client
 from app.ai.tools import TOOLS
+from app.i18n import get_language
 from app.models.goal import GoalRequest
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 
@@ -43,6 +44,7 @@ def _parse_plan_arguments(arguments: dict, goal: GoalRequest) -> PlanResponse:
             goal_id="",
             summary=arguments["summary"],
             start_date=date.today(),
+            language=get_language(),
             total_weeks=int(arguments["total_weeks"]),
             phase_breakdown=phase_breakdown,
             weeks=weeks,

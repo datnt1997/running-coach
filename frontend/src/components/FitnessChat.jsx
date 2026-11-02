@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { t } from '../i18n/index.js'
 
 export default function FitnessChat({ onResult }) {
   const [messages, setMessages] = useState([])
@@ -41,7 +42,7 @@ export default function FitnessChat({ onResult }) {
         onResult(data.fitnessLevel, data.vdot, data.weeklyKm, data.longestRunKm, data.reasoning)
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Đã xảy ra lỗi — vui lòng thử lại.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: t('chat.error') }])
     } finally {
       setLoading(false)
     }
@@ -79,14 +80,14 @@ export default function FitnessChat({ onResult }) {
       <div className="fc-input-row">
         <input
           type="text"
-          placeholder="Nhập câu trả lời…"
+          placeholder={t('chat.placeholder')}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={loading}
           autoFocus
         />
-        <button type="button" onClick={handleSend} disabled={loading || !input.trim()}>Gửi</button>
+        <button type="button" onClick={handleSend} disabled={loading || !input.trim()}>{t('chat.send')}</button>
       </div>
     </div>
   )

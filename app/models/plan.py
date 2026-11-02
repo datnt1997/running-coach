@@ -30,6 +30,7 @@ class PlanResponse(BaseModel):
     goal_id: str
     summary: str
     start_date: date
+    language: str
     total_weeks: int
     phase_breakdown: dict[str, int]
     weeks: list[PlanWeek]

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { t } from '../i18n/index.js'
 import { dayLabel, phaseLabel, typeLabel } from '../lib/labels.js'
 
 const POLL_MS = 3000
@@ -9,11 +10,6 @@ const PHASE_CLASS = {
   build: 'phase-build',
   peak: 'phase-peak',
   taper: 'phase-taper',
-}
-
-const DISTANCE_LABEL = {
-  half_marathon: 'Half Marathon',
-  full_marathon: 'Full Marathon',
 }
 
 export default function PlanView() {
@@ -27,7 +23,7 @@ export default function PlanView() {
     try {
       const res = await fetch(`/goal/${goalId}/plan`)
       if (res.status === 404) {
-        setError('Không tìm thấy mục tiêu.')
+        setError(t('plan.notFound'))
         clearInterval(timer.current)
         return
       }
@@ -37,11 +33,11 @@ export default function PlanView() {
         setPlan(data)
         clearInterval(timer.current)
       } else if (data.status === 'failed') {
-        setError('Tạo kế hoạch thất bại. Vui lòng quay lại và thử gửi lại mục tiêu của bạn.')
+        setError(t('plan.failed'))
         clearInterval(timer.current)
       }
     } catch {
-      setError('Lỗi mạng — vui lòng làm mới trang.')
+      setError(t('plan.networkError'))
       clearInterval(timer.current)
     }
   }
@@ -55,29 +51,29 @@ export default function PlanView() {
   if (error) return (
     <div>
       <p className="api-error" style={{ marginBottom: '1rem' }}>{error}</p>
-      <Link to="/new">← Mục tiêu mới</Link>
+      <Link to="/new">{t('plan.newGoal')}</Link>
     </div>
   )
 
   if (status !== 'ready') return (
     <div className="generating">
       <div className="spinner" />
-      <p>Đang tạo kế hoạch tập luyện của bạn…</p>
-      <p className="hint">Quá trình này thường mất 10–15 giây.</p>
+      <p>{t('plan.generating')}</p>
+      <p className="hint">{t('plan.generatingHint')}</p>
     </div>
   )
 
   return (
     <div className="plan-page">
-      <h1>Kế Hoạch Tập Luyện Của Bạn</h1>
+      <h1>{t('plan.title')}</h1>
 
       <p className="plan-summary">{plan.summary}</p>
 
       <div className="plan-meta">
-        <span className="badge">{plan.totalWeeks} tuần</span>
+        <span className="badge">{t('plan.weeks', { count: plan.totalWeeks })}</span>
         {Object.entries(plan.phaseBreakdown).map(([phase, weeks]) => (
           <span key={phase} className={`badge ${PHASE_CLASS[phase] || ''}`}>
-            {phaseLabel(phase)} · {weeks} tuần
+            {t('plan.phaseWeeks', { phase: phaseLabel(phase), count: weeks })}
           </span>
         ))}
       </div>
@@ -85,7 +81,7 @@ export default function PlanView() {
       {plan.weeks.map(week => (
         <details key={week.weekNumber} open={week.weekNumber <= 2}>
           <summary>
-            Tuần {week.weekNumber}
+            {t('plan.week', { week: week.weekNumber })}
             <span className={`phase-tag ${PHASE_CLASS[week.phase] || ''}`}>
               {phaseLabel(week.phase)}
             </span>
@@ -93,11 +89,11 @@ export default function PlanView() {
           <table>
             <thead>
               <tr>
-                <th>Ngày</th>
-                <th>Loại</th>
-                <th>Quãng đường</th>
-                <th>Vùng</th>
-                <th>Ghi chú</th>
+                <th>{t('table.day')}</th>
+                <th>{t('table.type')}</th>
+                <th>{t('table.distance')}</th>
+                <th>{t('table.zone')}</th>
+                <th>{t('table.notes')}</th>
               </tr>
             </thead>
             <tbody>
@@ -116,7 +112,7 @@ export default function PlanView() {
       ))}
 
       <p style={{ marginTop: '1.5rem' }}>
-        <Link to="/history">← Quay lại lịch sử</Link>
+        <Link to="/history">{t('plan.backToHistory')}</Link>
       </p>
     </div>
   )
