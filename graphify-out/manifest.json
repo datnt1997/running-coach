@@ -1,0 +1,437 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1777737664.740551,
+    "ast_hash": "0e38603e85a2c3ff6e7c4513f9034c4f",
+    "semantic_hash": "0e38603e85a2c3ff6e7c4513f9034c4f"
+  },
+  ".claude/skills/changelog/scripts/changelog.py": {
+    "mtime": 1782047476.4931662,
+    "ast_hash": "10235a624987369a05275c0c1e6357bb",
+    "semantic_hash": "10235a624987369a05275c0c1e6357bb"
+  },
+  "app/__init__.py": {
+    "mtime": 1781448290.236583,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/agent/__init__.py": {
+    "mtime": 1781448290.2367957,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/agent/analyzer.py": {
+    "mtime": 1782047476.4956925,
+    "ast_hash": "3845369243d31d31f72f97a17523abfa",
+    "semantic_hash": "3845369243d31d31f72f97a17523abfa"
+  },
+  "app/agent/matching.py": {
+    "mtime": 1782047476.4957528,
+    "ast_hash": "d341bd2aedbefb75632bebda7db89fdc",
+    "semantic_hash": "d341bd2aedbefb75632bebda7db89fdc"
+  },
+  "app/agent/planner.py": {
+    "mtime": 1781448482.6233265,
+    "ast_hash": "4c3104a6c795c304d9db8896ce3213b1",
+    "semantic_hash": "4c3104a6c795c304d9db8896ce3213b1"
+  },
+  "app/agent/prompt.py": {
+    "mtime": 1782047476.496017,
+    "ast_hash": "4c145c2eab4b2432c67412a2d48c0595",
+    "semantic_hash": "4c145c2eab4b2432c67412a2d48c0595"
+  },
+  "app/agent/validation.py": {
+    "mtime": 1783067620.821333,
+    "ast_hash": "0047fc00a0f4a3a8d68d947d1c29ed12",
+    "semantic_hash": "0047fc00a0f4a3a8d68d947d1c29ed12"
+  },
+  "app/ai/__init__.py": {
+    "mtime": 1781448290.2368326,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/ai/anthropic_client.py": {
+    "mtime": 1781448392.9045043,
+    "ast_hash": "447e6f4ddbf07ba8d2469e2e84083a97",
+    "semantic_hash": "447e6f4ddbf07ba8d2469e2e84083a97"
+  },
+  "app/ai/client.py": {
+    "mtime": 1781448370.138816,
+    "ast_hash": "6ef8fb68bd571a1fcc7db3e9f60a49b8",
+    "semantic_hash": "6ef8fb68bd571a1fcc7db3e9f60a49b8"
+  },
+  "app/ai/factory.py": {
+    "mtime": 1781448489.0591507,
+    "ast_hash": "bf67fee2fb431eae96e5c085eceb30d5",
+    "semantic_hash": "bf67fee2fb431eae96e5c085eceb30d5"
+  },
+  "app/ai/gemini_client.py": {
+    "mtime": 1781448407.101293,
+    "ast_hash": "a43e80d2e53e5095f45b4db7f453f6ca",
+    "semantic_hash": "a43e80d2e53e5095f45b4db7f453f6ca"
+  },
+  "app/ai/tools.py": {
+    "mtime": 1782047476.496946,
+    "ast_hash": "aaa427105e5408384b8faf327152a6be",
+    "semantic_hash": "aaa427105e5408384b8faf327152a6be"
+  },
+  "app/api/__init__.py": {
+    "mtime": 1781448290.236639,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/api/activities.py": {
+    "mtime": 1782047476.4977896,
+    "ast_hash": "a0211fd3824808e8c7a959faff6620dc",
+    "semantic_hash": "a0211fd3824808e8c7a959faff6620dc"
+  },
+  "app/api/fitness_chat.py": {
+    "mtime": 1783067620.8216023,
+    "ast_hash": "20230b3a3698601082c141edbbf2291e",
+    "semantic_hash": "20230b3a3698601082c141edbbf2291e"
+  },
+  "app/api/goals.py": {
+    "mtime": 1782047476.4981387,
+    "ast_hash": "bf2ef3d4e45cf326e4ec04bda5eef93b",
+    "semantic_hash": "bf2ef3d4e45cf326e4ec04bda5eef93b"
+  },
+  "app/api/plans.py": {
+    "mtime": 1781448458.1332245,
+    "ast_hash": "8d23b0ea0a64aa089ec582b55347efc4",
+    "semantic_hash": "8d23b0ea0a64aa089ec582b55347efc4"
+  },
+  "app/api/strava.py": {
+    "mtime": 1782047476.4982493,
+    "ast_hash": "2a5696911db6f53cdbe3971dc26a2e30",
+    "semantic_hash": "2a5696911db6f53cdbe3971dc26a2e30"
+  },
+  "app/api/summaries.py": {
+    "mtime": 1782047476.4983263,
+    "ast_hash": "615d1899d9a8d8d0797420b993e4bfdb",
+    "semantic_hash": "615d1899d9a8d8d0797420b993e4bfdb"
+  },
+  "app/api/ui.py": {
+    "mtime": 1782047476.4983928,
+    "ast_hash": "2089c1a3f634472ecddaf5fc2e184b23",
+    "semantic_hash": "2089c1a3f634472ecddaf5fc2e184b23"
+  },
+  "app/config.py": {
+    "mtime": 1782047476.4988883,
+    "ast_hash": "2ddf461679d1567391a9e33da79f4bb3",
+    "semantic_hash": "2ddf461679d1567391a9e33da79f4bb3"
+  },
+  "app/db/__init__.py": {
+    "mtime": 1781448290.2367184,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/db/connection.py": {
+    "mtime": 1781448317.9756842,
+    "ast_hash": "b10bc16b4c14cfc641449b55c9fb9bbd",
+    "semantic_hash": "b10bc16b4c14cfc641449b55c9fb9bbd"
+  },
+  "app/db/migrations/001_initial.sql": {
+    "mtime": 1781448305.872828,
+    "ast_hash": "43ca483bd9571a1c84486e6f72163aad",
+    "semantic_hash": "43ca483bd9571a1c84486e6f72163aad"
+  },
+  "app/db/migrations/002_strava.sql": {
+    "mtime": 1782047476.4993865,
+    "ast_hash": "7d5895b8fb5601be773b9a6c22c367e9",
+    "semantic_hash": "7d5895b8fb5601be773b9a6c22c367e9"
+  },
+  "app/db/migrations/003_plan_status.sql": {
+    "mtime": 1782047476.499445,
+    "ast_hash": "e96061af2059fec1e3bf51a84875a978",
+    "semantic_hash": "e96061af2059fec1e3bf51a84875a978"
+  },
+  "app/db/migrations/__init__.py": {
+    "mtime": 1781448290.2367544,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/db/repositories.py": {
+    "mtime": 1782047476.4997542,
+    "ast_hash": "1fb8d3c2cc1fa1eefcd722c345e9374d",
+    "semantic_hash": "1fb8d3c2cc1fa1eefcd722c345e9374d"
+  },
+  "app/main.py": {
+    "mtime": 1783067620.821839,
+    "ast_hash": "9e9ead2146c6d8f3f48140db8f35d79f",
+    "semantic_hash": "9e9ead2146c6d8f3f48140db8f35d79f"
+  },
+  "app/models/__init__.py": {
+    "mtime": 1781448290.2366772,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/models/goal.py": {
+    "mtime": 1782047476.5005765,
+    "ast_hash": "26269baa8bf7f573646e0d4e8a936351",
+    "semantic_hash": "26269baa8bf7f573646e0d4e8a936351"
+  },
+  "app/models/plan.py": {
+    "mtime": 1782047476.500883,
+    "ast_hash": "198044bf77496e74915c4e980076803b",
+    "semantic_hash": "198044bf77496e74915c4e980076803b"
+  },
+  "app/strava/__init__.py": {
+    "mtime": 1782047476.5009542,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "app/strava/client.py": {
+    "mtime": 1782047476.501379,
+    "ast_hash": "1dad6393da7b8bc85a3db977be14f65a",
+    "semantic_hash": "1dad6393da7b8bc85a3db977be14f65a"
+  },
+  "app/strava/models.py": {
+    "mtime": 1782047476.5014427,
+    "ast_hash": "3ebca5107a3c4d0d19d9ada60bc5f29d",
+    "semantic_hash": "3ebca5107a3c4d0d19d9ada60bc5f29d"
+  },
+  "frontend/package.json": {
+    "mtime": 1782047476.7609932,
+    "ast_hash": "ec485a7af32f9d753b43ac080c46da56",
+    "semantic_hash": "ec485a7af32f9d753b43ac080c46da56"
+  },
+  "frontend/src/App.jsx": {
+    "mtime": 1782047476.7612271,
+    "ast_hash": "821354ef3cbd68f7331863624c2fa093",
+    "semantic_hash": "821354ef3cbd68f7331863624c2fa093"
+  },
+  "frontend/src/components/FitnessChat.jsx": {
+    "mtime": 1783067620.8244386,
+    "ast_hash": "c7b54c682271dfa6b49b312f35b313e7",
+    "semantic_hash": "c7b54c682271dfa6b49b312f35b313e7"
+  },
+  "frontend/src/lib/vdot.js": {
+    "mtime": 1783067620.8247933,
+    "ast_hash": "4947b1bb489c1179eacdd8e8eb5031b5",
+    "semantic_hash": "4947b1bb489c1179eacdd8e8eb5031b5"
+  },
+  "frontend/src/main.jsx": {
+    "mtime": 1782047476.7612844,
+    "ast_hash": "11091ba793b3b7c165608bd9df6bbe4a",
+    "semantic_hash": "11091ba793b3b7c165608bd9df6bbe4a"
+  },
+  "frontend/src/pages/GoalForm.jsx": {
+    "mtime": 1783067620.8250115,
+    "ast_hash": "8372f1578bc1de42f735874ca13e04ae",
+    "semantic_hash": "8372f1578bc1de42f735874ca13e04ae"
+  },
+  "frontend/src/pages/GoalHistory.jsx": {
+    "mtime": 1783067620.8251915,
+    "ast_hash": "d6470e9286ea7dd4ce240b888c156682",
+    "semantic_hash": "d6470e9286ea7dd4ce240b888c156682"
+  },
+  "frontend/src/pages/PlanView.jsx": {
+    "mtime": 1782047476.761558,
+    "ast_hash": "3e4151e5959c255eff4a1c8d08d4d37a",
+    "semantic_hash": "3e4151e5959c255eff4a1c8d08d4d37a"
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1783067620.8254766,
+    "ast_hash": "e20c34935aa2538b80bb764b56ace3e0",
+    "semantic_hash": "e20c34935aa2538b80bb764b56ace3e0"
+  },
+  "pyproject.toml": {
+    "mtime": 1782047476.7617419,
+    "ast_hash": "9f85d3c2283172c8cee7184f018cf9f2",
+    "semantic_hash": "9f85d3c2283172c8cee7184f018cf9f2"
+  },
+  "scripts/register_strava_webhook.py": {
+    "mtime": 1782047476.762336,
+    "ast_hash": "89c71a14a3781abdbda0450e2636c4ea",
+    "semantic_hash": "89c71a14a3781abdbda0450e2636c4ea"
+  },
+  "tests/__init__.py": {
+    "mtime": 1781448290.2368681,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "tests/conftest.py": {
+    "mtime": 1783067620.829364,
+    "ast_hash": "759c23b95d5c70ed5bfd299918aef23c",
+    "semantic_hash": "759c23b95d5c70ed5bfd299918aef23c"
+  },
+  "tests/test_activities_endpoint.py": {
+    "mtime": 1782047476.7659643,
+    "ast_hash": "f412d36042a59e9ff31690b963a749d0",
+    "semantic_hash": "f412d36042a59e9ff31690b963a749d0"
+  },
+  "tests/test_fitness_chat.py": {
+    "mtime": 1783067620.8297145,
+    "ast_hash": "b0a69da96821ca1703bbd6f5047aa8df",
+    "semantic_hash": "b0a69da96821ca1703bbd6f5047aa8df"
+  },
+  "tests/test_goal_endpoint.py": {
+    "mtime": 1782047476.76637,
+    "ast_hash": "6cbfc23ea1fdd3f2ae060115b80925b7",
+    "semantic_hash": "6cbfc23ea1fdd3f2ae060115b80925b7"
+  },
+  "tests/test_matching.py": {
+    "mtime": 1782047476.7664282,
+    "ast_hash": "45a8b7e270daebcf895f6bd748188f88",
+    "semantic_hash": "45a8b7e270daebcf895f6bd748188f88"
+  },
+  "tests/test_strava_oauth.py": {
+    "mtime": 1782047476.7664845,
+    "ast_hash": "a65edd6291ccc6e2c025de1edeb60290",
+    "semantic_hash": "a65edd6291ccc6e2c025de1edeb60290"
+  },
+  "tests/test_strava_status.py": {
+    "mtime": 1782047476.7665389,
+    "ast_hash": "942f326f3fad31b0d775c61753e94e5a",
+    "semantic_hash": "942f326f3fad31b0d775c61753e94e5a"
+  },
+  "tests/test_strava_webhook.py": {
+    "mtime": 1782047476.7665956,
+    "ast_hash": "6a0a1848fab1377fdb073ef5a2acb31a",
+    "semantic_hash": "6a0a1848fab1377fdb073ef5a2acb31a"
+  },
+  "tests/test_validation.py": {
+    "mtime": 1783067620.829896,
+    "ast_hash": "f24a33d53aa6895ea9906914ca57f059",
+    "semantic_hash": "f24a33d53aa6895ea9906914ca57f059"
+  },
+  "tests/test_weekly_summary_endpoint.py": {
+    "mtime": 1782047476.7666497,
+    "ast_hash": "4c58945db5a1c2b6f309c97806340f40",
+    "semantic_hash": "4c58945db5a1c2b6f309c97806340f40"
+  },
+  ".claude/skills/changelog/SKILL.md": {
+    "mtime": 1782047476.493063,
+    "ast_hash": "d4a19b4eae42e2d68912dc0719ca821d",
+    "semantic_hash": "d4a19b4eae42e2d68912dc0719ca821d"
+  },
+  ".claude/skills/feature-spec/SKILL.md": {
+    "mtime": 1782047476.493284,
+    "ast_hash": "ce3e28f0c5d1f8159a1f8808d020f4d3",
+    "semantic_hash": "ce3e28f0c5d1f8159a1f8808d020f4d3"
+  },
+  ".claude/skills/implementation-doc/SKILL.md": {
+    "mtime": 1783067620.8205807,
+    "ast_hash": "258c4dc2eecc61fe74effc236561e69f",
+    "semantic_hash": "258c4dc2eecc61fe74effc236561e69f"
+  },
+  "ARCHITECTURE.md": {
+    "mtime": 1782047476.4938884,
+    "ast_hash": "d6bce1f5c86526ec697d7d042d7b8f95",
+    "semantic_hash": "d6bce1f5c86526ec697d7d042d7b8f95"
+  },
+  "CHANGELOG.md": {
+    "mtime": 1782047476.4939618,
+    "ast_hash": "0bc482650a056566aacece9c0dcf738e",
+    "semantic_hash": "0bc482650a056566aacece9c0dcf738e"
+  },
+  "CLAUDE.md": {
+    "mtime": 1782047476.494062,
+    "ast_hash": "e1b0d8a2aaf63ac22a0d935970548a73",
+    "semantic_hash": "e1b0d8a2aaf63ac22a0d935970548a73"
+  },
+  "README.md": {
+    "mtime": 1781347617.0721576,
+    "ast_hash": "1388a598cfd84468d4e11ae737452413",
+    "semantic_hash": "1388a598cfd84468d4e11ae737452413"
+  },
+  "SPORTS_SCIENCE_RESEARCH.md": {
+    "mtime": 1777737851.3877368,
+    "ast_hash": "f80c776121743f47a1946b9641a2fecf",
+    "semantic_hash": "f80c776121743f47a1946b9641a2fecf"
+  },
+  "docker/docker-compose.yml": {
+    "mtime": 1783067620.822165,
+    "ast_hash": "dd209ded3355f97b5d6fef7bc71bb7a3",
+    "semantic_hash": "dd209ded3355f97b5d6fef7bc71bb7a3"
+  },
+  "frontend/index.html": {
+    "mtime": 1783067620.823863,
+    "ast_hash": "a6fe9bb30da0bd4c21e439a850673b45",
+    "semantic_hash": "a6fe9bb30da0bd4c21e439a850673b45"
+  },
+  "specs/2026-06-13-phase1-goal-intake/plan.md": {
+    "mtime": 1783067620.825772,
+    "ast_hash": "3658935e97b43822cc75d812ebd0cbc7",
+    "semantic_hash": "3658935e97b43822cc75d812ebd0cbc7"
+  },
+  "specs/2026-06-13-phase1-goal-intake/requirements.md": {
+    "mtime": 1783067620.826042,
+    "ast_hash": "30f4cea3f040194227168f894e7dcfc4",
+    "semantic_hash": "30f4cea3f040194227168f894e7dcfc4"
+  },
+  "specs/2026-06-13-phase1-goal-intake/validation.md": {
+    "mtime": 1783067620.8264325,
+    "ast_hash": "8e81efef5d0afb923476a352a018b949",
+    "semantic_hash": "8e81efef5d0afb923476a352a018b949"
+  },
+  "specs/2026-06-16-strava-sync-analysis/plan.md": {
+    "mtime": 1782047476.763085,
+    "ast_hash": "7fe762c3d9b7ba35e71004ca17daac2f",
+    "semantic_hash": "7fe762c3d9b7ba35e71004ca17daac2f"
+  },
+  "specs/2026-06-16-strava-sync-analysis/requirements.md": {
+    "mtime": 1782047476.7632565,
+    "ast_hash": "f45c40b517fdbb79a7eebcf5f3333416",
+    "semantic_hash": "f45c40b517fdbb79a7eebcf5f3333416"
+  },
+  "specs/2026-06-16-strava-sync-analysis/validation.md": {
+    "mtime": 1782047476.7633607,
+    "ast_hash": "28df3ab282faff73621fafc751350fa9",
+    "semantic_hash": "28df3ab282faff73621fafc751350fa9"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/IMPLEMENTATION.md": {
+    "mtime": 1783067620.8266823,
+    "ast_hash": "12855e64c28cdc5d343dcccb7b79d7ce",
+    "semantic_hash": "12855e64c28cdc5d343dcccb7b79d7ce"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/SPEC.md": {
+    "mtime": 1783067620.8268776,
+    "ast_hash": "83db21819edc1b807cb2552cb7d0d638",
+    "semantic_hash": "83db21819edc1b807cb2552cb7d0d638"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/plan.md": {
+    "mtime": 1783067620.8270657,
+    "ast_hash": "31d09c2aef02881f717e367061cf7a04",
+    "semantic_hash": "31d09c2aef02881f717e367061cf7a04"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/requirements.md": {
+    "mtime": 1783067620.8272622,
+    "ast_hash": "7c6fe6fcf2f4962b0fb31738a8f8bbe5",
+    "semantic_hash": "7c6fe6fcf2f4962b0fb31738a8f8bbe5"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/tasks.md": {
+    "mtime": 1783067620.827467,
+    "ast_hash": "8706456bf7b4f5064a77acaddb2bbdc6",
+    "semantic_hash": "8706456bf7b4f5064a77acaddb2bbdc6"
+  },
+  "specs/2026-07-03-fitness-level-chat-widget/validation.md": {
+    "mtime": 1783067620.8277082,
+    "ast_hash": "5be52735286d06acf5c767424a12951a",
+    "semantic_hash": "5be52735286d06acf5c767424a12951a"
+  },
+  "specs/mission.md": {
+    "mtime": 1783067620.8283465,
+    "ast_hash": "18644e19b92b68259252809549cab306",
+    "semantic_hash": "18644e19b92b68259252809549cab306"
+  },
+  "specs/roadmap.md": {
+    "mtime": 1783067620.8286939,
+    "ast_hash": "c438d6b25fe76ab45d4d4a12d22e71c1",
+    "semantic_hash": "c438d6b25fe76ab45d4d4a12d22e71c1"
+  },
+  "specs/tech-stack.md": {
+    "mtime": 1781402472.1372054,
+    "ast_hash": "3a7da007e8ba2d2c60f6a6e4a8d975da",
+    "semantic_hash": "3a7da007e8ba2d2c60f6a6e4a8d975da"
+  },
+  "templates/sdd-task-template-implement.md": {
+    "mtime": 1783067620.8289208,
+    "ast_hash": "03eb99d48dc1bc6198398fd35a00c5eb",
+    "semantic_hash": "03eb99d48dc1bc6198398fd35a00c5eb"
+  },
+  "templates/sdd-task-template.md": {
+    "mtime": 1783067620.8291295,
+    "ast_hash": "efbb0a68ffd45210dcb3844cf3b3d816",
+    "semantic_hash": "efbb0a68ffd45210dcb3844cf3b3d816"
+  }
+}

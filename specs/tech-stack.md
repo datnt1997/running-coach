@@ -11,9 +11,16 @@
 
 ## AI Model
 
-- **Claude Sonnet 4.6** (`claude-sonnet-4-6`) via Anthropic SDK — primary analysis and plan generation engine.
-  - Chosen for: strongest running/physiology domain knowledge among tested models, reliable JSON-schema structured output, full tool-use/function-calling support for Strava API calls.
-  - Fallback consideration: local DeepSeek R1 (via Ollama) for privacy-sensitive analysis if user opts in.
+Models are chosen per task, not per app:
+
+| Task | Provider / model |
+|---|---|
+| Plan generation, activity analysis, weekly summary | **Claude Sonnet** via Anthropic SDK (currently `claude-sonnet-4-6`; evaluate Sonnet 5.5) |
+| Fitness assessment chat (`/fitness-chat`) | **Gemini Flash** via Google SDK (exact model TBD by eval; replies in Vietnamese) |
+
+- Sonnet chosen for: reliable JSON-schema structured output, forced tool-use, and periodization logic where plan quality matters. Plan generation is rare, so per-call cost is small.
+- Gemini Flash chosen for chat: low cost for a multi-turn conversation, and Vietnamese reply quality (to be verified).
+- Fallback consideration: local DeepSeek R1 (via Ollama) for privacy-sensitive analysis if user opts in.
 
 ## AI Client Abstraction
 
@@ -25,7 +32,7 @@ AIClient (abstract)
 └── GeminiClient      — wraps google-generativeai SDK, translates to/from Gemini function-calling format
 ```
 
-- Selected via env var: `AI_PROVIDER=anthropic` (default) or `AI_PROVIDER=gemini`.
+- Selected via env var: `AI_PROVIDER=anthropic` (default) or `AI_PROVIDER=gemini`, with a per-task override for the fitness chat (e.g. `CHAT_AI_PROVIDER=gemini`).
 - The interface exposes: `generate(messages, tools=None, response_format=None) → AIResponse`.
 - Tool definitions are stored in provider-agnostic format inside `ai/tools.py`; each client adapter translates them to its provider's schema at call time.
 - `AIResponse` is a provider-neutral dataclass: `{content: str, tool_calls: list[ToolCall], usage: TokenUsage}`.
@@ -49,14 +56,15 @@ AIClient (abstract)
 ## Configuration & Secrets
 
 - **python-dotenv** — local `.env` for API keys and DB URL.
-- Environment variables: `ANTHROPIC_API_KEY`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `DATABASE_URL`.
+- Environment variables: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (required when the chat uses Gemini), `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `DATABASE_URL`.
 
 ## Model Selection Rationale
 
 | Candidate | Decision | Reason |
 |---|---|---|
-| Claude Sonnet 4.6 | **Selected** | Best sports-physiology knowledge + JSON reliability + tool use |
-| Claude Opus 4.8 | Skip for v1 | 2× cost, marginal gain for weekly batch analysis |
-| Gemini 2.5 Flash | Backup | 10× cheaper but weaker sports domain knowledge |
+| Claude Sonnet | **Selected** for plans, analysis, summaries | JSON reliability + forced tool use; rare calls so cost is small (~$0.09/plan at list price, unverified) |
+| Claude Opus | Skip for v1 | Higher cost, marginal gain for weekly batch analysis |
+| Gemini Flash | **Selected** for fitness chat | Cheap multi-turn chat; verify Vietnamese quality and JSON-block reliability in eval |
+| Claude Haiku 5.5 | Alternative for chat/analysis | Cheaper than Gemini Flash at list price and no new adapter; revisit if the Gemini eval is weak |
 | Llama 3.3 70B | Skip | ~24% sports knowledge degradation; risky for zone/periodization logic |
 | DeepSeek R1 (local) | Optional | Privacy mode only; explicit reasoning traces useful for explainability |

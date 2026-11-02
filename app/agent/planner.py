@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.agent.prompt import build_messages
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client
@@ -37,7 +39,7 @@ def _parse_plan_arguments(arguments: dict, goal: GoalRequest) -> PlanResponse:
         phase_breakdown = {k: int(v) for k, v in arguments["phase_breakdown"].items()}
 
         return PlanResponse(
-            # plan_id / goal_id are assigned after persistence; placeholders here.
+            # plan_id / goal_id / start_date are assigned after persistence; placeholders here.
             plan_id="",
             goal_id="",
             summary=arguments["summary"],

@@ -178,7 +178,7 @@ async def get_goal_plan(
     if plan is None:
         raise HTTPException(status_code=500, detail="Plan marked ready but not found in DB")
 
-    response_data = _build_plan_response(plan).model_dump(by_alias=True)
+    response_data = _build_plan_response(plan).model_dump(mode="json", by_alias=True)
     response_data["status"] = "ready"
     return JSONResponse(status_code=200, content=response_data)
 

@@ -83,7 +83,7 @@ export default function PlanView() {
           <summary>
             {t('plan.week', { week: week.weekNumber })}
             <span className={`phase-tag ${PHASE_CLASS[week.phase] || ''}`}>
-              {week.phase}
+              {phaseLabel(week.phase)}
             </span>
           </summary>
           <table>
@@ -99,8 +99,8 @@ export default function PlanView() {
             <tbody>
               {week.workouts.map((w, i) => (
                 <tr key={i}>
-                  <td><strong>{w.day}</strong></td>
-                  <td style={{ textTransform: 'capitalize' }}>{w.type}</td>
+                  <td><strong>{dayLabel(w.day)}</strong></td>
+                  <td>{typeLabel(w.type)}</td>
                   <td>{w.distanceKm} km</td>
                   <td>{w.paceZone}</td>
                   <td style={{ color: '#6c757d', fontSize: '.85rem' }}>{w.notes}</td>
