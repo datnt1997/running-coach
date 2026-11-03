@@ -6,6 +6,8 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")
+CHAT_AI_PROVIDER = os.getenv("CHAT_AI_PROVIDER") or None
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 APP_LANGUAGE = os.getenv("APP_LANGUAGE", "vi")
 
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -22,8 +24,11 @@ def validate_config():
             f"Unsupported APP_LANGUAGE '{APP_LANGUAGE}'. Registered: {', '.join(sorted(LANGUAGES))}"
         )
     missing = []
-    if not ANTHROPIC_API_KEY and AI_PROVIDER == "anthropic":
+    providers = {AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER}
+    if not ANTHROPIC_API_KEY and "anthropic" in providers:
         missing.append("ANTHROPIC_API_KEY")
+    if not GEMINI_API_KEY and "gemini" in providers:
+        missing.append("GEMINI_API_KEY")
     if not DATABASE_URL:
         missing.append("DATABASE_URL")
     if not STRAVA_CLIENT_ID:

@@ -3,7 +3,7 @@ import os
 
 from app.ai.client import AIClient, AIResponse, TokenUsage, ToolCall
 
-MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-2.0-flash"
 
 
 class GeminiClient(AIClient):
@@ -14,7 +14,7 @@ class GeminiClient(AIClient):
     is only raised on instantiation.
     """
 
-    def __init__(self, api_key: str | None = None, model: str = MODEL):
+    def __init__(self, api_key: str | None = None, model: str | None = None):
         try:
             import google.generativeai as genai
         except ImportError as exc:  # pragma: no cover - exercised only without dep
@@ -25,7 +25,7 @@ class GeminiClient(AIClient):
 
         self._genai = genai
         self._genai.configure(api_key=api_key or os.getenv("GEMINI_API_KEY"))
-        self.model_name = model
+        self.model_name = model or os.getenv("GEMINI_MODEL") or DEFAULT_MODEL
 
     @staticmethod
     def _to_gemini_tools(tools: list[dict]) -> list[dict]:
