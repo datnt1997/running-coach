@@ -3,7 +3,7 @@ import pytest_asyncio
 import httpx
 from httpx import ASGITransport
 
-from app.ai.factory import get_ai_client_dep
+from app.ai.factory import get_chat_ai_client_dep
 from app.main import app
 from tests.conftest import FakeFitnessChatAIClient
 
@@ -11,7 +11,7 @@ from tests.conftest import FakeFitnessChatAIClient
 @pytest_asyncio.fixture
 async def chat_client():
     fake = FakeFitnessChatAIClient(classify=False)
-    app.dependency_overrides[get_ai_client_dep] = lambda: fake
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
@@ -21,7 +21,7 @@ async def chat_client():
 @pytest_asyncio.fixture
 async def classifying_client():
     fake = FakeFitnessChatAIClient(classify=True)
-    app.dependency_overrides[get_ai_client_dep] = lambda: fake
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
@@ -31,7 +31,7 @@ async def classifying_client():
 @pytest_asyncio.fixture
 async def invalid_level_client():
     fake = FakeFitnessChatAIClient(classify=True, fitness_level="elite")
-    app.dependency_overrides[get_ai_client_dep] = lambda: fake
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac

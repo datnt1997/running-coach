@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.ai.client import AIClient
-from app.ai.factory import get_ai_client_dep
+from app.ai.factory import get_chat_ai_client_dep
 from app.i18n import chat_starter, language_instruction
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ class FitnessChatResponse(BaseModel):
 @router.post("/fitness-chat", response_model=FitnessChatResponse)
 async def fitness_chat(
     req: FitnessChatRequest,
-    ai_client: AIClient = Depends(get_ai_client_dep),
+    ai_client: AIClient = Depends(get_chat_ai_client_dep),
 ) -> FitnessChatResponse:
     messages: list[dict] = [
         {"role": "system", "content": f"{_SYSTEM_PROMPT}\n\n{language_instruction()}"}

@@ -80,6 +80,8 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | Var | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | Required when `AI_PROVIDER=anthropic` (default) |
+| `CHAT_AI_PROVIDER` | Provider for `POST /fitness-chat` only; falls back to `AI_PROVIDER` |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | Required when a selected provider is `gemini`; model defaults to `gemini-2.0-flash` |
 | `DATABASE_URL` | `postgresql://user:pass@host:port/db` |
 | `AI_PROVIDER` | `anthropic` (default) or `gemini` |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava app credentials |
