@@ -85,3 +85,8 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava app credentials |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Secret string for webhook handshake |
 | `STRAVA_REDIRECT_URI` | Must match Strava app's callback domain setting |
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
