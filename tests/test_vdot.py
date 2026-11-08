@@ -4,6 +4,7 @@ from app.vdot import (
     break_factor,
     fitness_label,
     level_for,
+    level_group,
     level_thresholds,
     race_time_for_vdot,
     vdot_from_race,
@@ -110,3 +111,9 @@ def test_break_factor_table_15_1():
     assert break_factor(42, cross_trained=True) == pytest.approx(0.944, abs=0.001)
     assert break_factor(200) == 0.8
     assert break_factor(200, cross_trained=True) == 0.9
+
+
+def test_level_group_follows_book_headers():
+    # Tables 5.7 / 5.8: novice 1-2, intermediate 3-5, good 6-8, elite 9-10.
+    groups = [level_group(n) for n in range(1, 11)]
+    assert groups == ["novice"] * 2 + ["intermediate"] * 3 + ["good"] * 3 + ["elite"] * 2

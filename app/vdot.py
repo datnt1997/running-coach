@@ -110,8 +110,20 @@ def level_for(vdot: float, sex: Sex | None = None, age: int | None = None) -> in
     return level
 
 
+def level_group(level: int) -> str:
+    """The book's group for a level, from the Table 5.7 / 5.8 headers (research.md R3)."""
+    if level <= 2:
+        return "novice"  # Người mới tập
+    if level <= 5:
+        return "intermediate"  # Nhóm trung cấp
+    if level <= 8:
+        return "good"  # Người chạy giỏi
+    return "elite"  # Nhóm ưu tú
+
+
 def fitness_label(level: int) -> str:
-    """Planner label for a book level. Our choice, not the book's (research.md R3)."""
+    """Planner label for a book level: novice -> beginner, intermediate -> intermediate,
+    good and elite -> advanced. Our collapse of four groups into three."""
     if level <= 2:
         return "beginner"
     if level <= 5:

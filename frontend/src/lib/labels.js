@@ -37,4 +37,5 @@ export const typeLabel = type => lookup(WORKOUT_TYPE, type)
 export const phaseLabel = phase => lookup(PHASE, phase)
 
 export const distanceLabel = value => label('distance', value)
+export const groupLabel = value => label('group', value)
 export const levelLabel = value => label('level', value)

@@ -72,6 +72,7 @@ async def test_complete_assessment_is_computed_in_code(make_client):
     assert data["vdot"] == pytest.approx(38.2, abs=0.1)  # 10K 52:00
     assert data["level"] == 1  # male 30: 38.2 is between level 1 (35.0) and level 2 (40.0)
     assert data["fitnessLevel"] == "beginner"
+    assert data["levelGroup"] == "novice"
     assert set(data["predictions"]) == {"5k", "10k", "half_marathon", "full_marathon"}
     assert data["predictions"]["10k"] == "52:00"
     assert data["weeklyKm"] == 40.0

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FitnessChat from '../components/FitnessChat.jsx'
 import { t } from '../i18n/index.js'
-import { distanceLabel } from '../lib/labels.js'
-import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
+import { distanceLabel, groupLabel } from '../lib/labels.js'
+import { RACE_DISTANCES, assessRace, assessVdot, levelGroup } from '../lib/vdot.js'
 
 const today = new Date()
 const minRaceDate = new Date(today)
@@ -101,6 +101,7 @@ export default function GoalForm() {
     setAssessmentData({
       level: data.fitnessLevel,
       bookLevel: data.level,
+      levelGroup: data.levelGroup,
       vdot: data.vdot,
       predictions: data.predictions,
       weeklyKm: data.weeklyKm,
@@ -126,6 +127,7 @@ export default function GoalForm() {
     handleAssessmentResult({
       fitnessLevel: manualPreview.level,
       level: manualPreview.bookLevel,
+      levelGroup: levelGroup(manualPreview.bookLevel),
       vdot: manualPreview.vdot,
       weeklyKm: 0,
       longestRunKm: 0,
@@ -281,7 +283,7 @@ export default function GoalForm() {
                       <div className="manual-preview">
                         <span className="vdot-pill">VDOT {manualPreview.vdot}</span>
                         <span className={`level-badge level-badge--${manualPreview.level}`}>
-                          {t('goal.bookLevel', { level: manualPreview.bookLevel })}
+                          {t('goal.bookLevel', { level: manualPreview.bookLevel, group: groupLabel(levelGroup(manualPreview.bookLevel)) })}
                         </span>
                       </div>
                     )}
@@ -318,7 +320,7 @@ export default function GoalForm() {
             {assessed && assessmentData && (
               <div className="assessment-result">
                 <div className={`level-badge level-badge--${assessmentData.level}`}>
-                  {t('goal.bookLevel', { level: assessmentData.bookLevel })}
+                  {t('goal.bookLevel', { level: assessmentData.bookLevel, group: groupLabel(assessmentData.levelGroup) })}
                 </div>
                 <div className="assessment-result__meta">
                   <span className="vdot-pill">VDOT {assessmentData.vdot}</span>

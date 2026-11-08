@@ -40,6 +40,14 @@ export function bookLevelFromVdot(vdot) {
   return Math.min(10, Math.max(1, Math.floor((vdot - 35) / 5) + 1))
 }
 
+// Book level → the book's group (Tables 5.7 / 5.8 headers). Same as app.vdot.level_group.
+export function levelGroup(level) {
+  if (level <= 2) return 'novice'
+  if (level <= 5) return 'intermediate'
+  if (level <= 8) return 'good'
+  return 'elite'
+}
+
 // Book level → planner label. Same mapping as app.vdot.fitness_label.
 export function levelFromVdot(vdot) {
   const level = bookLevelFromVdot(vdot)

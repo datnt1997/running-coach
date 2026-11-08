@@ -42,7 +42,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 ### Fitness assessment (`app/vdot.py` + `app/api/fitness_chat.py`)
 
 - `POST /fitness-chat`: the first turn is a fixed question asking sex and age (no model call). The model only collects signals and ends with a JSON block (`sex`, `age`, `race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them and Python computes VDOT, the book level (1-10), the planner label and predicted times; an incomplete block returns `done: false` naming what is missing.
-- `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), level by sex and age (Daniels Tables 5.6-5.8), `fitness_label` (levels 1-2 beginner, 3-5 intermediate, 6-10 advanced, our choice), `break_factor` (Table 15.1). Sex or age missing: male column, no age adjustment.
+- `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), level by sex and age (Daniels Tables 5.6-5.8), `fitness_label` (levels 1-2 beginner, 3-5 intermediate, 6-10 advanced, our collapse of the book groups), `break_factor` (Table 15.1). Sex or age missing: male column, no age adjustment.
 - `frontend/src/lib/vdot.js` mirrors the formula and male-column levels for manual entry; `npm run check:vdot` keeps it in step. Sex and age are never stored.
 - Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. The book PDF is git-ignored and copyrighted.
 

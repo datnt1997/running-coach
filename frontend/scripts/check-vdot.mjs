@@ -1,6 +1,6 @@
 // Keeps src/lib/vdot.js in step with app/vdot.py. Uses rows of Daniels Table 5.6
 // (printed race times at exact VDOTs), the same fixtures as tests/test_vdot.py.
-import { bookLevelFromVdot, levelFromVdot, vdotFromRace } from '../src/lib/vdot.js'
+import { bookLevelFromVdot, levelFromVdot, levelGroup, vdotFromRace } from '../src/lib/vdot.js'
 
 const secs = t => t.split(':').reduce((n, p) => n * 60 + Number(p), 0)
 const ROWS = [
@@ -33,6 +33,11 @@ for (const [level, label] of LABELS) {
   const vdot = 35 + (level - 1) * 5
   if (levelFromVdot(vdot) !== label) fail(`label for level ${level}: got ${levelFromVdot(vdot)}, want ${label}`)
 }
+
+const GROUPS = ['novice', 'novice', 'intermediate', 'intermediate', 'intermediate', 'good', 'good', 'good', 'elite', 'elite']
+GROUPS.forEach((g, i) => {
+  if (levelGroup(i + 1) !== g) fail(`group for level ${i + 1}: got ${levelGroup(i + 1)}, want ${g}`)
+})
 
 if (failed) process.exit(1)
 console.log('vdot parity ok')

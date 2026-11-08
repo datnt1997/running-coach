@@ -18,8 +18,9 @@ Read from Tables 5.6 to 5.8 (printed pp. 151, 154, 155-159) in `references/danie
 
 ## R3. Level to label (decided 2026-11-08)
 
-- The UI shows the book's numbered level ("Cap N", Table 5.6) so the runner can check it in the book. The book's text never says which levels belong to which group name (novice, intermediate, good, elite) and the page headers are not aligned to columns, so we do not show group names.
-- The planner keeps `fitness_level`, derived internally: levels 1-2 beginner, 3-5 intermediate, 6-10 advanced. Our choice, not the book's.
+- Group names come from the Table 5.7 / 5.8 headers (pp. 154-159). Each header is centred over its level columns (checked on the PDF page at 200 dpi): **Người mới tập** levels 1-2, **Nhóm trung cấp** 3-5, **Người chạy giỏi** 6-8, **Nhóm ưu tú** 9-10. The book's text never spells the ranges out, so this is read from the layout.
+- The UI shows "Cap N/10 · group name" so the runner can check it in the book.
+- The planner keeps `fitness_level`, our collapse of four groups into three: novice beginner, intermediate intermediate, good and elite advanced.
 - Sex not given: male column. Age not given: no age adjustment.
 
 ## R2. Strava best efforts

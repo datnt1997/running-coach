@@ -15,7 +15,7 @@ from app.i18n import (
     chat_starter,
     language_instruction,
 )
-from app.vdot import fitness_label, level_for, race_time_for_vdot, vdot_from_race
+from app.vdot import fitness_label, level_for, level_group, race_time_for_vdot, vdot_from_race
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -80,6 +80,7 @@ class FitnessChatResponse(BaseModel):
     message: str
     fitnessLevel: Optional[str] = None
     level: Optional[int] = None
+    levelGroup: Optional[str] = None
     vdot: Optional[float] = None
     predictions: Optional[dict[str, str]] = None
     weeklyKm: Optional[float] = None
@@ -150,6 +151,7 @@ def assess(data: dict) -> tuple[dict | None, list[str]]:
     level = level_for(vdot, None if sex == "unspecified" else sex, None if age is None else int(age))
     return {
         "level": level,
+        "level_group": level_group(level),
         "fitness_level": fitness_label(level),
         "vdot": round(vdot, 1),
         "predictions": {
@@ -210,6 +212,7 @@ async def fitness_chat(
         message=display_message or result["reasoning"],
         fitnessLevel=result["fitness_level"],
         level=result["level"],
+        levelGroup=result["level_group"],
         vdot=result["vdot"],
         predictions=result["predictions"],
         weeklyKm=result["weekly_km"],
