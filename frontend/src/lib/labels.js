@@ -1,3 +1,5 @@
+import { label } from '../i18n/index.js'
+
 // Vietnamese display labels for the English enum values the API returns.
 // Unknown values fall back to the raw string.
 
@@ -33,3 +35,6 @@ const lookup = (table, value) => table[value] ?? table[String(value).toLowerCase
 export const dayLabel = day => lookup(DAY, day)
 export const typeLabel = type => lookup(WORKOUT_TYPE, type)
 export const phaseLabel = phase => lookup(PHASE, phase)
+
+export const distanceLabel = value => label('distance', value)
+export const levelLabel = value => label('level', value)

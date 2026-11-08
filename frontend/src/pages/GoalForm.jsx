@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FitnessChat from '../components/FitnessChat.jsx'
 import { t } from '../i18n/index.js'
-import { distanceLabel, levelLabel } from '../lib/labels.js'
+import { distanceLabel } from '../lib/labels.js'
 import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
 const today = new Date()
@@ -78,6 +78,7 @@ export default function GoalForm() {
           ...form,
           daysPerWeek: Number(form.daysPerWeek),
           injuryHistory: form.injuryHistory.trim() || null,
+          vdot: assessmentData?.vdot ?? null,
         }),
       })
       const data = await res.json()
@@ -94,9 +95,18 @@ export default function GoalForm() {
     }
   }
 
-  function handleAssessmentResult(level, vdot, weeklyKm, longestRunKm, reasoning) {
-    set('fitnessLevel', level)
-    setAssessmentData({ level, vdot, weeklyKm, longestRunKm, reasoning })
+  // Chat result: { fitnessLevel, level (book 1-10), vdot, predictions, weeklyKm, longestRunKm, reasoning }
+  function handleAssessmentResult(data) {
+    set('fitnessLevel', data.fitnessLevel)
+    setAssessmentData({
+      level: data.fitnessLevel,
+      bookLevel: data.level,
+      vdot: data.vdot,
+      predictions: data.predictions,
+      weeklyKm: data.weeklyKm,
+      longestRunKm: data.longestRunKm,
+      reasoning: data.reasoning,
+    })
     setAssessed(true)
     setChatOpen(false)
   }
@@ -113,7 +123,14 @@ export default function GoalForm() {
     const reasoning = manualMode === 'race'
       ? t('goal.manualReasoningRace', { vdot: manualPreview.vdot, distance: distanceLabel(raceDist) })
       : t('goal.manualReasoningVdot', { vdot: manualPreview.vdot })
-    handleAssessmentResult(manualPreview.level, manualPreview.vdot, 0, 0, reasoning)
+    handleAssessmentResult({
+      fitnessLevel: manualPreview.level,
+      level: manualPreview.bookLevel,
+      vdot: manualPreview.vdot,
+      weeklyKm: 0,
+      longestRunKm: 0,
+      reasoning,
+    })
   }
 
   return (
@@ -264,7 +281,7 @@ export default function GoalForm() {
                       <div className="manual-preview">
                         <span className="vdot-pill">VDOT {manualPreview.vdot}</span>
                         <span className={`level-badge level-badge--${manualPreview.level}`}>
-                          {levelLabel(manualPreview.level)}
+                          {t('goal.bookLevel', { level: manualPreview.bookLevel })}
                         </span>
                       </div>
                     )}
@@ -301,7 +318,7 @@ export default function GoalForm() {
             {assessed && assessmentData && (
               <div className="assessment-result">
                 <div className={`level-badge level-badge--${assessmentData.level}`}>
-                  {levelLabel(assessmentData.level)}
+                  {t('goal.bookLevel', { level: assessmentData.bookLevel })}
                 </div>
                 <div className="assessment-result__meta">
                   <span className="vdot-pill">VDOT {assessmentData.vdot}</span>
@@ -312,6 +329,16 @@ export default function GoalForm() {
                     <span className="meta-chip">{t('goal.longRunKm', { km: assessmentData.longestRunKm })}</span>
                   )}
                 </div>
+                {assessmentData.predictions && (
+                  <div className="assessment-result__predictions">
+                    <span className="field__label">{t('goal.predictions')}</span>
+                    <ul>
+                      {Object.entries(assessmentData.predictions).map(([key, time]) => (
+                        <li key={key}>{distanceLabel(key)}: <strong>{time}</strong></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {assessmentData.reasoning && (
                   <p className="assessment-result__reasoning">{assessmentData.reasoning}</p>
                 )}

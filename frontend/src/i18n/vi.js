@@ -54,6 +54,7 @@ export default {
   'chat.error': 'Đã xảy ra lỗi — vui lòng thử lại.',
   'chat.placeholder': 'Nhập câu trả lời…',
   'chat.send': 'Gửi',
+  'chat.sexAgeHint': 'Giới tính và tuổi chỉ dùng để chấm cấp độ theo Daniels, không được lưu lại.',
 
   'dashboard.loadError': 'Không thể tải trang tổng quan của bạn.',
   'dashboard.empty': 'Chưa có kế hoạch tập luyện nào.',
@@ -120,6 +121,8 @@ export default {
   'goal.modeVdot': 'VDOT',
   'goal.yourTime': 'Thời Gian Của Bạn',
   'goal.yourVdot': 'VDOT Của Bạn',
+  'goal.bookLevel': 'Cấp {level}/10',
+  'goal.predictions': 'Thời gian dự đoán',
   'goal.weeklyKm': '{km} km/tuần',
   'goal.longRunKm': '{km} km chạy dài',
   'goal.reassess': 'Đánh giá lại →',
