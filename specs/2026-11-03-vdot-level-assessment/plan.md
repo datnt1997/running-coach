@@ -4,7 +4,7 @@ Small vertical slices; run `pytest` (and `npm run` check scripts for the fronten
 
 ## Research (no code)
 
-- [ ] **R1. Age adjustment**: read Tables 5.7 and 5.8 (about pp. 150–153) and write the age → level adjustment into `research.md` in this folder (numbers only, with page refs; no pasted tables).
+- [x] **R1. Age adjustment**: read Tables 5.7 and 5.8 (about pp. 150–153) and write the age → level adjustment into `research.md` in this folder (numbers only, with page refs; no pasted tables).
   - Verify: hand-check two examples from the book's own text (the 58-year-old and 10-year-old examples near Table 5.7).
 - [ ] **R2. Strava best efforts** (docs done; one item open): `best_efforts` is returned only by the detailed activity (`GET /activities/{id}`), per activity, for runs; our existing `activity:read_all` scope is enough; read limits are 100 requests per 15 min and 1,000 per day (details in `research.md`).
   - Open: one redacted sample payload to confirm the effort names and distances (the docs do not list them). Needs a real run fetched with the user's token, so ask the user to run one `curl` and paste the `best_efforts` array.
@@ -16,23 +16,23 @@ Small vertical slices; run `pytest` (and `npm run` check scripts for the fronten
   - The estimate is a suggestion: show the effort's date and distance, and the user confirms or overrides it.
   - Verified by three hand-built histories (steady runner, returning after a break, one old PR with low volume); they become the task 6 fixtures.
   - Still unknown for the break rule: whether breaks of 72 days or more should return an estimate or fall back to the questions.
-- [ ] **R3. Level → label mapping**: decide how the book's levels 1–10 map to `beginner / intermediate / advanced`. Propose a mapping and confirm with the user.
+- [x] **R3. Level → label mapping**: decide how the book's levels 1–10 map to `beginner / intermediate / advanced`. Propose a mapping and confirm with the user.
 
 ## Tasks
 
-- [ ] **1. VDOT module**: add `app/vdot.py` with `vdot_from_race(distance_m, seconds)`, `race_time_for_vdot(vdot, distance_m)`, `level_for(vdot, sex, age)`, `break_factor(days_off, cross_trained)` (Table 15.1, p. 382; see `research.md`).
+- [x] **1. VDOT module**: add `app/vdot.py` with `vdot_from_race(distance_m, seconds)`, `race_time_for_vdot(vdot, distance_m)`, `level_for(vdot, sex, age)`, `break_factor(days_off, cross_trained)` (Table 15.1, p. 382; see `research.md`).
   - Files: `app/vdot.py`, `tests/test_vdot.py`
   - Verify: tests against rows of Table 5.1 (5K–FM, tolerance in requirements 3 and 4) and Table 5.6 thresholds for each sex; level examples from R1.
-- [ ] **2. Migration + models**: `app/db/migrations/005_goal_vdot.sql` adds nullable `user_goals.vdot`; `GoalRequest.vdot: float | None`; repository saves it; `tests/conftest.py` applies the migration.
+- [x] **2. Migration + models**: `app/db/migrations/005_goal_vdot.sql` adds nullable `user_goals.vdot`; `GoalRequest.vdot: float | None`; repository saves it; `tests/conftest.py` applies the migration.
   - Files: migration, `app/models/goal.py`, `app/db/repositories.py`, `tests/conftest.py`
   - Verify: goal endpoint test with and without `vdot`; old rows read back with `vdot = None`.
-- [ ] **3. Plan prompt**: include VDOT when set (training paces and load calibration), unchanged when null.
+- [x] **3. Plan prompt**: include VDOT when set (training paces and load calibration), unchanged when null.
   - Files: `app/agent/prompt.py`, `tests/test_goal_endpoint.py`
   - Verify: prompt test for both cases.
-- [ ] **4. Chat collects sex and age first; code computes the result**: change `app/api/fitness_chat.py` so the model gathers signals (sex, age, race time + distance, weekly km, longest run) and Python computes VDOT, level and predictions; response carries them.
+- [x] **4. Chat collects sex and age first; code computes the result**: change `app/api/fitness_chat.py` so the model gathers signals (sex, age, race time + distance, weekly km, longest run) and Python computes VDOT, level and predictions; response carries them.
   - Files: `app/api/fitness_chat.py`, `tests/test_fitness_chat.py`
   - Verify: fake-client tests cover sex/age first, a complete assessment, and a missing-signal turn. Parser changes ship with their tests in the same commit.
-- [ ] **5. Frontend**: show VDOT, level and predicted times; send `vdot` with the goal; add sex/age wording to `vi.js` and run `frontend/scripts/check-i18n.mjs`.
+- [x] **5. Frontend**: show VDOT, level and predicted times; send `vdot` with the goal; add sex/age wording to `vi.js` and run `frontend/scripts/check-i18n.mjs`.
   - Files: `frontend/src/components/FitnessChat.jsx`, `frontend/src/pages/GoalForm.jsx`, `frontend/src/i18n/vi.js`, `frontend/src/lib/vdot.js` (parity test or shared fixtures with `app/vdot.py`)
   - Verify: `npm run` build and i18n check; manual run in the browser.
 - [ ] **6. Strava estimate** (blocked on the R2 sample payload and task 1's `break_factor`): implement the R2b rule.
@@ -41,7 +41,7 @@ Small vertical slices; run `pytest` (and `npm run` check scripts for the fronten
   - Endpoint or chat step returns the estimate as a suggestion for the user to confirm or override.
   - Files: `app/strava/*`, `app/api/*`, tests with `FakeStravaClient`
   - Verify: fixtures from the three R2b histories, plus no Strava connection; break factor examples from the book (42 days gives 0.889 and 0.944); a test that an effort older than the window is ignored.
-- [ ] **7. Docs**: update `CLAUDE.md` (new module, migration list, flow) and this folder's `validation.md`.
+- [x] **7. Docs**: update `CLAUDE.md` (new module, migration list, flow) and this folder's `validation.md`.
 
 ## Risks
 
