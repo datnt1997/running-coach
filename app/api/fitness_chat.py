@@ -3,62 +3,66 @@ import logging
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.ai.client import AIClient
 from app.ai.factory import get_chat_ai_client_dep
-from app.i18n import chat_starter, language_instruction
+from app.i18n import (
+    chat_missing,
+    chat_opener,
+    chat_reasoning,
+    chat_starter,
+    language_instruction,
+)
+from app.vdot import fitness_label, level_for, race_time_for_vdot, vdot_from_race
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_SYSTEM_PROMPT = """You are a warm, encouraging running coach helping a runner discover their fitness level before we build their training plan. Your job is to collect three pieces of information through friendly conversation:
+_SYSTEM_PROMPT = """You are a warm, encouraging running coach helping a runner discover their fitness level before we build their training plan. You only collect information; the app computes VDOT, level and predictions itself, so never calculate or state a VDOT or a level.
 
-1. A recent race time and the race distance (5K, 10K, half marathon, or full marathon)
-2. Their typical weekly running distance in kilometres
-3. The longest single run they've done in the last 3 months
+The conversation already began with a question about the runner's sex and age. Collect these signals:
 
-Always reply to the runner in Vietnamese (tiếng Việt), warm and natural. Keep the JSON block's keys and values (fitness_level etc.) in English exactly as specified below.
+1. Sex (male or female) and age in years. Ask again, briefly, if they have not answered. If they decline, accept it.
+2. A recent race time and the race distance (5K, 10K, half marathon, or full marathon). If they have no recent race, ask what finish time they believe they could run for one of those distances today, and use that.
+3. Their typical weekly running distance in kilometres.
+4. The longest single run they've done in the last 3 months.
 
-Ask naturally — one question at a time, in whatever order fits the conversation. If they've already answered one, skip it and acknowledge what they said ("Nice, a 52-minute 10K is a solid base!"). Keep it brief and warm — this is a conversation, not a form.
+Always reply to the runner in Vietnamese (tiếng Việt), warm and natural. Keep the JSON block's keys and values in English exactly as specified below.
 
-If the runner has no recent race time, ask what pace feels comfortable and conversational to them, and use that to estimate their VDOT.
+Ask naturally, one question at a time. If they've already answered one, skip it and acknowledge what they said. Keep it brief and warm; this is a conversation, not a form.
 
-Once you have all three signals, classify their fitness level using the VDOT system:
-
-VDOT reference (Daniels-Gilbert):
-- 5K 35:00 → VDOT 26 | 5K 30:00 → VDOT 31 | 5K 25:00 → VDOT 38 | 5K 22:00 → VDOT 45 | 5K 20:00 → VDOT 50
-- 10K 60:00 → VDOT 32 | 10K 52:00 → VDOT 38 | 10K 50:00 → VDOT 40 | 10K 45:00 → VDOT 45 | 10K 40:00 → VDOT 52
-- HM 2:00 → VDOT 36 | HM 1:45 → VDOT 43 | HM 1:30 → VDOT 51
-- FM 4:30 → VDOT 33 | FM 4:00 → VDOT 38 | FM 3:30 → VDOT 45
-
-Fitness level thresholds:
-- VDOT < 35  → beginner
-- VDOT 35–50 → intermediate
-- VDOT > 50  → advanced
-
-When you have collected all three signals and are ready to classify, write a short encouraging summary, then end your message with a JSON block in exactly this format:
+Once you have all the signals, write a short encouraging summary (no VDOT, no level), then end your message with a JSON block in exactly this format:
 
 ```json
 {
-  "fitness_level": "intermediate",
-  "vdot": 43,
+  "sex": "male",
+  "age": 35,
+  "race_distance": "10k",
+  "race_time": "52:00",
   "weekly_km": 40,
-  "longest_run_km": 18,
-  "reasoning": "VDOT 43 from 10K 52:00; 40 km/week; longest run 18 km → intermediate"
+  "longest_run_km": 18
 }
 ```
 
 Rules for the JSON block:
-- fitness_level must be exactly one of: beginner, intermediate, advanced
-- vdot must be a whole number between 20 and 80
-- Do not include the JSON block until you have all three signals
-
-Reply to the runner warmly and naturally. The JSON block's keys and values (fitness_level etc.) stay in English."""
+- sex must be exactly one of: male, female, unspecified (when they declined)
+- age is a whole number of years, or null when they declined
+- race_distance must be exactly one of: 5k, 10k, half_marathon, full_marathon
+- race_time is "MM:SS" or "H:MM:SS"
+- Do not include the JSON block until you have all the signals"""
 
 _JSON_BLOCK_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
-_VALID_LEVELS = {"beginner", "intermediate", "advanced"}
+
+_RACE_METERS = {
+    "5k": 5000,
+    "10k": 10000,
+    "half_marathon": 21097.5,
+    "full_marathon": 42195,
+}
+_RACE_LABELS = {"5k": "5K", "10k": "10K", "half_marathon": "HM", "full_marathon": "FM"}
+_SEXES = {"male", "female", "unspecified"}
 
 
 class ChatMessage(BaseModel):
@@ -75,10 +79,86 @@ class FitnessChatResponse(BaseModel):
     done: bool
     message: str
     fitnessLevel: Optional[str] = None
-    vdot: Optional[int] = None
+    level: Optional[int] = None
+    vdot: Optional[float] = None
+    predictions: Optional[dict[str, str]] = None
     weeklyKm: Optional[float] = None
     longestRunKm: Optional[float] = None
     reasoning: Optional[str] = None
+
+
+def _parse_time(text: object) -> int | None:
+    """'MM:SS' or 'H:MM:SS' -> seconds, or None."""
+    parts = str(text).strip().split(":")
+    if len(parts) not in (2, 3) or not all(p.strip().isdigit() for p in parts):
+        return None
+    nums = [int(p) for p in parts]
+    seconds = nums[0] * 60 + nums[1] if len(nums) == 2 else nums[0] * 3600 + nums[1] * 60 + nums[2]
+    return seconds if seconds > 0 else None
+
+
+def format_time(seconds: float) -> str:
+    total = round(seconds)
+    h, rest = divmod(total, 3600)
+    m, sec = divmod(rest, 60)
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return None
+    return float(value)
+
+
+def assess(data: dict) -> tuple[dict | None, list[str]]:
+    """Validate the model's signals and compute the result in code.
+
+    Returns (result, []) when every signal is usable, else (None, missing_keys).
+    """
+    missing: list[str] = []
+
+    sex = data.get("sex")
+    if sex not in _SEXES:
+        missing.append("sex")
+
+    age = data.get("age", "absent")
+    if age is not None and (isinstance(age, bool) or not isinstance(age, (int, float)) or not 5 < age < 100):
+        missing.append("age")
+
+    distance = data.get("race_distance")
+    seconds = _parse_time(data.get("race_time"))
+    vdot = None
+    if distance in _RACE_METERS and seconds:
+        raw = vdot_from_race(_RACE_METERS[distance], seconds)
+        if 15 <= raw <= 90:
+            vdot = raw
+    if vdot is None:
+        missing.append("race")
+
+    weekly_km = _number(data.get("weekly_km"))
+    if weekly_km is None:
+        missing.append("weekly_km")
+    longest_run_km = _number(data.get("longest_run_km"))
+    if longest_run_km is None:
+        missing.append("longest_run_km")
+
+    if missing:
+        return None, missing
+
+    # Level and predictions use the unrounded VDOT so the runner's own race
+    # round-trips; only the displayed value is rounded.
+    level = level_for(vdot, None if sex == "unspecified" else sex, None if age is None else int(age))
+    return {
+        "level": level,
+        "fitness_level": fitness_label(level),
+        "vdot": round(vdot, 1),
+        "predictions": {
+            key: format_time(race_time_for_vdot(vdot, meters)) for key, meters in _RACE_METERS.items()
+        },
+        "weekly_km": weekly_km,
+        "longest_run_km": longest_run_km,
+        "reasoning": chat_reasoning(round(vdot, 1), _RACE_LABELS[distance], format_time(seconds), level),
+    }, []
 
 
 @router.post("/fitness-chat", response_model=FitnessChatResponse)
@@ -86,14 +166,21 @@ async def fitness_chat(
     req: FitnessChatRequest,
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
 ) -> FitnessChatResponse:
+    user_text = req.message.strip()
+
+    # First turn: sex and age are asked by code, before anything else.
+    if not req.history and not user_text:
+        return FitnessChatResponse(done=False, message=chat_opener())
+
     messages: list[dict] = [
         {"role": "system", "content": f"{_SYSTEM_PROMPT}\n\n{language_instruction()}"}
     ]
+    if not req.history:
+        messages.append({"role": "assistant", "content": chat_opener()})
 
     for msg in req.history:
         messages.append({"role": msg.role, "content": msg.content})
 
-    user_text = req.message.strip()
     # Anthropic requires at least one user message in the conversation
     messages.append({"role": "user", "content": user_text or chat_starter()})
 
@@ -101,29 +188,31 @@ async def fitness_chat(
     content = response.content
 
     match = _JSON_BLOCK_RE.search(content)
-    if match:
-        try:
-            data = json.loads(match.group(1))
-            fitness_level = data.get("fitness_level", "")
-            if fitness_level not in _VALID_LEVELS:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "error": "invalid_fitness_level",
-                        "message": f"'{fitness_level}' is not a valid fitness level",
-                    },
-                )
-            display_message = _JSON_BLOCK_RE.sub("", content).strip()
-            return FitnessChatResponse(
-                done=True,
-                message=display_message or data.get("reasoning", ""),
-                fitnessLevel=fitness_level,
-                vdot=int(data.get("vdot", 0)),
-                weeklyKm=float(data.get("weekly_km", 0)),
-                longestRunKm=float(data.get("longest_run_km", 0)),
-                reasoning=data.get("reasoning", ""),
-            )
-        except (json.JSONDecodeError, KeyError) as exc:
-            logger.warning("Failed to parse fitness classification JSON: %s", exc)
+    if not match:
+        return FitnessChatResponse(done=False, message=content)
 
-    return FitnessChatResponse(done=False, message=content)
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError as exc:
+        logger.warning("Failed to parse fitness signals JSON: %s", exc)
+        return FitnessChatResponse(done=False, message=_JSON_BLOCK_RE.sub("", content).strip() or content)
+    if not isinstance(data, dict):
+        data = {}
+
+    result, missing = assess(data)
+    if result is None:
+        logger.info("Fitness chat ended with missing signals: %s", missing)
+        return FitnessChatResponse(done=False, message=chat_missing(missing))
+
+    display_message = _JSON_BLOCK_RE.sub("", content).strip()
+    return FitnessChatResponse(
+        done=True,
+        message=display_message or result["reasoning"],
+        fitnessLevel=result["fitness_level"],
+        level=result["level"],
+        vdot=result["vdot"],
+        predictions=result["predictions"],
+        weeklyKm=result["weekly_km"],
+        longestRunKm=result["longest_run_km"],
+        reasoning=result["reasoning"],
+    )

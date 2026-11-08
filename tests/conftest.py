@@ -1,3 +1,4 @@
+import json
 import os
 
 # Provide test defaults for Strava env vars BEFORE any app module is imported,
@@ -130,21 +131,27 @@ class FakeAIClient:
 
 
 class FakeFitnessChatAIClient:
-    """Returns a plain follow-up question by default, or a classification JSON block."""
+    """Returns a plain follow-up question by default, or a signals JSON block.
 
-    def __init__(self, classify: bool = False, fitness_level: str = "intermediate"):
+    `signals` overrides or (with None values dropped via `drop`) removes keys.
+    """
+
+    def __init__(self, classify: bool = False, signals: dict | None = None, drop: tuple = ()):
         self.classify = classify
-        self.fitness_level = fitness_level
+        self.signals = {
+            "sex": "male", "age": 30, "race_distance": "10k", "race_time": "52:00",
+            "weekly_km": 40, "longest_run_km": 18, **(signals or {}),
+        }
+        for key in drop:
+            self.signals.pop(key, None)
+        self.calls: list[list[dict]] = []
 
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
+        self.calls.append(messages)
         if self.classify:
             content = (
                 "Based on everything you've shared, you're in great shape for this plan!\n\n"
-                "```json\n"
-                f'{{"fitness_level": "{self.fitness_level}", "vdot": 43, '
-                '"weekly_km": 40, "longest_run_km": 18, '
-                '"reasoning": "VDOT 43 from 10K 52:00; 40 km/week; longest run 18 km"}'
-                "\n```"
+                "```json\n" + json.dumps(self.signals) + "\n```"
             )
         else:
             content = "What's your most recent race time, and what distance was it?"
