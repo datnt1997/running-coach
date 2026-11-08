@@ -33,11 +33,18 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 ### Request flow
 
-1. `POST /goals` → validates a `GoalRequest` (distance, target time, race date, fitness level)
+1. `POST /goals` → validates a `GoalRequest` (distance, target time, race date, fitness level, optional `vdot`)
 2. `app/agent/planner.py:generate_plan()` builds a prompt and calls the AI client once with the `generate_training_plan` tool
 3. The structured tool-call response is parsed into a `PlanResponse` and persisted via `PlanRepository`
 4. Strava sends activity webhooks → `POST /strava/webhook` → background task fetches the full activity, matches it to a planned workout, calls AI with `analyze_activity` tool, and stores an `ActivityAnalysis`
 5. After a matched activity, a weekly summary is generated with a plain text AI call (no tool)
+
+### Fitness assessment (`app/vdot.py` + `app/api/fitness_chat.py`)
+
+- `POST /fitness-chat`: the first turn is a fixed question asking sex and age (no model call). The model only collects signals and ends with a JSON block (`sex`, `age`, `race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them and Python computes VDOT, the book level (1-10), the planner label and predicted times; an incomplete block returns `done: false` naming what is missing.
+- `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), level by sex and age (Daniels Tables 5.6-5.8), `fitness_label` (levels 1-2 beginner, 3-5 intermediate, 6-10 advanced, our choice), `break_factor` (Table 15.1). Sex or age missing: male column, no age adjustment.
+- `frontend/src/lib/vdot.js` mirrors the formula and male-column levels for manual entry; `npm run check:vdot` keeps it in step. Sex and age are never stored.
+- Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. The book PDF is git-ignored and copyrighted.
 
 ### AI abstraction (`app/ai/`)
 
@@ -59,6 +66,8 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - Connection pool via `psycopg-pool`; `get_db()` yields a single `AsyncConnection` per request
 - `migrations/001_initial.sql` — `user_goals`, `training_plans`, `workout_sessions`
 - `migrations/002_strava.sql` — adds `start_date` to `training_plans`, plus `strava_connections`, `activity_analyses`, `weekly_summaries`
+- `migrations/003_plan_status.sql`, `004_plan_language.sql` — plan status and language columns
+- `migrations/005_goal_vdot.sql` — nullable `user_goals.vdot`
 - `repositories.py` — one repository class per table; all SQL lives here
 
 ### Strava integration (`app/strava/` + `app/api/strava.py`)
@@ -72,7 +81,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 - `FakeAIClient` and `FakeAnalysisAIClient` in `conftest.py` return deterministic tool-call responses
 - `FakeStravaClient` returns a fixed `ActivityDetail`
-- `db_pool` fixture applies both migrations against a real database and tears down at end; tests requiring it skip if `DATABASE_URL` is unset
+- `db_pool` fixture applies all migrations against a real database and tears down at end; tests requiring it skip if `DATABASE_URL` is unset
 - `webhook_client` fixture wires both fakes together for end-to-end Strava webhook tests
 
 ## Key env vars

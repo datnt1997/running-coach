@@ -4,13 +4,19 @@
 
 ```bash
 pytest
-cd frontend && npm run build && node scripts/check-i18n.mjs
+cd frontend && npm run build && npm run check:i18n && npm run check:vdot
 ```
 
 - `tests/test_vdot.py`: VDOT from race time matches Table 5.1 within 0.15 (5K–FM); predicted times match within 1%; level by sex matches Table 5.6; age examples from R1 pass.
 - Goal endpoint: with `vdot`, it is saved and shows in the plan prompt; without it, behavior matches `main`.
 - Fitness chat tests (fake client): sex and age are asked before anything else; a full assessment returns VDOT, level and predicted times; missing signals do not finish early.
 - Strava estimate tests (fake client): enough data, too little data, no connection (falls back to questions).
+
+## Status (2026-11-08)
+
+- Tasks 1-5 and 7 done and committed on branch `vdot-level-assessment`; automated checks above pass (`tests/test_model_routing.py::test_gemini_model_env` fails on `main` too, unrelated).
+- Task 6 (Strava estimate) not started: blocked on the R2 sample payload.
+- Manual steps below not yet run (no browser run, no live AI call).
 
 ## Manual
 
