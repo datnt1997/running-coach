@@ -13,7 +13,10 @@ if lsof -iTCP:$APP_PORT -sTCP:LISTEN >/dev/null 2>&1; then
   echo "port $APP_PORT is taken by something this run did not start"; exit 1
 fi
 
+# The compose project label only groups the container under postgres-running-coach in
+# Docker Desktop; it is not managed by compose, and cleanup.sh still removes it by name.
 docker run -d --name "$DB_CONTAINER" -e POSTGRES_PASSWORD=verify -e POSTGRES_DB=running_coach_verify \
+  --label com.docker.compose.project=postgres-running-coach \
   --tmpfs /var/lib/postgresql/data -p 127.0.0.1:$DB_PORT:5432 postgres:16 >/dev/null
 
 # TCP only opens after the image's init scripts finish, so a successful query means usable.
