@@ -60,6 +60,12 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
     weeks_until_race = _weeks_until_race(goal.race_date, today)
     distance_label = goal.distance.replace("_", " ").title()
     injury = goal.injury_history or "none reported"
+    vdot_line = (
+        f"- VDOT (Daniels): {goal.vdot:g}. Use it to calibrate training paces "
+        "and weekly load\n"
+        if goal.vdot is not None
+        else ""
+    )
 
     return (
         "Design a periodized training plan for the following athlete and goal:\n"
@@ -68,6 +74,7 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
         f"- Race date: {goal.race_date.isoformat()}\n"
         f"- Weeks until race: {weeks_until_race}\n"
         f"- Current fitness level: {goal.fitness_level}\n"
+        f"{vdot_line}"
         f"- Available training days per week: {goal.days_per_week}\n"
         f"- Injury history: {injury}\n\n"
         "Build the plan to span the full lead-up to the race. Apply the "

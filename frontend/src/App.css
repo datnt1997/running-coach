@@ -457,23 +457,6 @@ button.link-subtle:focus-visible {
   line-height: 1.5;
 }
 
-.level-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: .3rem .85rem;
-  border-radius: 2rem;
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  align-self: flex-start;
-}
-
-.level-badge--beginner  { background: #dcfce7; color: #15803d; }
-.level-badge--intermediate { background: #fff7ed; color: #c2410c; }
-.level-badge--advanced  { background: #fef2f2; color: #b91c1c; }
-
 .vdot-pill {
   background: #1a1d23;
   color: #fff;
@@ -754,3 +737,39 @@ tr:hover td { background: #f8f9fa; }
 
 .generating p { color: #6c757d; }
 .generating .hint { font-size: .85rem; margin-top: .5rem; }
+
+.assessment-result__predictions ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.9rem;
+}
+
+/* ── Strava tab ── */
+.strava-page { max-width: 580px; margin: 0 auto; }
+.strava-page__intro { color: #6b7280; }
+.strava-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: .75rem;
+}
+.strava-card p { margin: 0; }
+.strava-card__ok { color: #15803d; font-weight: 600; }
+.strava-connect {
+  display: inline-block;
+  padding: .5rem 1.25rem;
+  background: #fc4c02;
+  color: #fff;
+  border-radius: .375rem;
+  text-decoration: none;
+  font-weight: 600;
+}
+.strava-connect:hover { background: #e34402; }

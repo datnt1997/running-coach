@@ -198,3 +198,58 @@ async def test_ai_client_called_once(client, fake_ai_client):
     resp = await client.post("/goal", json=payload)
     assert resp.status_code == 202, resp.text
     assert fake_ai_client.call_count == 1
+
+
+# VDOT (migration 005)
+
+def _goal_payload(**extra) -> dict:
+    return {
+        "distance": "half_marathon",
+        "targetTime": "1:55:00",
+        "raceDate": _race_date(16),
+        "fitnessLevel": "intermediate",
+        "daysPerWeek": 4,
+        **extra,
+    }
+
+
+@pytest.mark.asyncio
+async def test_goal_with_vdot_is_saved(client):
+    goal_id, _ = await _submit_and_fetch_plan(client, _goal_payload(vdot=43.5))
+    from app.db.connection import get_pool
+    async with get_pool().connection() as conn:
+        cur = await conn.execute("SELECT vdot FROM user_goals WHERE id = %s", (goal_id,))
+        assert (await cur.fetchone())[0] == pytest.approx(43.5)
+
+
+@pytest.mark.asyncio
+async def test_goal_without_vdot_reads_back_null(client):
+    goal_id, _ = await _submit_and_fetch_plan(client, _goal_payload())
+    from app.db.connection import get_pool
+    async with get_pool().connection() as conn:
+        cur = await conn.execute("SELECT vdot FROM user_goals WHERE id = %s", (goal_id,))
+        assert (await cur.fetchone())[0] is None
+
+
+@pytest.mark.asyncio
+async def test_out_of_range_vdot_rejected(client):
+    resp = await client.post("/goal", json=_goal_payload(vdot=200))
+    assert resp.status_code == 422
+
+
+def test_plan_prompt_includes_vdot_only_when_set():
+    from app.agent.prompt import build_user_prompt
+    from app.models.goal import GoalRequest
+
+    base = dict(
+        distance="half_marathon", target_time="1:55:00", race_date=date(2027, 3, 1),
+        fitness_level="intermediate", days_per_week=4,
+    )
+    today = date(2026, 11, 8)
+    without = build_user_prompt(GoalRequest(**base), today=today)
+    with_vdot = build_user_prompt(GoalRequest(**base, vdot=43.5), today=today)
+    assert "VDOT" not in without
+    assert "- VDOT (Daniels): 43.5" in with_vdot
+    # Only that one line differs.
+    extra = [l for l in with_vdot.splitlines() if l not in without.splitlines()]
+    assert len(extra) == 1

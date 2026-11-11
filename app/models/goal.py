@@ -18,6 +18,7 @@ class GoalRequest(BaseModel):
     fitness_level: Literal["beginner", "intermediate", "advanced"]
     days_per_week: int = Field(..., ge=3, le=7)
     injury_history: str | None = None
+    vdot: float | None = Field(None, ge=15, le=90)
 
 
 class GoalValidationError(BaseModel):

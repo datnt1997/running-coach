@@ -33,10 +33,11 @@ export function vdotFromRace(distanceMeters, timeSeconds) {
   return vo2 / pctMax
 }
 
-// VDOT → fitness level. Thresholds match the backend chat classifier.
-export function levelFromVdot(vdot) {
+// VDOT → internal planner label. Same cut-offs as app.vdot.planner_label.
+// Never shown to the runner.
+export function plannerLabel(vdot) {
   if (vdot < 35) return 'beginner'
-  if (vdot <= 50) return 'intermediate'
+  if (vdot < 50) return 'intermediate'
   return 'advanced'
 }
 
@@ -47,14 +48,14 @@ export function assessRace(distanceKey, timeStr) {
   if (!dist || !seconds) return null
   const raw = vdotFromRace(dist.meters, seconds)
   if (!Number.isFinite(raw) || raw < 20 || raw > 90) return null
-  const vdot = Math.round(raw)
-  return { vdot, level: levelFromVdot(vdot) }
+  const vdot = Math.round(raw * 10) / 10
+  return { vdot, level: plannerLabel(raw) }
 }
 
 // Convenience: raw VDOT input → { vdot, level } or null.
 export function assessVdot(vdotInput) {
   const v = Number(vdotInput)
   if (!Number.isFinite(v) || v < 20 || v > 85) return null
-  const vdot = Math.round(v)
-  return { vdot, level: levelFromVdot(vdot) }
+  const vdot = Math.round(v * 10) / 10
+  return { vdot, level: plannerLabel(v) }
 }

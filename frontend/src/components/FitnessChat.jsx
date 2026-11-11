@@ -39,7 +39,7 @@ export default function FitnessChat({ onResult }) {
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
 
       if (data.done) {
-        onResult(data.fitnessLevel, data.vdot, data.weeklyKm, data.longestRunKm, data.reasoning)
+        onResult(data)
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: t('chat.error') }])

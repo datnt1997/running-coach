@@ -1,3 +1,4 @@
+import json
 import os
 
 # Provide test defaults for Strava env vars BEFORE any app module is imported,
@@ -55,6 +56,11 @@ MIGRATION_003 = (
 MIGRATION_004 = (
     pathlib.Path(__file__).resolve().parent.parent
     / "app" / "db" / "migrations" / "004_plan_language.sql"
+)
+
+MIGRATION_005 = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "app" / "db" / "migrations" / "005_goal_vdot.sql"
 )
 
 _ALL_TABLES = (
@@ -125,21 +131,27 @@ class FakeAIClient:
 
 
 class FakeFitnessChatAIClient:
-    """Returns a plain follow-up question by default, or a classification JSON block."""
+    """Returns a plain follow-up question by default, or a signals JSON block.
 
-    def __init__(self, classify: bool = False, fitness_level: str = "intermediate"):
+    `signals` overrides or (with None values dropped via `drop`) removes keys.
+    """
+
+    def __init__(self, classify: bool = False, signals: dict | None = None, drop: tuple = ()):
         self.classify = classify
-        self.fitness_level = fitness_level
+        self.signals = {
+            "race_distance": "10k", "race_time": "52:00",
+            "weekly_km": 40, "longest_run_km": 18, **(signals or {}),
+        }
+        for key in drop:
+            self.signals.pop(key, None)
+        self.calls: list[list[dict]] = []
 
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
+        self.calls.append(messages)
         if self.classify:
             content = (
                 "Based on everything you've shared, you're in great shape for this plan!\n\n"
-                "```json\n"
-                f'{{"fitness_level": "{self.fitness_level}", "vdot": 43, '
-                '"weekly_km": 40, "longest_run_km": 18, '
-                '"reasoning": "VDOT 43 from 10K 52:00; 40 km/week; longest run 18 km"}'
-                "\n```"
+                "```json\n" + json.dumps(self.signals) + "\n```"
             )
         else:
             content = "What's your most recent race time, and what distance was it?"
@@ -229,6 +241,7 @@ async def db_pool():
         await conn.execute(MIGRATION_002.read_text())
         await conn.execute(MIGRATION_003.read_text())
         await conn.execute(MIGRATION_004.read_text())
+        await conn.execute(MIGRATION_005.read_text())
 
     pool = await db_connection.init_pool()
     try:

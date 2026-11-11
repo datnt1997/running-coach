@@ -29,8 +29,8 @@ class GoalRepository:
                 """
                 INSERT INTO user_goals
                     (distance, target_time, race_date, fitness_level,
-                     days_per_week, injury_history)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                     days_per_week, injury_history, vdot)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -40,6 +40,7 @@ class GoalRepository:
                     goal.fitness_level,
                     goal.days_per_week,
                     goal.injury_history,
+                    goal.vdot,
                 ),
             )
             row = await cur.fetchone()

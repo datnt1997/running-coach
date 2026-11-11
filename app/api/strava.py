@@ -12,6 +12,7 @@ from app.agent.analyzer import AnalysisGenerationError, analyze_activity, build_
 from app.agent.matching import match_activity_to_workout
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
+from app import config
 from app.config import STRAVA_CLIENT_ID, STRAVA_REDIRECT_URI, STRAVA_WEBHOOK_VERIFY_TOKEN
 from app.db.connection import get_db
 from app.db.repositories import (
@@ -78,7 +79,9 @@ async def strava_callback(
     )
     await db.commit()
 
-    response = RedirectResponse(url="/?connected=1", status_code=302)
+    # The SPA only exists after `npm run build`; fall back to the plain page at "/".
+    spa_built = (config.FRONTEND_DIST / "index.html").is_file()
+    response = RedirectResponse(url="/app/strava?connected=1" if spa_built else "/?connected=1", status_code=302)
     response.delete_cookie(_CSRF_COOKIE)
     return response
 
