@@ -9,13 +9,13 @@ DEFAULT_LANGUAGE = "vi"
 # Opening user message sent when the runner has not typed anything yet.
 CHAT_STARTER = {"vi": "Xin chào! Mình muốn được giúp xác định trình độ thể lực của mình."}
 
-# Fixed first turn: sex and age come before every other question (the book grades
-# levels by sex and age), so the code asks it instead of leaving it to the model.
+# Fixed first turn: the race distance has to be known before the time can be asked,
+# so the code asks it instead of leaving the order to the model.
 CHAT_OPENER = {
     "vi": (
-        "Chào bạn! Trước khi đánh giá thể lực, mình cần biết giới tính (nam hay nữ) "
-        "và tuổi của bạn, vì bảng cấp độ của Daniels chấm khác nhau theo giới tính "
-        "và độ tuổi. Bạn là nam hay nữ, và bao nhiêu tuổi?"
+        "Chào bạn! Để đánh giá thể lực, mình cần một thành tích thi đấu gần đây. "
+        "Bạn đã thi đấu cự ly nào: 5K, 10K, bán marathon hay marathon? "
+        "(Nếu chưa thi đấu, hãy chọn cự ly bạn muốn ước lượng.)"
     )
 }
 
@@ -24,8 +24,6 @@ CHAT_MISSING = {
     "vi": {
         "prefix": "Mình còn thiếu thông tin: ",
         "suffix": ". Bạn bổ sung giúp mình nhé?",
-        "sex": "giới tính (nam/nữ, hoặc bỏ qua)",
-        "age": "tuổi (hoặc bỏ qua)",
         "race": "một thành tích thi đấu (cự ly và thời gian) hoặc thời gian ước tính",
         "weekly_km": "số km chạy mỗi tuần",
         "longest_run_km": "quãng đường chạy dài nhất gần đây",
@@ -34,7 +32,7 @@ CHAT_MISSING = {
 
 # Reasoning line shown with the result.
 CHAT_REASONING = {
-    "vi": "VDOT {vdot} từ {distance} {time}; cấp {level}/10 (Bảng 5.6, Daniels)"
+    "vi": "VDOT {vdot} từ {distance} {time}"
 }
 
 
@@ -70,7 +68,7 @@ def chat_missing(keys: list[str], language: str | None = None) -> str:
     return texts["prefix"] + ", ".join(texts[k] for k in keys) + texts["suffix"]
 
 
-def chat_reasoning(vdot: float, distance: str, time: str, level: int, language: str | None = None) -> str:
+def chat_reasoning(vdot: float, distance: str, time: str, language: str | None = None) -> str:
     return CHAT_REASONING[language or get_language()].format(
-        vdot=f"{vdot:.1f}", distance=distance, time=time, level=level
+        vdot=f"{vdot:.1f}", distance=distance, time=time
     )

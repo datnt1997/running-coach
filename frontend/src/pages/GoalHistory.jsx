@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { t } from '../i18n/index.js'
-import { distanceLabel, levelLabel } from '../lib/labels.js'
+import { distanceLabel } from '../lib/labels.js'
 
 function StatusBadge({ status }) {
   const known = ['ready', 'generating', 'failed'].includes(status)
@@ -66,7 +66,6 @@ export default function GoalHistory() {
               <th>{t('table.distance')}</th>
               <th>{t('history.target')}</th>
               <th>{t('history.raceDate')}</th>
-              <th>{t('history.fitness')}</th>
               <th>{t('history.status')}</th>
               <th></th>
             </tr>
@@ -78,7 +77,6 @@ export default function GoalHistory() {
                 <td>{distanceLabel(g.distance)}</td>
                 <td>{g.targetTime}</td>
                 <td>{g.raceDate}</td>
-                <td>{levelLabel(g.fitnessLevel)}</td>
                 <td><StatusBadge status={g.planStatus} /></td>
                 <td>
                   <div className="row-actions">

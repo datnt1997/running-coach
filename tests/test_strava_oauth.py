@@ -1,3 +1,6 @@
+import pytest
+
+from app import config
 from app.api.strava import _CSRF_COOKIE, get_strava_client
 from app.main import app
 
@@ -51,3 +54,22 @@ async def test_callback_invalid_state_returns_403(client, fake_strava_client):
 
     status = await client.get("/strava/status")
     assert status.json()["connected"] is False
+
+
+@pytest.mark.parametrize("built, expected", [(True, "/app/strava?connected=1"), (False, "/?connected=1")])
+async def test_callback_redirect_depends_on_the_spa_being_built(
+    client, fake_strava_client, tmp_path, monkeypatch, built, expected
+):
+    if built:
+        (tmp_path / "index.html").write_text("<html></html>")
+    monkeypatch.setattr(config, "FRONTEND_DIST", tmp_path)
+    app.dependency_overrides[get_strava_client] = lambda: fake_strava_client
+
+    connect_resp = await client.get("/strava/connect", follow_redirects=False)
+    state = connect_resp.cookies[_CSRF_COOKIE]
+    resp = await client.get(
+        f"/strava/callback?code=fake_code&state={state}&scope=activity:read_all",
+        follow_redirects=False,
+        cookies={_CSRF_COOKIE: state},
+    )
+    assert resp.headers["location"] == expected

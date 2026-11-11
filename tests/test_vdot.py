@@ -2,10 +2,7 @@ import pytest
 
 from app.vdot import (
     break_factor,
-    fitness_label,
-    level_for,
-    level_group,
-    level_thresholds,
+    planner_label,
     race_time_for_vdot,
     vdot_from_race,
 )
@@ -56,51 +53,9 @@ def test_invalid_inputs():
         race_time_for_vdot(0, 5000)
 
 
-def test_levels_table_56():
-    assert level_thresholds("male", 30)[0] == pytest.approx(35.0)
-    assert level_thresholds("male", 30)[9] == pytest.approx(80.0)
-    assert level_thresholds("female", 30)[3] == pytest.approx(44.6)
-    assert level_for(45.0, "male", 30) == 3
-    assert level_for(45.0, "female", 30) == 4  # the gap this feature fixes
-    assert level_for(10.0, "male", 30) == 1
-    assert level_for(99.0, "female", 30) == 10
-
-
-def test_unknown_sex_and_age_use_male_unadjusted():
-    assert level_for(50.0) == level_for(50.0, "male", 30) == 4
-
-
-def test_age_adjustment_book_example_58_year_old_woman():
-    # 7:00 on 1600 m is VDOT 40.5 = level 7 at 58 (Table 5.8), level 3 when young.
-    assert level_for(40.5, "female", 58) == 7
-    assert level_for(40.5, "female", 30) == 3
-    assert level_for(36.0, "female", 58) == 6
-
-
-def test_age_adjustment_book_example_10_year_old_girl():
-    # 7:18 on 1600 m is VDOT 38.6 = level 6 at 10 (Table 5.7), same as an
-    # 18-year-old woman at 53.4.
-    assert level_for(38.6, "female", 10) == 6
-    assert level_for(53.4, "female", 18) == 6
-
-
-def test_age_39_lowers_thresholds_and_adults_are_equal():
-    assert level_thresholds("male", 38) == level_thresholds("male", 18)
-    assert level_thresholds("male", 39)[0] == pytest.approx(34.1)
-    assert level_thresholds("female", 39)[9] == pytest.approx(70.5)
-    assert level_for(34.5, "male", 39) == 1
-    assert level_for(34.5, "male", 38) == 1  # 34.5 < 35.0 clamps to 1
-    assert level_for(40.0, "male", 39) == 2  # needs 39.1 at 39, 40.0 at 38
-
-
-def test_age_clamped_beyond_book_range():
-    assert level_thresholds("male", 70) == level_thresholds("male", 58)
-    assert level_thresholds("male", 3) == level_thresholds("male", 6)
-
-
-def test_fitness_label():
-    assert [fitness_label(n) for n in (1, 2, 3, 5, 6, 10)] == [
-        "beginner", "beginner", "intermediate", "intermediate", "advanced", "advanced",
+def test_planner_label():
+    assert [planner_label(v) for v in (20, 34.9, 35, 40.2, 49.9, 50, 80)] == [
+        "beginner", "beginner", "intermediate", "intermediate", "intermediate", "advanced", "advanced",
     ]
 
 
@@ -111,9 +66,3 @@ def test_break_factor_table_15_1():
     assert break_factor(42, cross_trained=True) == pytest.approx(0.944, abs=0.001)
     assert break_factor(200) == 0.8
     assert break_factor(200, cross_trained=True) == 0.9
-
-
-def test_level_group_follows_book_headers():
-    # Tables 5.7 / 5.8: novice 1-2, intermediate 3-5, good 6-8, elite 9-10.
-    groups = [level_group(n) for n in range(1, 11)]
-    assert groups == ["novice"] * 2 + ["intermediate"] * 3 + ["good"] * 3 + ["elite"] * 2

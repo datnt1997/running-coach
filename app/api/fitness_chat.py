@@ -15,17 +15,17 @@ from app.i18n import (
     chat_starter,
     language_instruction,
 )
-from app.vdot import fitness_label, level_for, level_group, race_time_for_vdot, vdot_from_race
+from app.vdot import planner_label, race_time_for_vdot, vdot_from_race
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_SYSTEM_PROMPT = """You are a warm, encouraging running coach helping a runner discover their fitness level before we build their training plan. You only collect information; the app computes VDOT, level and predictions itself, so never calculate or state a VDOT or a level.
+_SYSTEM_PROMPT = """You are a warm, encouraging running coach helping a runner discover their fitness level before we build their training plan. You only collect information; the app computes VDOT and predictions itself, so never calculate or state a VDOT.
 
-The conversation already began with a question about the runner's sex and age. Collect these signals:
+The conversation already began with a question about the race distance (5K, 10K, half marathon, or full marathon). Collect these signals:
 
-1. Sex (male or female) and age in years. Ask again, briefly, if they have not answered. If they decline, accept it.
-2. A recent race time and the race distance (5K, 10K, half marathon, or full marathon). If they have no recent race, ask what finish time they believe they could run for one of those distances today, and use that.
+1. The race distance of a recent race. The runner is answering the opening question; if they have no recent race, accept the distance they would pick to estimate their current ability. Ask again, briefly, only if the answer is not one of the four distances.
+2. Their finish time for that distance. Name the distance in the question (for example "Bạn chạy bán marathon hết bao lâu?"). Never ask for a time without naming the distance. If they have no recent race, ask what time they believe they could run for that distance today, and use that.
 3. Their typical weekly running distance in kilometres.
 4. The longest single run they've done in the last 3 months.
 
@@ -33,12 +33,10 @@ Always reply to the runner in Vietnamese (tiếng Việt), warm and natural. Kee
 
 Ask naturally, one question at a time. If they've already answered one, skip it and acknowledge what they said. Keep it brief and warm; this is a conversation, not a form.
 
-Once you have all the signals, write a short encouraging summary (no VDOT, no level), then end your message with a JSON block in exactly this format:
+Once you have all the signals, write a short encouraging summary (no VDOT), then end your message with a JSON block in exactly this format:
 
 ```json
 {
-  "sex": "male",
-  "age": 35,
   "race_distance": "10k",
   "race_time": "52:00",
   "weekly_km": 40,
@@ -47,8 +45,6 @@ Once you have all the signals, write a short encouraging summary (no VDOT, no le
 ```
 
 Rules for the JSON block:
-- sex must be exactly one of: male, female, unspecified (when they declined)
-- age is a whole number of years, or null when they declined
 - race_distance must be exactly one of: 5k, 10k, half_marathon, full_marathon
 - race_time is "MM:SS" or "H:MM:SS"
 - Do not include the JSON block until you have all the signals"""
@@ -62,7 +58,6 @@ _RACE_METERS = {
     "full_marathon": 42195,
 }
 _RACE_LABELS = {"5k": "5K", "10k": "10K", "half_marathon": "HM", "full_marathon": "FM"}
-_SEXES = {"male", "female", "unspecified"}
 
 
 class ChatMessage(BaseModel):
@@ -79,8 +74,6 @@ class FitnessChatResponse(BaseModel):
     done: bool
     message: str
     fitnessLevel: Optional[str] = None
-    level: Optional[int] = None
-    levelGroup: Optional[str] = None
     vdot: Optional[float] = None
     predictions: Optional[dict[str, str]] = None
     weeklyKm: Optional[float] = None
@@ -118,14 +111,6 @@ def assess(data: dict) -> tuple[dict | None, list[str]]:
     """
     missing: list[str] = []
 
-    sex = data.get("sex")
-    if sex not in _SEXES:
-        missing.append("sex")
-
-    age = data.get("age", "absent")
-    if age is not None and (isinstance(age, bool) or not isinstance(age, (int, float)) or not 5 < age < 100):
-        missing.append("age")
-
     distance = data.get("race_distance")
     seconds = _parse_time(data.get("race_time"))
     vdot = None
@@ -146,20 +131,17 @@ def assess(data: dict) -> tuple[dict | None, list[str]]:
     if missing:
         return None, missing
 
-    # Level and predictions use the unrounded VDOT so the runner's own race
-    # round-trips; only the displayed value is rounded.
-    level = level_for(vdot, None if sex == "unspecified" else sex, None if age is None else int(age))
+    # Predictions use the unrounded VDOT so the runner's own race round-trips;
+    # only the displayed value is rounded.
     return {
-        "level": level,
-        "level_group": level_group(level),
-        "fitness_level": fitness_label(level),
+        "fitness_level": planner_label(vdot),
         "vdot": round(vdot, 1),
         "predictions": {
             key: format_time(race_time_for_vdot(vdot, meters)) for key, meters in _RACE_METERS.items()
         },
         "weekly_km": weekly_km,
         "longest_run_km": longest_run_km,
-        "reasoning": chat_reasoning(round(vdot, 1), _RACE_LABELS[distance], format_time(seconds), level),
+        "reasoning": chat_reasoning(round(vdot, 1), _RACE_LABELS[distance], format_time(seconds)),
     }, []
 
 
@@ -170,7 +152,7 @@ async def fitness_chat(
 ) -> FitnessChatResponse:
     user_text = req.message.strip()
 
-    # First turn: sex and age are asked by code, before anything else.
+    # First turn: the distance is asked by code, so the model never asks a time without one.
     if not req.history and not user_text:
         return FitnessChatResponse(done=False, message=chat_opener())
 
@@ -211,8 +193,6 @@ async def fitness_chat(
         done=True,
         message=display_message or result["reasoning"],
         fitnessLevel=result["fitness_level"],
-        level=result["level"],
-        levelGroup=result["level_group"],
         vdot=result["vdot"],
         predictions=result["predictions"],
         weeklyKm=result["weekly_km"],

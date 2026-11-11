@@ -33,26 +33,11 @@ export function vdotFromRace(distanceMeters, timeSeconds) {
   return vo2 / pctMax
 }
 
-// VDOT → book level 1..10 (Daniels Table 5.6, male column, ages 18-38).
-// Manual entry has no sex or age, so this mirrors app.vdot.level_for(vdot) with
-// both unknown. scripts/check-vdot.mjs keeps it in step with the backend.
-export function bookLevelFromVdot(vdot) {
-  return Math.min(10, Math.max(1, Math.floor((vdot - 35) / 5) + 1))
-}
-
-// Book level → the book's group (Tables 5.7 / 5.8 headers). Same as app.vdot.level_group.
-export function levelGroup(level) {
-  if (level <= 2) return 'novice'
-  if (level <= 5) return 'intermediate'
-  if (level <= 8) return 'good'
-  return 'elite'
-}
-
-// Book level → planner label. Same mapping as app.vdot.fitness_label.
-export function levelFromVdot(vdot) {
-  const level = bookLevelFromVdot(vdot)
-  if (level <= 2) return 'beginner'
-  if (level <= 5) return 'intermediate'
+// VDOT → internal planner label. Same cut-offs as app.vdot.planner_label.
+// Never shown to the runner.
+export function plannerLabel(vdot) {
+  if (vdot < 35) return 'beginner'
+  if (vdot < 50) return 'intermediate'
   return 'advanced'
 }
 
@@ -63,14 +48,14 @@ export function assessRace(distanceKey, timeStr) {
   if (!dist || !seconds) return null
   const raw = vdotFromRace(dist.meters, seconds)
   if (!Number.isFinite(raw) || raw < 20 || raw > 90) return null
-  const vdot = Math.round(raw)
-  return { vdot, level: levelFromVdot(raw), bookLevel: bookLevelFromVdot(raw) }
+  const vdot = Math.round(raw * 10) / 10
+  return { vdot, level: plannerLabel(raw) }
 }
 
 // Convenience: raw VDOT input → { vdot, level } or null.
 export function assessVdot(vdotInput) {
   const v = Number(vdotInput)
   if (!Number.isFinite(v) || v < 20 || v > 85) return null
-  const vdot = Math.round(v)
-  return { vdot, level: levelFromVdot(v), bookLevel: bookLevelFromVdot(v) }
+  const vdot = Math.round(v * 10) / 10
+  return { vdot, level: plannerLabel(v) }
 }

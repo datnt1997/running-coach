@@ -1,6 +1,6 @@
 // Keeps src/lib/vdot.js in step with app/vdot.py. Uses rows of Daniels Table 5.6
 // (printed race times at exact VDOTs), the same fixtures as tests/test_vdot.py.
-import { bookLevelFromVdot, levelFromVdot, levelGroup, vdotFromRace } from '../src/lib/vdot.js'
+import { plannerLabel, vdotFromRace } from '../src/lib/vdot.js'
 
 const secs = t => t.split(':').reduce((n, p) => n * 60 + Number(p), 0)
 const ROWS = [
@@ -23,21 +23,11 @@ for (const [vdot, ...times] of ROWS) {
   })
 }
 
-// Same expectations as test_vdot.py (male column, no age adjustment).
-const LEVELS = [[34.9, 1], [35.0, 1], [39.9, 1], [40.0, 2], [45.0, 3], [50.0, 4], [80.0, 10], [99, 10]]
-for (const [vdot, level] of LEVELS) {
-  if (bookLevelFromVdot(vdot) !== level) fail(`level for ${vdot}: got ${bookLevelFromVdot(vdot)}, want ${level}`)
+// Same expectations as test_planner_label in tests/test_vdot.py.
+const LABELS = [[20, 'beginner'], [34.9, 'beginner'], [35, 'intermediate'], [40.2, 'intermediate'], [49.9, 'intermediate'], [50, 'advanced'], [80, 'advanced']]
+for (const [vdot, label] of LABELS) {
+  if (plannerLabel(vdot) !== label) fail(`label for ${vdot}: got ${plannerLabel(vdot)}, want ${label}`)
 }
-const LABELS = [[1, 'beginner'], [2, 'beginner'], [3, 'intermediate'], [5, 'intermediate'], [6, 'advanced'], [10, 'advanced']]
-for (const [level, label] of LABELS) {
-  const vdot = 35 + (level - 1) * 5
-  if (levelFromVdot(vdot) !== label) fail(`label for level ${level}: got ${levelFromVdot(vdot)}, want ${label}`)
-}
-
-const GROUPS = ['novice', 'novice', 'intermediate', 'intermediate', 'intermediate', 'good', 'good', 'good', 'elite', 'elite']
-GROUPS.forEach((g, i) => {
-  if (levelGroup(i + 1) !== g) fail(`group for level ${i + 1}: got ${levelGroup(i + 1)}, want ${g}`)
-})
 
 if (failed) process.exit(1)
 console.log('vdot parity ok')

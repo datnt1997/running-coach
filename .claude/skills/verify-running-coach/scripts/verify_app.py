@@ -11,7 +11,7 @@ from app.ai.factory import get_ai_client_dep, get_chat_ai_client_dep
 from app.main import app
 
 PHASES = [("base", 4), ("build", 4), ("peak", 2), ("taper", 2)]
-SIGNALS = {"sex": "male", "age": 30, "race_distance": "10k", "race_time": "52:00",
+SIGNALS = {"race_distance": "10k", "race_time": "52:00",
            "weekly_km": 40, "longest_run_km": 18}
 
 
@@ -35,7 +35,7 @@ class VerifyFakeAI:
         if tools:  # plan generation
             return AIResponse(content="", usage=usage,
                               tool_calls=[ToolCall(name="generate_training_plan", arguments=_plan_arguments())])
-        # Fitness chat: first user turn is the sex/age answer, the second ends the chat.
+        # Fitness chat: first user turn is the distance answer, the second ends the chat.
         user_turns = sum(1 for m in messages if m["role"] == "user")
         if user_turns < 2:
             return AIResponse(content="Thời gian thi đấu gần nhất của bạn là bao nhiêu?", usage=usage)

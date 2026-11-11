@@ -139,7 +139,7 @@ class FakeFitnessChatAIClient:
     def __init__(self, classify: bool = False, signals: dict | None = None, drop: tuple = ()):
         self.classify = classify
         self.signals = {
-            "sex": "male", "age": 30, "race_distance": "10k", "race_time": "52:00",
+            "race_distance": "10k", "race_time": "52:00",
             "weekly_km": 40, "longest_run_km": 18, **(signals or {}),
         }
         for key in drop:

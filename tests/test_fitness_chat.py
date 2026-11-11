@@ -28,35 +28,35 @@ async def make_client():
 
 
 HISTORY = [
-    {"role": "assistant", "content": "Bạn là nam hay nữ, và bao nhiêu tuổi?"},
-    {"role": "user", "content": "Nam, 30 tuổi"},
+    {"role": "assistant", "content": "Bạn đã thi đấu cự ly nào?"},
+    {"role": "user", "content": "10K"},
 ]
 
 
 @pytest.mark.asyncio
-async def test_first_turn_asks_sex_and_age_without_calling_the_model(make_client):
+async def test_first_turn_asks_the_distance_without_calling_the_model(make_client):
     client, fake = await make_client()
     res = await client.post("/fitness-chat", json={"history": [], "message": ""})
     data = res.json()
     assert res.status_code == 200
     assert data["done"] is False
-    assert "giới tính" in data["message"] and "tuổi" in data["message"]
+    assert "cự ly" in data["message"] and "tuổi" not in data["message"]
     assert fake.calls == []
 
 
 @pytest.mark.asyncio
 async def test_opener_is_in_the_conversation_the_model_sees(make_client):
     client, fake = await make_client()
-    await client.post("/fitness-chat", json={"history": [], "message": "Nam, 30 tuổi"})
+    await client.post("/fitness-chat", json={"history": [], "message": "10K"})
     roles = [m["role"] for m in fake.calls[0]]
     assert roles == ["system", "assistant", "user"]
-    assert "giới tính" in fake.calls[0][1]["content"]
+    assert "cự ly" in fake.calls[0][1]["content"]
 
 
 @pytest.mark.asyncio
 async def test_mid_conversation_returns_follow_up(make_client):
     client, _ = await make_client()
-    res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "10K 52 phút"})
+    res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "52 phút"})
     data = res.json()
     assert res.status_code == 200
     assert data["done"] is False
@@ -70,9 +70,8 @@ async def test_complete_assessment_is_computed_in_code(make_client):
     data = res.json()
     assert data["done"] is True
     assert data["vdot"] == pytest.approx(38.2, abs=0.1)  # 10K 52:00
-    assert data["level"] == 1  # male 30: 38.2 is between level 1 (35.0) and level 2 (40.0)
-    assert data["fitnessLevel"] == "beginner"
-    assert data["levelGroup"] == "novice"
+    assert data["fitnessLevel"] == "intermediate"  # internal planner label, VDOT 35-50
+    assert "level" not in data and "levelGroup" not in data
     assert set(data["predictions"]) == {"5k", "10k", "half_marathon", "full_marathon"}
     assert data["predictions"]["10k"] == "52:00"
     assert data["weeklyKm"] == 40.0
@@ -82,31 +81,13 @@ async def test_complete_assessment_is_computed_in_code(make_client):
 
 
 @pytest.mark.asyncio
-async def test_sex_changes_the_level(make_client):
-    results = {}
-    for sex in ("male", "female"):
-        client, _ = await make_client(classify=True, signals={"sex": sex})
-        res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "x"})
-        results[sex] = res.json()["level"]
-    # VDOT 38.2: male level 1 (35.0-40.0), female level 2 (35.8-40.2)
-    assert results == {"male": 1, "female": 2}
-
-
-@pytest.mark.asyncio
-async def test_missing_age_key_is_not_done_and_names_the_gap(make_client):
-    client, _ = await make_client(classify=True, drop=("age",))
+async def test_missing_weekly_km_is_not_done_and_names_the_gap(make_client):
+    client, _ = await make_client(classify=True, drop=("weekly_km",))
     res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "x"})
     data = res.json()
     assert data["done"] is False
-    assert "tuổi" in data["message"]
+    assert "km chạy mỗi tuần" in data["message"]
     assert data["fitnessLevel"] is None
-
-
-@pytest.mark.asyncio
-async def test_declined_sex_and_age_still_complete(make_client):
-    client, _ = await make_client(classify=True, signals={"sex": "unspecified", "age": None})
-    res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "x"})
-    assert res.json()["done"] is True
 
 
 @pytest.mark.asyncio
@@ -130,19 +111,18 @@ async def test_long_history_processes_without_error(make_client):
     assert res.json()["done"] is False
 
 
-def test_assess_age_adjusts_level():
-    base = {"sex": "female", "race_distance": "10k", "race_time": "52:00",
-            "weekly_km": 30, "longest_run_km": 15}
-    young, _ = assess({**base, "age": 30})
-    old, _ = assess({**base, "age": 58})
-    assert old["level"] > young["level"]
+def test_assess_half_marathon_1_50_20_is_vdot_40():
+    result, _ = assess({"race_distance": "half_marathon",
+                        "race_time": "1:50:20", "weekly_km": 30, "longest_run_km": 15})
+    assert result["vdot"] == 40.2
+    assert result["predictions"]["half_marathon"] == "1:50:20"
+    assert "level" not in result
 
 
 def test_assess_rejects_bad_signals():
-    ok = {"sex": "male", "age": 30, "race_distance": "10k", "race_time": "52:00",
-          "weekly_km": 30, "longest_run_km": 15}
+    ok = {"race_distance": "10k", "race_time": "52:00", "weekly_km": 30, "longest_run_km": 15}
     assert assess(ok)[0] is not None
-    for key, bad in [("sex", "x"), ("age", 3), ("age", "30"), ("race_distance", "15k"),
+    for key, bad in [("race_distance", "15k"),
                      ("weekly_km", -1), ("longest_run_km", True), ("race_time", "0:00")]:
         result, missing = assess({**ok, key: bad})
         assert result is None and missing, key
@@ -151,3 +131,12 @@ def test_assess_rejects_bad_signals():
 def test_format_time():
     assert format_time(52 * 60) == "52:00"
     assert format_time(4 * 3600 + 5) == "4:00:05"
+
+
+@pytest.mark.asyncio
+async def test_prompt_asks_distance_before_time(make_client):
+    client, fake = await make_client()
+    await client.post("/fitness-chat", json={"history": [], "message": "bán marathon"})
+    prompt = fake.calls[0][0]["content"]
+    assert prompt.index("race distance of a recent race") < prompt.index("finish time for that distance")
+    assert "Never ask for a time without naming the distance" in prompt

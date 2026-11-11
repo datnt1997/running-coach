@@ -1,5 +1,4 @@
 import logging
-import pathlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,16 +8,13 @@ from fastapi.staticfiles import StaticFiles
 from app.api import activities, fitness_chat, goals, plans, summaries
 from app.api import strava, ui
 from app import config
-from app.config import validate_config
+from app.config import FRONTEND_DIST, validate_config
 from app.db.connection import close_pool, init_pool
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s - %(message)s",
 )
-
-FRONTEND_DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

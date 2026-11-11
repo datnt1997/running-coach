@@ -1,7 +1,10 @@
 from dotenv import load_dotenv
 import os
+import pathlib
 
 load_dotenv()
+
+FRONTEND_DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")

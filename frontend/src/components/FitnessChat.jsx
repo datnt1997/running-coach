@@ -64,7 +64,6 @@ export default function FitnessChat({ onResult }) {
 
   return (
     <div className="fitness-chat">
-      <p className="fc-hint">{t('chat.sexAgeHint')}</p>
       <div className="fc-thread">
         {messages.map((m, i) => (
           <div key={i} className={`fc-bubble fc-bubble--${m.role}`}>
