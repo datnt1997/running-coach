@@ -129,7 +129,8 @@ async def test_migration_turns_days_per_week_into_one_slot_days():
     if not DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL not configured")
 
-    before = [c.MIGRATION_001, c.MIGRATION_002, c.MIGRATION_003, c.MIGRATION_004, c.MIGRATION_005]
+    migration_006 = next(m for m in c.MIGRATIONS if m.name.startswith("006_"))
+    before = [m for m in c.MIGRATIONS if m.name < migration_006.name]
     async with await AsyncConnection.connect(DATABASE_URL, autocommit=True) as conn:
         await conn.execute(f"DROP TABLE IF EXISTS {c._ALL_TABLES} CASCADE")
         for migration in before:
@@ -141,7 +142,7 @@ async def test_migration_turns_days_per_week_into_one_slot_days():
                 (n,),
             )
 
-        await conn.execute(c.MIGRATION_006.read_text())
+        await conn.execute(migration_006.read_text())
 
         cur = await conn.execute("SELECT weekly_availability FROM user_goals")
         weeks = [row[0] for row in await cur.fetchall()]

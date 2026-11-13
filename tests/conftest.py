@@ -41,32 +41,9 @@ from app.db import connection as db_connection
 from app.main import app
 from app.strava.models import ActivityDetail, TokenSet
 
-MIGRATION_001 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "001_initial.sql"
-)
-MIGRATION_002 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "002_strava.sql"
-)
-MIGRATION_003 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "003_plan_status.sql"
-)
-
-MIGRATION_004 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "004_plan_language.sql"
-)
-
-MIGRATION_005 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "005_goal_vdot.sql"
-)
-
-MIGRATION_006 = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "app" / "db" / "migrations" / "006_weekly_availability.sql"
+# Every migration, applied in filename order. Adding a file here is automatic.
+MIGRATIONS = sorted(
+    (pathlib.Path(__file__).resolve().parent.parent / "app" / "db" / "migrations").glob("*.sql")
 )
 
 _FOUR_DAY_AVAILABILITY = [
@@ -251,12 +228,8 @@ async def db_pool():
 
     async with await AsyncConnection.connect(DATABASE_URL, autocommit=True) as conn:
         await conn.execute(f"DROP TABLE IF EXISTS {_ALL_TABLES} CASCADE")
-        await conn.execute(MIGRATION_001.read_text())
-        await conn.execute(MIGRATION_002.read_text())
-        await conn.execute(MIGRATION_003.read_text())
-        await conn.execute(MIGRATION_004.read_text())
-        await conn.execute(MIGRATION_005.read_text())
-        await conn.execute(MIGRATION_006.read_text())
+        for migration in MIGRATIONS:
+            await conn.execute(migration.read_text())
 
     pool = await db_connection.init_pool()
     try:

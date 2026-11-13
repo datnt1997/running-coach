@@ -71,6 +71,7 @@ def test_validate_both_missing_anthropic(monkeypatch):
 
 def test_gemini_model_env(monkeypatch):
     pytest.importorskip("google.generativeai")
+    monkeypatch.undo()  # drop the autouse fakes: this test needs the real GeminiClient
     from app.ai.gemini_client import GeminiClient
 
     monkeypatch.setenv("GEMINI_MODEL", "gemini-x")
