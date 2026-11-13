@@ -4,7 +4,8 @@
 rc=0
 chk() { if eval "$2" >/dev/null 2>&1; then echo "ok    $1"; else echo "FAIL  $1"; rc=1; fi; }
 chk "db container $DB_CONTAINER running" "[ \"\$(docker inspect -f '{{.State.Running}}' $DB_CONTAINER)\" = true ]"
-chk "db reachable on :$DB_PORT with all 5 migrations (vdot column)" "psql '$VERIFY_DATABASE_URL' -qtAc 'select vdot from user_goals limit 1'"
+chk "db reachable on :$DB_PORT" "psql '$VERIFY_DATABASE_URL' -qtAc 'select 1'"
+chk "db schema matches app/db/migrations (launch.sh's record)" "diff -q <(cd '$REPO/app/db/migrations' && ls *.sql) '$RUN/migrations.applied'"
 chk "server pid file present and process alive" "kill -0 \$(cat '$RUN/server.pid')"
 chk ":$APP_PORT is owned by that pid" "lsof -tiTCP:$APP_PORT -sTCP:LISTEN | grep -qx \$(cat '$RUN/server.pid')"
 chk "/health ok" "curl -fs $BASE_URL/health"

@@ -2,6 +2,14 @@
 
 Status: done. Supports the domain terms in `GLOSSARY.md` (Weekly availability, Quality workout, Missed workout, Long run, Weekly volume). Page numbers are the printed numbers at the foot of each page in `references/daniels.txt` (Vietnamese edition). They were read from the text file, not the PDF; check a page against the PDF before citing it outside this repo. The book is copyrighted, so this file paraphrases and quotes only short phrases.
 
+## Reading `references/daniels.txt`
+
+The file is the Vietnamese edition, about 1 MB and 17,000 lines. Never read it whole; search, then read a short range.
+
+- **Search in Vietnamese.** Useful terms: `nghỉ tập` (time off), `phiên Q` / `phiên tập Q` (Q session), `chạy E` / `ngày E` (easy run or day), `chạy L` (long run), `quãng đường chạy trong tuần` (weekly distance), `bỏ lỡ` (missed), `ốm`, `chấn thương` (ill, injured), `giai đoạn` (phase), `chương trình 2Q`, `Bảng` (table). Use `grep -n -i -E "a|b" references/daniels.txt | cut -c1-160`, then `sed -n 'START,ENDp'`.
+- **Page numbers print at the foot of the page.** A passage belongs to the next page number printed below it, and text after a number is on the following page. To find the page for a line: `awk -v s=LINE 'NR>=s && /^[[:space:]]+[0-9]{1,3}[[:space:]]*$/ {print NR": "$0; exit}' references/daniels.txt`. Reading the number above a passage is the usual mistake (it put Table 15.1 on p. 381; it is on p. 382).
+- Check any page you will cite against the PDF.
+
 ## R1. What Daniels says about a missed day
 
 - **A missed easy day is not lost training** (p. 84). A day without running can be part of the week ("coi việc tạm nghỉ không chạy bộ cũng là một phần của luyện tập").

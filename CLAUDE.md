@@ -36,7 +36,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 ### Request flow
 
-1. `POST /goals` → validates a `GoalRequest` (distance, target time, race date, fitness level, optional `vdot`)
+1. `POST /goal` → validates a `GoalRequest` (distance, target time, race date, weekly availability, optional `vdot`) and checks it against the scope bounds
 2. `app/agent/planner.py:generate_plan()` builds a prompt and calls the AI client once with the `generate_training_plan` tool
 3. The structured tool-call response is parsed into a `PlanResponse` and persisted via `PlanRepository`
 4. Strava sends activity webhooks → `POST /strava/webhook` → background task fetches the full activity, matches it to a planned workout, calls AI with `analyze_activity` tool, and stores an `ActivityAnalysis`
@@ -48,7 +48,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - Runners see only the VDOT and predicted race times. No level or rank is shown: Daniels' levels rate a 1:50 half marathon (VDOT 40) as novice, which does not fit our amateur audience.
 - `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), `planner_label` (VDOT below 35 beginner, below 50 intermediate, else advanced; our own cut-offs, internal only, feeds the plan prompt), `break_factor` (Table 15.1).
 - `frontend/src/lib/vdot.js` mirrors the formula and `planner_label` for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
-- Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. The book PDF is git-ignored and copyrighted.
+- Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. How to search `references/daniels.txt` (Vietnamese, page-number rule): `specs/2026-11-13-weekly-availability-and-missed-workouts/research.md`. The book PDF is git-ignored and copyrighted.
 
 ### AI abstraction (`app/ai/`)
 
@@ -63,7 +63,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - `planner.py` — orchestrates plan generation; raises `PlanGenerationError` on malformed tool output
 - `analyzer.py` — orchestrates activity analysis and weekly summary generation
 - `matching.py` — pure logic (no AI) to match an incoming Strava activity to a planned workout by date + distance (±30% tolerance)
-- `validation.py` — input validation for goals
+- `validation.py` — scope bounds: fastest supported time per distance, minimum weeks to the race (`specs/mission.md`)
 
 ### Database (`app/db/`)
 
@@ -82,7 +82,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 - `FakeAIClient` and `FakeAnalysisAIClient` in `conftest.py` return deterministic tool-call responses
 - `FakeStravaClient` returns a fixed `ActivityDetail`
-- `db_pool` fixture applies all migrations against a real database and tears down at end; tests requiring it skip if `DATABASE_URL` is unset
+- `db_pool` fixture applies all migrations against a real database and tears down at end
 - `webhook_client` fixture wires both fakes together for end-to-end Strava webhook tests
 
 ## Key env vars

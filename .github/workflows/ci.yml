@@ -30,6 +30,7 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: pytest -q
+      - run: python scripts/check_glossary.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -46,4 +47,5 @@ jobs:
       - run: npm ci
       - run: npm run check:i18n
       - run: npm run check:vdot
+      - run: npm run check:availability
       - run: npm run build

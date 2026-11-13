@@ -5,4 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 scripts/test.sh -q
-(cd frontend && npm run -s check:i18n && npm run -s check:vdot)
+python_bin=python3
+[ -x .venv/bin/python ] && python_bin=.venv/bin/python
+"$python_bin" scripts/check_glossary.py
+(cd frontend && npm run -s check:i18n && npm run -s check:vdot && npm run -s check:availability)

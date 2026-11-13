@@ -76,19 +76,19 @@ def _build_fake_plan_arguments(
     assert len(phase_sequence) == total_weeks
 
     weeks = []
-    weekly_total = base_distance
+    weekly_volume = base_distance
     for i, phase in enumerate(phase_sequence, start=1):
         if phase == "taper":
-            weekly_total = round(weekly_total * 0.75, 2)
+            weekly_volume = round(weekly_volume * 0.75, 2)
         else:
-            weekly_total = round(weekly_total * 1.08, 2)
+            weekly_volume = round(weekly_volume * 1.08, 2)
 
-        easy = round(weekly_total * 0.2, 2)
+        easy = round(weekly_volume * 0.2, 2)
         workouts = [
             {"day": "Mon", "type": "easy", "distance_km": easy, "pace_zone": "Z2", "notes": "Conversational pace"},
             {"day": "Tue", "type": "tempo" if phase != "base" else "easy", "distance_km": easy, "pace_zone": "Z3" if phase != "base" else "Z2", "notes": "Quality session"},
             {"day": "Wed", "type": "easy", "distance_km": easy, "pace_zone": "Z2", "notes": "Recovery run"},
-            {"day": "Thu", "type": "long", "distance_km": round(weekly_total - 3 * easy, 2), "pace_zone": "Z2", "notes": "Long run"},
+            {"day": "Thu", "type": "long", "distance_km": round(weekly_volume - 3 * easy, 2), "pace_zone": "Z2", "notes": "Long run"},
         ]
         weeks.append({"week_number": i, "phase": phase, "workouts": workouts})
 
