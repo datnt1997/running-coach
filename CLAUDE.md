@@ -14,15 +14,18 @@ docker compose -f docker/docker-compose.yml up -d
 # Run the server (reload on changes)
 uvicorn app.main:app --reload
 
-# Start the disposable test database (port 5434, in memory, localhost only)
-docker compose -f docker/docker-compose.yml --profile test up -d db-test
-
-# Run all tests (requires TEST_DATABASE_URL; never uses DATABASE_URL)
-TEST_DATABASE_URL=postgresql://user:password@localhost:5434/running_coach_test pytest
+# Run all tests: starts the disposable test database (port 5434, in memory,
+# localhost only) and sets TEST_DATABASE_URL; never uses DATABASE_URL
+scripts/test.sh
 
 # Run a single test file or test
-pytest tests/test_goal_endpoint.py
-pytest tests/test_goal_endpoint.py::test_create_goal_and_plan
+scripts/test.sh tests/test_goal_endpoint.py
+scripts/test.sh tests/test_goal_endpoint.py::test_create_goal_and_plan
+
+# Everything CI runs (tests + frontend checks); run once per clone to make it
+# the pre-push hook
+scripts/check.sh
+scripts/install-hooks.sh
 ```
 
 Tests that need a database skip automatically if `TEST_DATABASE_URL` is not set. The `db_pool` fixture drops and recreates all tables on each run, so `tests/conftest.py` ignores `DATABASE_URL` and refuses any test database whose name does not end in `_test`.
@@ -65,10 +68,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 ### Database (`app/db/`)
 
 - Connection pool via `psycopg-pool`; `get_db()` yields a single `AsyncConnection` per request
-- `migrations/001_initial.sql` — `user_goals`, `training_plans`, `workout_sessions`
-- `migrations/002_strava.sql` — adds `start_date` to `training_plans`, plus `strava_connections`, `activity_analyses`, `weekly_summaries`
-- `migrations/003_plan_status.sql`, `004_plan_language.sql` — plan status and language columns
-- `migrations/005_goal_vdot.sql` — nullable `user_goals.vdot`
+- `migrations/NNN_name.sql` — applied in filename order; tests and the verify skill glob the directory, so a new file needs no registration
 - `repositories.py` — one repository class per table; all SQL lives here
 
 ### Strava integration (`app/strava/` + `app/api/strava.py`)
