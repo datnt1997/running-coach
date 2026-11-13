@@ -42,8 +42,8 @@ OUTPUT
 - total_weeks must equal the number of weeks you produce, and the phase \
 breakdown counts must sum to total_weeks.
 - Each week must contain one workout entry per day you prescribe, honoring the \
-athlete's available training days per week (rest/cross days may fill remaining \
-days).
+athlete's weekly availability: the workouts per day, distance cap and Quality \
+workout permission given for each weekday (rest days fill the remaining days).
 - Keep day, type, phase and pace_zone values in English exactly as specified by \
 the tool schema.
 - Every workout must have a day, type, distance_km (0 for rest), and pace_zone.
@@ -52,6 +52,19 @@ the tool schema.
 
 def _weeks_until_race(race_date: date, today: date) -> int:
     return max((race_date - today).days // 7, 0)
+
+
+def _availability_lines(goal: GoalRequest) -> str:
+    lines = []
+    for d in goal.weekly_availability:
+        if d.slots == 0:
+            lines.append(f"- {d.day}: rest")
+            continue
+        workouts = f"{d.slots} workout" + ("s" if d.slots > 1 else "")
+        cap = f"max {d.max_km:g} km each" if d.max_km is not None else "no distance cap"
+        quality = "Quality workouts allowed" if d.quality_allowed else "no Quality workouts"
+        lines.append(f"- {d.day}: up to {workouts}, {cap}, {quality}")
+    return "\n".join(lines)
 
 
 def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
@@ -75,11 +88,12 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
         f"- Weeks until race: {weeks_until_race}\n"
         f"- Current fitness level: {goal.fitness_level}\n"
         f"{vdot_line}"
-        f"- Available training days per week: {goal.days_per_week}\n"
+        "- Weekly availability (hard limits, per weekday):\n"
+        f"{_availability_lines(goal)}\n"
         f"- Injury history: {injury}\n\n"
         "Build the plan to span the full lead-up to the race. Apply the "
         "periodization, progression, and zone guidelines from your instructions. "
-        "Respect the athlete's available days per week and injury history."
+        "Never break the weekly availability limits, and respect injury history."
     )
 
 

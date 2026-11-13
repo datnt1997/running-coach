@@ -4,6 +4,7 @@ import pytest
 
 from app.agent.validation import GoalOutOfScopeError, validate_goal
 from app.models.goal import GoalRequest
+from tests.availability import week_with_days
 
 
 # Fixed reference date so the lead-time boundary cases are deterministic.
@@ -16,7 +17,7 @@ def _goal(distance: str, target_time: str, race_date: date) -> GoalRequest:
         target_time=target_time,
         race_date=race_date,
         fitness_level="intermediate",
-        days_per_week=4,
+        weekly_availability=week_with_days(4),
         injury_history=None,
     )
 

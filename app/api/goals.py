@@ -137,7 +137,8 @@ async def list_goals(db: AsyncConnection = Depends(get_db)) -> dict:
             "targetTime": f"{h}:{m:02d}:{s:02d}",
             "raceDate": row["race_date"].isoformat(),
             "fitnessLevel": row["fitness_level"],
-            "daysPerWeek": row["days_per_week"],
+            "weeklyAvailability": row["weekly_availability"],
+            "daysPerWeek": sum(1 for d in row["weekly_availability"] if d["slots"] > 0),
             "planStatus": row["plan_status"],
             "createdAt": row["created_at"].isoformat(),
         })
