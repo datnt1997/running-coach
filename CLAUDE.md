@@ -48,7 +48,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - Runners see only the VDOT and predicted race times. No level or rank is shown: Daniels' levels rate a 1:50 half marathon (VDOT 40) as novice, which does not fit our amateur audience.
 - `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), `planner_label` (VDOT below 35 beginner, below 50 intermediate, else advanced; our own cut-offs, internal only, feeds the plan prompt), `break_factor` (Table 15.1).
 - `frontend/src/lib/vdot.js` mirrors the formula and `planner_label` for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
-- Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. The book PDF is git-ignored and copyrighted.
+- Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. How to search `references/daniels.txt` (Vietnamese, page-number rule): `specs/2026-11-13-weekly-availability-and-missed-workouts/research.md`. The book PDF is git-ignored and copyrighted.
 
 ### AI abstraction (`app/ai/`)
 
