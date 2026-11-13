@@ -1,5 +1,5 @@
 import { t } from '../i18n/index.js'
-import { PRESETS, trainingDays } from '../lib/availability.js'
+import { MAX_WORKOUT_KM, PRESETS, trainingDays } from '../lib/availability.js'
 
 export default function WeeklyAvailability({ value, onChange, errors }) {
   function update(index, patch) {
@@ -49,7 +49,7 @@ export default function WeeklyAvailability({ value, onChange, errors }) {
                 aria-invalid={dayError ? true : undefined}
                 type="number"
                 min="0"
-                max="60"
+                max={MAX_WORKOUT_KM}
                 step="0.5"
                 inputMode="decimal"
                 disabled={rest}
