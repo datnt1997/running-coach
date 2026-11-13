@@ -773,3 +773,24 @@ tr:hover td { background: #f8f9fa; }
   font-weight: 600;
 }
 .strava-connect:hover { background: #e34402; }
+
+/* ── Weekly availability ── */
+.availability { display: flex; flex-direction: column; gap: .6rem; }
+.availability__head { display: flex; justify-content: space-between; align-items: baseline; }
+.availability__count { font-weight: 600; color: #f97316; }
+.availability__presets { display: flex; gap: 1rem; flex-wrap: wrap; }
+.availability__grid { display: flex; flex-direction: column; gap: .5rem; }
+.availability__row {
+  display: grid;
+  grid-template-columns: 5.5rem auto minmax(5rem, 1fr) auto;
+  gap: .6rem;
+  align-items: center;
+}
+.availability__day { font-weight: 600; font-size: .9rem; }
+.availability__slot { width: 36px; height: 36px; }
+.availability__km { min-width: 0; }
+.availability__quality { display: flex; align-items: center; gap: .35rem; font-size: .85rem; white-space: nowrap; }
+@media (max-width: 520px) {
+  .availability__row { grid-template-columns: 1fr auto; }
+  .availability__km, .availability__quality { grid-column: span 2; }
+}

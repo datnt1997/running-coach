@@ -7,6 +7,7 @@ from app.agent.prompt import (
     build_weekly_summary_messages,
 )
 from app.models.goal import GoalRequest
+from tests.availability import week_with_days
 
 
 def test_default_language_is_vietnamese():
@@ -28,7 +29,7 @@ def test_language_instruction_names_language():
 def test_plan_prompt_has_instruction():
     goal = GoalRequest(
         distance="half_marathon", target_time="1:55:00", race_date="2030-01-01",
-        fitness_level="intermediate", days_per_week=4,
+        fitness_level="intermediate", weekly_availability=week_with_days(4),
     )
     assert i18n.language_instruction() in build_messages(goal)[0]["content"]
 

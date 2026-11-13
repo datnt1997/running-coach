@@ -2,6 +2,7 @@ import uuid
 from datetime import date, timedelta
 
 import pytest
+from tests.availability import week_with_days
 
 
 def _valid_uuid(value: str) -> bool:
@@ -64,7 +65,7 @@ async def test_valid_half_marathon(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": "left knee tendinopathy",
     }
     goal_id, plan = await _submit_and_fetch_plan(client, payload)
@@ -84,7 +85,7 @@ async def test_valid_full_marathon(client):
         "targetTime": "4:30:00",
         "raceDate": _race_date(20),
         "fitnessLevel": "advanced",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
     _, plan = await _submit_and_fetch_plan(client, payload)
@@ -99,7 +100,7 @@ async def test_hm_too_fast_rejected(client):
         "targetTime": "1:38:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "advanced",
-        "daysPerWeek": 5,
+        "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
     resp = await client.post("/goal", json=payload)
@@ -114,7 +115,7 @@ async def test_fm_too_fast_rejected(client):
         "targetTime": "3:50:00",
         "raceDate": _race_date(20),
         "fitnessLevel": "advanced",
-        "daysPerWeek": 5,
+        "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
     resp = await client.post("/goal", json=payload)
@@ -129,7 +130,7 @@ async def test_race_date_too_soon_rejected(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(6),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
     resp = await client.post("/goal", json=payload)
@@ -150,7 +151,7 @@ async def test_list_goals(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
     post = await client.post("/goal", json=payload)
@@ -170,7 +171,7 @@ async def test_delete_goal(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
     post = await client.post("/goal", json=payload)
@@ -192,7 +193,7 @@ async def test_ai_client_called_once(client, fake_ai_client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
     resp = await client.post("/goal", json=payload)
@@ -208,7 +209,7 @@ def _goal_payload(**extra) -> dict:
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "fitnessLevel": "intermediate",
-        "daysPerWeek": 4,
+        "weeklyAvailability": week_with_days(4),
         **extra,
     }
 
@@ -243,7 +244,7 @@ def test_plan_prompt_includes_vdot_only_when_set():
 
     base = dict(
         distance="half_marathon", target_time="1:55:00", race_date=date(2027, 3, 1),
-        fitness_level="intermediate", days_per_week=4,
+        fitness_level="intermediate", weekly_availability=week_with_days(4),
     )
     today = date(2026, 11, 8)
     without = build_user_prompt(GoalRequest(**base), today=today)

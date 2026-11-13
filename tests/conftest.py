@@ -32,6 +32,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport
 from psycopg import AsyncConnection
+from psycopg.types.json import Jsonb
 
 from app.ai.client import AIResponse, TokenUsage, ToolCall
 from app.ai.factory import get_ai_client_dep
@@ -62,6 +63,17 @@ MIGRATION_005 = (
     pathlib.Path(__file__).resolve().parent.parent
     / "app" / "db" / "migrations" / "005_goal_vdot.sql"
 )
+
+MIGRATION_006 = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "app" / "db" / "migrations" / "006_weekly_availability.sql"
+)
+
+_FOUR_DAY_AVAILABILITY = [
+    {"day": d, "slots": 1 if d in ("Mon", "Wed", "Fri", "Sat") else 0,
+     "maxKm": None, "qualityAllowed": True}
+    for d in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+]
 
 _ALL_TABLES = (
     "weekly_summaries, activity_analyses, strava_connections, "
@@ -114,11 +126,13 @@ def _build_fake_plan_arguments(
 class FakeAIClient:
     def __init__(self, total_weeks: int = 16, phase_breakdown=None):
         self.call_count = 0
+        self.last_messages = None
         self._total_weeks = total_weeks
         self._phase_breakdown = phase_breakdown
 
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
         self.call_count += 1
+        self.last_messages = messages
         arguments = _build_fake_plan_arguments(
             total_weeks=self._total_weeks,
             phase_breakdown=self._phase_breakdown,
@@ -242,6 +256,7 @@ async def db_pool():
         await conn.execute(MIGRATION_003.read_text())
         await conn.execute(MIGRATION_004.read_text())
         await conn.execute(MIGRATION_005.read_text())
+        await conn.execute(MIGRATION_006.read_text())
 
     pool = await db_connection.init_pool()
     try:
@@ -322,9 +337,9 @@ async def seeded_plan(db_pool):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO user_goals (distance, target_time, race_date, fitness_level, days_per_week) "
-                "VALUES ('half_marathon', '2:00:00', %s, 'intermediate', 4) RETURNING id",
-                ((today + timedelta(weeks=16)),),
+                "INSERT INTO user_goals (distance, target_time, race_date, fitness_level, weekly_availability) "
+                "VALUES ('half_marathon', '2:00:00', %s, 'intermediate', %s) RETURNING id",
+                ((today + timedelta(weeks=16)), Jsonb(_FOUR_DAY_AVAILABILITY)),
             )
             goal_id = (await cur.fetchone())[0]
 

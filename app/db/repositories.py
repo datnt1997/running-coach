@@ -3,6 +3,7 @@ from uuid import UUID
 
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from app.models.goal import GoalRequest
 from app.models.plan import PlannedWorkout
@@ -29,7 +30,7 @@ class GoalRepository:
                 """
                 INSERT INTO user_goals
                     (distance, target_time, race_date, fitness_level,
-                     days_per_week, injury_history, vdot)
+                     weekly_availability, injury_history, vdot)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
@@ -38,7 +39,7 @@ class GoalRepository:
                     _parse_target_time(goal.target_time),
                     goal.race_date,
                     goal.fitness_level,
-                    goal.days_per_week,
+                    Jsonb([d.model_dump(by_alias=True) for d in goal.weekly_availability]),
                     goal.injury_history,
                     goal.vdot,
                 ),
@@ -66,7 +67,7 @@ class GoalRepository:
             await cur.execute(
                 """
                 SELECT id, distance, target_time, race_date, fitness_level,
-                       days_per_week, plan_status, created_at
+                       weekly_availability, plan_status, created_at
                 FROM user_goals
                 ORDER BY created_at DESC
                 """

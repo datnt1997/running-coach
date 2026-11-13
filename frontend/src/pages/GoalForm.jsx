@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FitnessChat from '../components/FitnessChat.jsx'
+import WeeklyAvailability from '../components/WeeklyAvailability.jsx'
 import { t } from '../i18n/index.js'
+import { availabilityError, defaultWeek } from '../lib/availability.js'
 import { distanceLabel } from '../lib/labels.js'
 import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
@@ -15,7 +17,7 @@ const INITIAL = {
   targetTime: '',
   raceDate: '',
   fitnessLevel: 'intermediate',
-  daysPerWeek: 4,
+  weeklyAvailability: defaultWeek(),
   injuryHistory: '',
 }
 
@@ -57,9 +59,8 @@ export default function GoalForm() {
       e.raceDate = t('goal.required')
     else if (form.raceDate < MIN_RACE_DATE)
       e.raceDate = t('goal.raceTooSoon')
-    const days = Number(form.daysPerWeek)
-    if (!Number.isInteger(days) || days < 3 || days > 7)
-      e.daysPerWeek = t('goal.daysRange')
+    const availabilityKey = availabilityError(form.weeklyAvailability)
+    if (availabilityKey) e.weeklyAvailability = t(availabilityKey)
     return e
   }
 
@@ -76,7 +77,6 @@ export default function GoalForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          daysPerWeek: Number(form.daysPerWeek),
           injuryHistory: form.injuryHistory.trim() || null,
           vdot: assessmentData?.vdot ?? null,
         }),
@@ -341,25 +341,11 @@ export default function GoalForm() {
             )}
           </div>
 
-          <label className="field">
-            <span className="field__label">
-              {t('goal.daysPerWeek')}
-              <span className="field__hint">3 – 7</span>
-            </span>
-            <div className="days-picker">
-              {[3, 4, 5, 6, 7].map(d => (
-                <button
-                  key={d}
-                  type="button"
-                  className={`days-picker__btn${form.daysPerWeek == d ? ' days-picker__btn--active' : ''}`}
-                  onClick={() => set('daysPerWeek', d)}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-            {errors.daysPerWeek && <span className="field__error">{errors.daysPerWeek}</span>}
-          </label>
+          <WeeklyAvailability
+            value={form.weeklyAvailability}
+            onChange={week => set('weeklyAvailability', week)}
+            error={errors.weeklyAvailability}
+          />
         </section>
 
         {/* ── Section 3: Health Notes ── */}
