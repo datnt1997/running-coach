@@ -28,11 +28,16 @@ export function trainingDays(week) {
   return week.filter(d => d.slots > 0).length
 }
 
-// Returns an i18n key for the first problem, or null. A rest day ignores its cap.
-export function availabilityError(week) {
-  if (trainingDays(week) < MIN_TRAINING_DAYS) return 'goal.availabilityMinDays'
-  const badCap = week.some(
-    d => d.slots > 0 && d.maxKm !== null && !(d.maxKm > 0 && d.maxKm <= MAX_WORKOUT_KM),
-  )
-  return badCap ? 'goal.availabilityCap' : null
+// Problems with the week: `summary` is an i18n key for a problem with the whole week,
+// `days` maps a weekday to an i18n key for that row. Null when the week is fine.
+// A rest day ignores its cap.
+export function availabilityErrors(week) {
+  const days = {}
+  for (const d of week) {
+    const badCap =
+      d.slots > 0 && d.maxKm !== null && !(d.maxKm > 0 && d.maxKm <= MAX_WORKOUT_KM)
+    if (badCap) days[d.day] = 'goal.availabilityCap'
+  }
+  const summary = trainingDays(week) < MIN_TRAINING_DAYS ? 'goal.availabilityMinDays' : null
+  return summary || Object.keys(days).length ? { summary, days } : null
 }

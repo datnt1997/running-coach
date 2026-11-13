@@ -794,3 +794,5 @@ tr:hover td { background: #f8f9fa; }
   .availability__row { grid-template-columns: 1fr auto; }
   .availability__km, .availability__quality { grid-column: span 2; }
 }
+.availability__km--invalid { border-color: #dc2626; }
+.availability__row-error { grid-column: 1 / -1; }

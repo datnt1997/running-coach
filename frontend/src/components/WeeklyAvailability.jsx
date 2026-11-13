@@ -1,7 +1,7 @@
 import { t } from '../i18n/index.js'
 import { PRESETS, trainingDays } from '../lib/availability.js'
 
-export default function WeeklyAvailability({ value, onChange, error }) {
+export default function WeeklyAvailability({ value, onChange, errors }) {
   function update(index, patch) {
     onChange(value.map((d, i) => (i === index ? { ...d, ...patch } : d)))
   }
@@ -28,6 +28,7 @@ export default function WeeklyAvailability({ value, onChange, error }) {
       <div className="availability__grid" role="group" aria-label={t('goal.weeklyAvailability')}>
         {value.map((d, i) => {
           const rest = d.slots === 0
+          const dayError = errors?.days?.[d.day]
           return (
             <div className="availability__row" key={d.day}>
               <span className="availability__day">{t(`weekday.${d.day}`)}</span>
@@ -44,7 +45,8 @@ export default function WeeklyAvailability({ value, onChange, error }) {
                 ))}
               </div>
               <input
-                className="field__input availability__km"
+                className={`field__input availability__km${dayError ? ' availability__km--invalid' : ''}`}
+                aria-invalid={dayError ? true : undefined}
                 type="number"
                 min="0"
                 max="60"
@@ -65,11 +67,14 @@ export default function WeeklyAvailability({ value, onChange, error }) {
                 />
                 {t('goal.quality')}
               </label>
+              {dayError && (
+                <span className="field__error availability__row-error">{t(dayError)}</span>
+              )}
             </div>
           )
         })}
       </div>
-      {error && <span className="field__error">{error}</span>}
+      {errors?.summary && <span className="field__error">{t(errors.summary)}</span>}
     </div>
   )
 }

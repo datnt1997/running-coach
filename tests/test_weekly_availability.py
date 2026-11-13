@@ -159,3 +159,17 @@ async def test_migration_turns_days_per_week_into_one_slot_days():
         assert {d["day"] for d in week if d["slots"] > 0} == expected_training_days[n]
         assert all(d["slots"] in (0, 1) for d in week)
         assert all(d["maxKm"] is None and d["qualityAllowed"] is True for d in week)
+
+
+def _system_prompt(fake_ai_client) -> str:
+    return next(m["content"] for m in fake_ai_client.last_messages if m["role"] == "system")
+
+
+@pytest.mark.asyncio
+async def test_system_prompt_allows_two_workouts_on_one_day(client, fake_ai_client):
+    await client.post("/goal", json=goal_payload())
+
+    system = _system_prompt(fake_ai_client)
+
+    assert "one workout entry per day" not in system
+    assert "two workouts" in system

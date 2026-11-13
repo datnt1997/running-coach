@@ -11,7 +11,7 @@ from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
 from app.db.connection import get_db
 from app.db.repositories import GoalRepository, PlanRepository
-from app.models.goal import GoalRequest
+from app.models.goal import DayAvailability, GoalRequest, count_training_days
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,9 @@ async def list_goals(db: AsyncConnection = Depends(get_db)) -> dict:
             "raceDate": row["race_date"].isoformat(),
             "fitnessLevel": row["fitness_level"],
             "weeklyAvailability": row["weekly_availability"],
-            "daysPerWeek": sum(1 for d in row["weekly_availability"] if d["slots"] > 0),
+            "daysPerWeek": count_training_days(
+                [DayAvailability.model_validate(d) for d in row["weekly_availability"]]
+            ),
             "planStatus": row["plan_status"],
             "createdAt": row["created_at"].isoformat(),
         })

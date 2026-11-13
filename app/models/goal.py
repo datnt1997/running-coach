@@ -31,6 +31,11 @@ class DayAvailability(BaseModel):
         return self
 
 
+def count_training_days(week: list[DayAvailability]) -> int:
+    """Number of Training days: weekdays with at least one workout slot."""
+    return sum(1 for d in week if d.slots > 0)
+
+
 class GoalRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -51,14 +56,13 @@ class GoalRequest(BaseModel):
         days = [d.day for d in self.weekly_availability]
         if sorted(days, key=WEEKDAYS.index) != list(WEEKDAYS):
             raise ValueError("weeklyAvailability needs exactly one entry for each weekday")
-        if self.days_per_week < MIN_TRAINING_DAYS:
+        if self.training_days < MIN_TRAINING_DAYS:
             raise ValueError(f"at least {MIN_TRAINING_DAYS} training days are needed")
         return self
 
     @property
-    def days_per_week(self) -> int:
-        """Number of Training days: weekdays with at least one slot."""
-        return sum(1 for d in self.weekly_availability if d.slots > 0)
+    def training_days(self) -> int:
+        return count_training_days(self.weekly_availability)
 
 
 class GoalValidationError(BaseModel):
