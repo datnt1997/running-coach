@@ -28,9 +28,12 @@ done
 for f in "$REPO"/app/db/migrations/*.sql; do
   psql "$VERIFY_DATABASE_URL" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
 done
+# doctor.sh compares this record with the directory to spot a stale schema.
+(cd "$REPO/app/db/migrations" && ls *.sql) >"$RUN/migrations.applied"
 
 # Build the SPA when dist is missing or older than any source file.
 if [ ! -f "$REPO/frontend/dist/index.html" ] || [ -n "$(find "$REPO/frontend/src" "$REPO/frontend/index.html" -newer "$REPO/frontend/dist/index.html" -print -quit)" ]; then
+  [ -d "$REPO/frontend/node_modules" ] || (cd "$REPO/frontend" && npm ci >"$RUN/npm-ci.log" 2>&1) || { echo "npm ci failed, see $RUN/npm-ci.log"; exit 1; }
   (cd "$REPO/frontend" && npm run build >"$RUN/build.log" 2>&1) || { echo "frontend build failed, see $RUN/build.log"; exit 1; }
 fi
 
