@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import FitnessChat from '../components/FitnessChat.jsx'
 import WeeklyAvailability from '../components/WeeklyAvailability.jsx'
 import { t } from '../i18n/index.js'
-import { availabilityError, defaultWeek } from '../lib/availability.js'
+import { availabilityErrors, defaultWeek } from '../lib/availability.js'
 import { distanceLabel } from '../lib/labels.js'
 import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
@@ -59,8 +59,8 @@ export default function GoalForm() {
       e.raceDate = t('goal.required')
     else if (form.raceDate < MIN_RACE_DATE)
       e.raceDate = t('goal.raceTooSoon')
-    const availabilityKey = availabilityError(form.weeklyAvailability)
-    if (availabilityKey) e.weeklyAvailability = t(availabilityKey)
+    const availability = availabilityErrors(form.weeklyAvailability)
+    if (availability) e.weeklyAvailability = availability
     return e
   }
 
@@ -344,7 +344,7 @@ export default function GoalForm() {
           <WeeklyAvailability
             value={form.weeklyAvailability}
             onChange={week => set('weeklyAvailability', week)}
-            error={errors.weeklyAvailability}
+            errors={errors.weeklyAvailability}
           />
         </section>
 

@@ -41,9 +41,10 @@ OUTPUT
 - Call the generate_training_plan tool exactly once with the complete plan.
 - total_weeks must equal the number of weeks you produce, and the phase \
 breakdown counts must sum to total_weeks.
-- Each week must contain one workout entry per day you prescribe, honoring the \
-athlete's weekly availability: the workouts per day, distance cap and Quality \
-workout permission given for each weekday (rest days fill the remaining days).
+- Each week must contain one workout entry per workout you prescribe, honoring \
+the athlete's weekly availability: the workouts per day, distance cap and Quality \
+workout permission given for each weekday. A day may hold two workouts when its \
+availability allows two workouts; rest days fill the remaining days.
 - Keep day, type, phase and pace_zone values in English exactly as specified by \
 the tool schema.
 - Every workout must have a day, type, distance_km (0 for rest), and pace_zone.
