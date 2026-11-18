@@ -5,7 +5,8 @@ export default function FitnessChat({ onResult }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const bottomRef = useRef(null)
+  const threadRef = useRef(null)
+  const inputRef = useRef(null)
   const startedRef = useRef(false)
 
   useEffect(() => {
@@ -17,8 +18,15 @@ export default function FitnessChat({ onResult }) {
   }, [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    // Scroll only the chat thread. scrollIntoView() would also scroll the page.
+    const thread = threadRef.current
+    thread?.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' })
+  }, [messages, loading])
+
+  useEffect(() => {
+    // Keep typing without the browser scrolling the page to the input.
+    if (!loading) inputRef.current?.focus({ preventScroll: true })
+  }, [loading])
 
   async function sendTurn(userText) {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
@@ -64,7 +72,7 @@ export default function FitnessChat({ onResult }) {
 
   return (
     <div className="fitness-chat">
-      <div className="fc-thread">
+      <div className="fc-thread" ref={threadRef}>
         {messages.map((m, i) => (
           <div key={i} className={`fc-bubble fc-bubble--${m.role}`}>
             {m.content}
@@ -75,7 +83,6 @@ export default function FitnessChat({ onResult }) {
             <span className="fc-dot" /><span className="fc-dot" /><span className="fc-dot" />
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
       <div className="fc-input-row">
         <input
@@ -85,7 +92,7 @@ export default function FitnessChat({ onResult }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={loading}
-          autoFocus
+          ref={inputRef}
         />
         <button type="button" onClick={handleSend} disabled={loading || !input.trim()}>{t('chat.send')}</button>
       </div>
