@@ -19,11 +19,11 @@ A runner enters a half/full marathon goal, establishes fitness (chat, race time,
 
 Preconditions: baseline; open `http://127.0.0.1:8010/app/new` in a new tab.
 
-- **Manual race entry.** Click `Tôi đã biết thời gian thi đấu hoặc VDOT của mình`, keep distance `10K`, set textbox `52:00` to `52:00`, see a pill `VDOT 38` and a level badge, click `Sử dụng`. The card shows `CẤP 1/10 - NGƯỜI MỚI TẬP` and `VDOT 38`.
+- **Manual race entry.** Click `Tôi đã biết thời gian thi đấu hoặc VDOT của mình`, keep distance `10K`, set textbox `52:00` to `52:00`, see a pill `VDOT 38`, click `Sử dụng`. The card shows `VDOT 38` and no level.
 - **Fill the goal.** Set textbox `1:55:00` to `1:55:00`, the date input to a date at least 70 days out, leave `4` days selected.
 - **Submit.** Click `Tạo Kế Hoạch Của Tôi`. The URL becomes `/app/goals/<uuid>` and the page shows `Kế Hoạch Tập Luyện Của Bạn` and `VERIFY-FAKE-PLAN 12 weeks`.
-- **Second view.** `psql "$VERIFY_DATABASE_URL" -c "select vdot,fitness_level,plan_status from user_goals"` shows `38 | beginner | ready`; workouts count for the plan is 36.
-- **Validation.** Submit with an empty form: errors `Nhập theo định dạng H:MM:SS (vd: 1:55:00)` and `Bắt buộc` appear and no row is inserted.
+- **Second view.** `psql "$VERIFY_DATABASE_URL" -c "select vdot,plan_status from user_goals"` shows `38 | ready`; workouts count for the plan is 36.
+- **Validation.** Submit with an empty form: errors `Nhập theo định dạng H:MM:SS (vd: 1:55:00)`, `Bắt buộc` and `Hãy đánh giá thể lực trước…` appear and no row is inserted.
 - **Chat.** Click `Bắt Đầu Đánh Giá`, answer the opener (`nam, 30 tuổi`), then any text (`10K 52 phút`). A result card with VDOT appears and the chat closes.
 
 ## Gotchas

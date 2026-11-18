@@ -57,7 +57,7 @@ Every chat request assembles context from 4 tiers:
 │  │                      │  │  └─ Last 5 training sessions        │   │
 │  │  - Current goal      │  │     (with computed metrics)         │   │
 │  │  - Active injuries   │  └──────────────────────────────────────┘   │
-│  │  - Fitness level     │                                              │
+│  │  - Fitness (VDOT)    │                                              │
 │  │  - Shoe preference   │  ┌──────────────────────────────────────┐   │
 │  │  - ...               │  │  TIER 4 (on-demand)                  │   │
 │  │                      │  │  Semantic Search via pgvector        │   │
@@ -81,7 +81,7 @@ Every chat request assembles context from 4 tiers:
 ---
 
 ### Tier 2 — Active Facts (Entity State Machine)
-**What:** Everything currently true about this athlete — goals, injuries, fitness level, preferences, psychology.  
+**What:** Everything currently true about this athlete — goals, injuries, fitness (VDOT), preferences, psychology.  
 **How:** Key-value rows in `athlete_facts` table. Context injection queries `status = 'active'`, deduplicated by `DISTINCT ON (category)` ordered by `created_at DESC` — so only the latest state of each fact is shown to Claude.  
 **Updated by:** Memory Extraction Agent (runs after Weekly Reflection cron).
 

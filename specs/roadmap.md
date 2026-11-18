@@ -21,12 +21,12 @@ Each phase ships a thin vertical slice — end-to-end working functionality — 
 
 **Classification approach (two combined directions):**
 - **Direction 1 — VDOT from race time:** A single recent race time (any distance: 5K / 10K / HM / FM) maps to a VDOT score (VO2max proxy, Jack Daniels system). VDOT drives all training paces (easy, marathon, threshold, interval) with no ambiguity.
-- **Direction 4 — Chat collects real numbers, Claude infers internally:** The chat collects `{ recentRaceTime, recentRaceDistance, weeklyKm, longestRunKm }`. Claude maps these to training calibration internally — `fitnessLevel` in the DB becomes a derived value, not a user-guessed label.
+- **Direction 4 — Chat collects real numbers, Claude infers internally:** The chat collects `{ recentRaceTime, recentRaceDistance, weeklyKm, longestRunKm }`. VDOT is computed in code from the race result and is the only fitness input the plan generator receives (the derived `fitnessLevel` label planned here was removed: ADR 0002).
 
 **Implementation:**
-- **Entry point:** "Not sure? Let me help →" button replaces the Fitness Level dropdown in the goal form.
+- **Entry point:** "Not sure? Let me help →" button replaced the Fitness Level dropdown in the goal form.
 - **`POST /fitness-chat`** — stateless endpoint; Claude collects the three core signals across ≤ 5 turns: recent race time + distance, weekly km, longest run in last 3 months.
-- On completion: returns `{ done: true, fitnessLevel, vdot, weeklyKm, longestRunKm, message }` — `fitnessLevel` is derived from VDOT, used internally by the plan generator; raw signals are passed to Claude for plan calibration.
+- On completion: returns `{ done: true, vdot, predictions, weeklyKm, longestRunKm, message, reasoning }`; `vdot` goes to the plan generator.
 - On classification: form is updated with derived values; chat collapses; form continues normally.
 - No DB writes — fully stateless. Reuses existing `AIClient` abstraction.
 - Spec: `SPEC.md` in project root.

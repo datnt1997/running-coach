@@ -1,5 +1,8 @@
 # Fitness Assessment Chat Widget — Spec
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 ## 1. Objective
 
 Replace the static "Fitness Level" dropdown in `GoalForm` with a **VDOT-based fitness assessment**. Instead of asking the runner to self-classify as beginner/intermediate/advanced (an arbitrary label), fitness level is derived from real performance data via the **VDOT score** (Jack Daniels / Daniels–Gilbert system — the industry standard VO2max proxy).

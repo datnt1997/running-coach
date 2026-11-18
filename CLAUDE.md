@@ -44,10 +44,10 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 ### Fitness assessment (`app/vdot.py` + `app/api/fitness_chat.py`)
 
-- `POST /fitness-chat`: the first turn is a fixed question asking the race distance (no model call). The model then asks the finish time for that distance and collects the other signals, ending with a JSON block (`race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them and Python computes VDOT, the predicted times and an internal planner label; an incomplete block returns `done: false` naming what is missing.
+- `POST /fitness-chat`: the first turn is a fixed question asking the race distance (no model call). The model then asks the finish time for that distance and collects the other signals, ending with a JSON block (`race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them and Python computes VDOT and the predicted times; an incomplete block returns `done: false` naming what is missing.
 - Runners see only the VDOT and predicted race times. No level or rank is shown: Daniels' levels rate a 1:50 half marathon (VDOT 40) as novice, which does not fit our amateur audience.
-- `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), `planner_label` (VDOT below 35 beginner, below 50 intermediate, else advanced; our own cut-offs, internal only, feeds the plan prompt), `break_factor` (Table 15.1).
-- `frontend/src/lib/vdot.js` mirrors the formula and `planner_label` for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
+- `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), `training_paces` (E, M, T, I paces per km from a VDOT, checked against Table 5.2; they go into the plan prompt so the model never invents paces), `break_factor` (Table 15.1).
+- `frontend/src/lib/vdot.js` mirrors the formula for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
 - Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. How to search `references/daniels.txt` (Vietnamese, page-number rule): `specs/2026-11-13-weekly-availability-and-missed-workouts/research.md`. The book PDF is git-ignored and copyrighted.
 
 ### AI abstraction (`app/ai/`)

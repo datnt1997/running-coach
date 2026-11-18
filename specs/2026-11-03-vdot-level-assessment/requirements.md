@@ -1,5 +1,8 @@
 # Requirements: VDOT-based level assessment (sex, age, Strava estimate)
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 ## Objective
 
 The fitness assessment chat estimates a runner's current fitness with Daniels' VDOT, grades the level for the runner's **sex and age** using the book's performance tables, predicts race times, and passes **VDOT** to the plan generator. Runners with Strava connected can get the estimate from their real runs; everyone else keeps the existing question flow.

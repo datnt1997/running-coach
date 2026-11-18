@@ -27,8 +27,8 @@ KNOWN = [
      "GET /goals keeps daysPerWeek for the history page (issue #6 spec)"),
     (r"^(app|tests)/.*$", r"workout_sessions?|WorkoutSession",
      "legacy table and model name; glossary says Planned workout"),
-    (r"^(app|frontend/src|tests)/.*$", r"fitness_level|fitnessLevel",
-     "not renamed yet; glossary says Planner label (issue #17)"),
+    (r"^tests/(test_weekly_availability|test_fitness_chat|test_goal_endpoint|test_migration_007)\.py$", r"fitness_level|fitnessLevel",
+     "tests that the removed field is gone or that old rows migrate (issue #17)"),
     (r"^(app|tests)/.*$", r"training_plans?|TrainingPlan",
      "table and model name stay (glossary Plan entry)"),
 ]

@@ -1,5 +1,8 @@
 # Phase 1.1 — Fitness Assessment Widget: IMPLEMENTATION
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 > As-built reality (not the plan). Branch: `phase-1.1-fitness-level-chat-widget`.
 > The spec files describe intent; this describes the code that shipped.
 

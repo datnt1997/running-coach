@@ -93,13 +93,9 @@ _Avoid_: Coach chat, chat
 ### Fitness assessment
 
 **VDOT**:
-The runner's single fitness number, computed from a recent race result (Daniels-Gilbert). It is shown to the runner with one decimal.
-_Avoid_: Fitness score, rating
+The runner's single fitness number, computed from a recent race result (Daniels-Gilbert). It is shown to the runner with one decimal, and it is the only fitness input the plan generator receives: there is no beginner/intermediate/advanced label.
+_Avoid_: Fitness score, rating, fitness level, planner label
 
 **Predicted times**:
 The race times implied by a runner's VDOT. Together with VDOT, these are the only fitness outputs the runner sees.
 _Avoid_: Estimates, projections
-
-**Planner label**:
-An internal beginner/intermediate/advanced bucket derived from VDOT that steers plan generation. It is never shown to the runner.
-_Avoid_: Fitness level, level, rank, tier

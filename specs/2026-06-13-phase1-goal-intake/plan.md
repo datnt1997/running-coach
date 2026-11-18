@@ -1,5 +1,8 @@
 # Phase 1 — Goal Intake + Static Plan Generation: Implementation Plan
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 ## Group 1 — Project Bootstrap
 
 1.1 Create directory structure: `app/`, `app/api/`, `app/models/`, `app/db/`, `app/agent/`, `app/ai/`, `tests/`

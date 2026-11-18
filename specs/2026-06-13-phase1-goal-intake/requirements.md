@@ -1,5 +1,8 @@
 # Phase 1 — Goal Intake + Static Plan Generation: Requirements
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 ## Scope
 
 Build the end-to-end path from a user submitting their goal to receiving a personalized, periodized training plan. No Strava, no re-planning, no chat — just intake → generate → persist → retrieve.
