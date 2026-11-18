@@ -88,6 +88,20 @@ async def test_missing_weekly_km_is_not_done_and_names_the_gap(make_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("signals,gap", [
+    ({"weekly_km": 400}, "km chạy mỗi tuần"),          # above the Goal's weekly limit
+    ({"longest_run_km": 70}, "chạy dài nhất"),          # above the Goal's long run limit
+    ({"weekly_km": 10, "longest_run_km": 18}, "chạy dài nhất"),  # longer than the week
+])
+async def test_signals_the_goal_would_reject_are_not_done(make_client, signals, gap):
+    client, _ = await make_client(classify=True, signals=signals)
+    res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "x"})
+    data = res.json()
+    assert data["done"] is False
+    assert gap in data["message"]
+
+
+@pytest.mark.asyncio
 async def test_unusable_race_time_is_not_done(make_client):
     client, _ = await make_client(classify=True, signals={"race_time": "fast"})
     res = await client.post("/fitness-chat", json={"history": HISTORY, "message": "x"})

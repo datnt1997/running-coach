@@ -65,6 +65,8 @@ async def test_valid_half_marathon(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": "left knee tendinopathy",
     }
@@ -85,6 +87,8 @@ async def test_valid_full_marathon(client):
         "targetTime": "4:30:00",
         "raceDate": _race_date(20),
         "vdot": 55.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -100,6 +104,8 @@ async def test_hm_too_fast_rejected(client):
         "targetTime": "1:38:00",
         "raceDate": _race_date(16),
         "vdot": 55.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
@@ -115,6 +121,8 @@ async def test_fm_too_fast_rejected(client):
         "targetTime": "3:50:00",
         "raceDate": _race_date(20),
         "vdot": 55.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
@@ -130,6 +138,8 @@ async def test_race_date_too_soon_rejected(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(6),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -151,6 +161,8 @@ async def test_list_goals(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -171,6 +183,8 @@ async def test_delete_goal(client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -193,6 +207,8 @@ async def test_ai_client_called_once(client, fake_ai_client):
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -209,6 +225,8 @@ def _goal_payload(**extra) -> dict:
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": week_with_days(4),
         **extra,
     }
@@ -238,6 +256,36 @@ async def test_goal_with_old_fitness_level_field_is_ignored(client):
 
 
 @pytest.mark.asyncio
+async def test_current_load_is_saved(client):
+    goal_id, _ = await _submit_and_fetch_plan(client, _goal_payload(weeklyKm=32.5, longestRunKm=14))
+    from app.db.connection import get_pool
+    async with get_pool().connection() as conn:
+        cur = await conn.execute("SELECT weekly_km, longest_run_km FROM user_goals WHERE id = %s", (goal_id,))
+        assert await cur.fetchone() == (pytest.approx(32.5), pytest.approx(14))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing", ["weeklyKm", "longestRunKm"])
+async def test_goal_without_current_load_rejected(client, missing):
+    payload = _goal_payload()
+    del payload[missing]
+    resp = await client.post("/goal", json=payload)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("load", [
+    {"weeklyKm": 20, "longestRunKm": 25},   # longest run more than the week
+    {"weeklyKm": 300, "longestRunKm": 20},  # beyond the weekly limit
+    {"weeklyKm": 100, "longestRunKm": 61},  # beyond the longest run limit
+    {"weeklyKm": -1, "longestRunKm": 0},
+])
+async def test_impossible_current_load_rejected(client, load):
+    resp = await client.post("/goal", json=_goal_payload(**load))
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_out_of_range_vdot_rejected(client):
     resp = await client.post("/goal", json=_goal_payload(vdot=200))
     assert resp.status_code == 422
@@ -249,9 +297,23 @@ def test_plan_prompt_gives_vdot_and_no_fitness_level():
 
     goal = GoalRequest(
         distance="half_marathon", target_time="1:55:00", race_date=date(2027, 3, 1),
-        vdot=43, weekly_availability=week_with_days(4),
+        vdot=43, weekly_km=40, longest_run_km=18, weekly_availability=week_with_days(4),
     )
     prompt = build_user_prompt(goal, today=date(2026, 11, 8))
     assert "- VDOT (Daniels): 43" in prompt
     assert "- Training paces per km: easy 5:35-6:16, marathon 5:09" in prompt  # Table 5.2, VDOT 43
     assert "fitness level" not in prompt.lower()
+
+
+def test_plan_prompt_gives_current_load_and_starting_point_rule():
+    from app.agent.prompt import SYSTEM_PROMPT, build_user_prompt
+    from app.models.goal import GoalRequest
+
+    goal = GoalRequest(
+        distance="half_marathon", target_time="1:55:00", race_date=date(2027, 3, 1),
+        vdot=43, weekly_km=32.5, longest_run_km=14, weekly_availability=week_with_days(4),
+    )
+    prompt = build_user_prompt(goal, today=date(2026, 11, 8))
+    assert "- Current running: 32.5 km per week, longest recent run 14 km" in prompt
+    assert "STARTING POINT" in SYSTEM_PROMPT
+    assert "current load is low" in SYSTEM_PROMPT

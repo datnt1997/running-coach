@@ -30,8 +30,9 @@ class GoalRepository:
                 """
                 INSERT INTO user_goals
                     (distance, target_time, race_date,
-                     weekly_availability, injury_history, vdot)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                     weekly_availability, injury_history, vdot,
+                     weekly_km, longest_run_km)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -41,6 +42,8 @@ class GoalRepository:
                     Jsonb([d.model_dump(by_alias=True) for d in goal.weekly_availability]),
                     goal.injury_history,
                     goal.vdot,
+                    goal.weekly_km,
+                    goal.longest_run_km,
                 ),
             )
             row = await cur.fetchone()
