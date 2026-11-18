@@ -10,6 +10,8 @@ Weekday = Literal["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 MAX_WORKOUT_KM = 60  # Longest distance cap a runner may set for one workout.
 MIN_TRAINING_DAYS = 3
+MAX_WEEKLY_KM = 250  # Current weekly distance a runner may report.
+MAX_LONGEST_RUN_KM = 60  # Longest recent run a runner may report.
 
 
 class DayAvailability(BaseModel):
@@ -49,6 +51,14 @@ class GoalRequest(BaseModel):
     weekly_availability: list[DayAvailability]
     injury_history: str | None = None
     vdot: float = Field(..., ge=15, le=90)
+    weekly_km: float = Field(..., ge=0, le=MAX_WEEKLY_KM)
+    longest_run_km: float = Field(..., ge=0, le=MAX_LONGEST_RUN_KM)
+
+    @model_validator(mode="after")
+    def _longest_run_fits_in_the_week(self):
+        if self.longest_run_km > self.weekly_km:
+            raise ValueError("longestRunKm cannot be more than weeklyKm")
+        return self
 
     @model_validator(mode="after")
     def _availability_covers_the_week(self):

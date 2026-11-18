@@ -5,6 +5,8 @@ import WeeklyAvailability from '../components/WeeklyAvailability.jsx'
 import { t } from '../i18n/index.js'
 import { availabilityErrors, defaultWeek } from '../lib/availability.js'
 import { distanceLabel } from '../lib/labels.js'
+import { MAX_LONGEST_RUN_KM, MAX_WEEKLY_KM, loadError } from '../lib/load.js'
+import { loadAdvice } from '../lib/readiness.js'
 import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
 const today = new Date()
@@ -38,16 +40,30 @@ export default function GoalForm() {
   const [raceDist, setRaceDist] = useState('10k')
   const [raceTime, setRaceTime] = useState('')
   const [vdotInput, setVdotInput] = useState('')
+  const [manualWeeklyKm, setManualWeeklyKm] = useState('')
+  const [manualLongestRunKm, setManualLongestRunKm] = useState('')
 
   const racePreview = assessRace(raceDist, raceTime)
   const vdotPreview = assessVdot(vdotInput)
   const manualPreview = manualMode === 'race' ? racePreview : vdotPreview
+  const manualLoadError = loadError(manualWeeklyKm, manualLongestRunKm)
+  const resultLoadError = assessmentData
+    ? loadError(assessmentData.weeklyKm, assessmentData.longestRunKm)
+    : null
+  const lowLoad = assessmentData && !resultLoadError
+    ? loadAdvice(form.distance, assessmentData.weeklyKm, assessmentData.longestRunKm)
+    : null
   const [assessBefore, assessAfter] = t('goal.assessDesc').split('{vdot}')
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }))
     setErrors(e => ({ ...e, [field]: undefined }))
     setApiError(null)
+  }
+
+  // The runner may correct the numbers the chat or manual entry gave.
+  function setLoad(field, raw) {
+    setAssessmentData(d => ({ ...d, [field]: raw === '' ? '' : Number(raw) }))
   }
 
   function validate() {
@@ -59,6 +75,7 @@ export default function GoalForm() {
     else if (form.raceDate < MIN_RACE_DATE)
       e.raceDate = t('goal.raceTooSoon')
     if (!assessmentData) e.assessment = t('goal.assessmentRequired')
+    else if (loadError(assessmentData.weeklyKm, assessmentData.longestRunKm)) e.load = true
     const availability = availabilityErrors(form.weeklyAvailability)
     if (availability) e.weeklyAvailability = availability
     return e
@@ -79,6 +96,8 @@ export default function GoalForm() {
           ...form,
           injuryHistory: form.injuryHistory.trim() || null,
           vdot: assessmentData?.vdot,
+          weeklyKm: assessmentData?.weeklyKm,
+          longestRunKm: assessmentData?.longestRunKm,
         }),
       })
       const data = await res.json()
@@ -116,14 +135,14 @@ export default function GoalForm() {
   }
 
   function confirmManual() {
-    if (!manualPreview) return
+    if (!manualPreview || manualLoadError) return
     const reasoning = manualMode === 'race'
       ? t('goal.manualReasoningRace', { vdot: manualPreview.vdot, distance: distanceLabel(raceDist) })
       : t('goal.manualReasoningVdot', { vdot: manualPreview.vdot })
     handleAssessmentResult({
       vdot: manualPreview.vdot,
-      weeklyKm: 0,
-      longestRunKm: 0,
+      weeklyKm: Number(manualWeeklyKm),
+      longestRunKm: Number(manualLongestRunKm),
       reasoning,
     })
   }
@@ -274,6 +293,36 @@ export default function GoalForm() {
                       </label>
                     )}
 
+                    <div className="field-row">
+                      <label className="field">
+                        <span className="field__label">{t('goal.manualWeeklyKm')}</span>
+                        <input
+                          className="field__input"
+                          type="number"
+                          min={0}
+                          max={MAX_WEEKLY_KM}
+                          placeholder="30"
+                          value={manualWeeklyKm}
+                          onChange={e => setManualWeeklyKm(e.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field__label">{t('goal.manualLongestRun')}</span>
+                        <input
+                          className="field__input"
+                          type="number"
+                          min={0}
+                          max={MAX_LONGEST_RUN_KM}
+                          placeholder="12"
+                          value={manualLongestRunKm}
+                          onChange={e => setManualLongestRunKm(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    {manualWeeklyKm !== '' && manualLongestRunKm !== '' && manualLoadError && (
+                      <span className="field__error">{t(manualLoadError)}</span>
+                    )}
+
                     {manualPreview && (
                       <div className="manual-preview">
                         <span className="vdot-pill">VDOT {manualPreview.vdot}</span>
@@ -287,7 +336,7 @@ export default function GoalForm() {
                       <button
                         type="button"
                         className="btn-assess"
-                        disabled={!manualPreview}
+                        disabled={!manualPreview || !!manualLoadError}
                         onClick={confirmManual}
                       >
                         {t('common.use')}
@@ -313,13 +362,30 @@ export default function GoalForm() {
               <div className="assessment-result">
                 <div className="assessment-result__meta">
                   <span className="vdot-pill">VDOT {assessmentData.vdot}</span>
-                  {assessmentData.weeklyKm > 0 && (
-                    <span className="meta-chip">{t('goal.weeklyKm', { km: assessmentData.weeklyKm })}</span>
-                  )}
-                  {assessmentData.longestRunKm > 0 && (
-                    <span className="meta-chip">{t('goal.longRunKm', { km: assessmentData.longestRunKm })}</span>
-                  )}
+                  <label className="meta-chip meta-chip--edit">
+                    <input
+                      type="number"
+                      min={0}
+                      max={MAX_WEEKLY_KM}
+                      aria-label={t('goal.manualWeeklyKm')}
+                      value={assessmentData.weeklyKm}
+                      onChange={e => setLoad('weeklyKm', e.target.value)}
+                    />
+                    {t('goal.weeklyKmUnit')}
+                  </label>
+                  <label className="meta-chip meta-chip--edit">
+                    <input
+                      type="number"
+                      min={0}
+                      max={MAX_LONGEST_RUN_KM}
+                      aria-label={t('goal.manualLongestRun')}
+                      value={assessmentData.longestRunKm}
+                      onChange={e => setLoad('longestRunKm', e.target.value)}
+                    />
+                    {t('goal.longRunKmUnit')}
+                  </label>
                 </div>
+                {resultLoadError && <span className="field__error">{t(resultLoadError)}</span>}
                 {assessmentData.predictions && (
                   <div className="assessment-result__predictions">
                     <span className="field__label">{t('goal.predictions')}</span>
@@ -329,6 +395,15 @@ export default function GoalForm() {
                       ))}
                     </ul>
                   </div>
+                )}
+                {lowLoad && (
+                  <p className="load-advice" role="note">
+                    {t('goal.loadLowAdvice', {
+                      race: distanceLabel(form.distance),
+                      weekly: lowLoad.weeklyKm,
+                      longest: lowLoad.longestRunKm,
+                    })}
+                  </p>
                 )}
                 {assessmentData.reasoning && (
                   <p className="assessment-result__reasoning">{assessmentData.reasoning}</p>

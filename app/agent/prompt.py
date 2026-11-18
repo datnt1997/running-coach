@@ -57,6 +57,16 @@ the VDOT predicts for that distance, still build the best safe plan, but say so 
 plainly in the plan summary and do not raise volume or intensity beyond the \
 limits above to chase it.
 
+STARTING POINT
+- The athlete's current weekly distance and longest recent run are where the \
+plan begins. Week 1 total distance must not be more than 10% above the current \
+weekly distance, and its long run not more than 10% above the longest recent \
+run. If the athlete runs 0 km a week, start with short easy runs only.
+- Reach the weekly volume the goal needs by the progression rules, not by a \
+jump in week 1.
+- If the athlete's current load is low for the race distance, say so plainly \
+in the plan summary instead of hiding it.
+
 OUTPUT
 - Call the generate_training_plan tool exactly once with the complete plan.
 - total_weeks must equal the number of weeks you produce, and the phase \
@@ -102,6 +112,8 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
         f"marathon {format_pace(paces['marathon'])}, "
         f"threshold {format_pace(paces['threshold'])}, "
         f"interval {format_pace(paces['interval'])}\n"
+        f"- Current running: {goal.weekly_km:g} km per week, "
+        f"longest recent run {goal.longest_run_km:g} km\n"
     )
 
     return (

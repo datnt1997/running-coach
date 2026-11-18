@@ -36,7 +36,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 ### Request flow
 
-1. `POST /goal` → validates a `GoalRequest` (distance, target time, race date, weekly availability, optional `vdot`) and checks it against the scope bounds
+1. `POST /goal` → validates a `GoalRequest` (distance, target time, race date, weekly availability, `vdot`, current `weeklyKm` and `longestRunKm`) and checks it against the scope bounds
 2. `app/agent/planner.py:generate_plan()` builds a prompt and calls the AI client once with the `generate_training_plan` tool
 3. The structured tool-call response is parsed into a `PlanResponse` and persisted via `PlanRepository`
 4. Strava sends activity webhooks → `POST /strava/webhook` → background task fetches the full activity, matches it to a planned workout, calls AI with `analyze_activity` tool, and stores an `ActivityAnalysis`
@@ -44,7 +44,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 
 ### Fitness assessment (`app/vdot.py` + `app/api/fitness_chat.py`)
 
-- `POST /fitness-chat`: the first turn is a fixed question asking the race distance (no model call). The model then asks the finish time for that distance and collects the other signals, ending with a JSON block (`race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them and Python computes VDOT and the predicted times; an incomplete block returns `done: false` naming what is missing.
+- `POST /fitness-chat`: the first turn is a fixed question asking the race distance (no model call). The model then asks the finish time for that distance and collects the other signals, ending with a JSON block (`race_distance`, `race_time`, `weekly_km`, `longest_run_km`). `assess()` validates them (the same limits as `GoalRequest`) and Python computes VDOT and the predicted times; an incomplete block returns `done: false` naming what is missing.
 - Runners see only the VDOT and predicted race times. No level or rank is shown: Daniels' levels rate a 1:50 half marathon (VDOT 40) as novice, which does not fit our amateur audience.
 - `app/vdot.py`: Daniels-Gilbert VDOT, inverse (race time for a VDOT), `training_paces` (E, M, T, I paces per km from a VDOT, checked against Table 5.2; they go into the plan prompt so the model never invents paces), `break_factor` (Table 15.1).
 - `frontend/src/lib/vdot.js` mirrors the formula for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.

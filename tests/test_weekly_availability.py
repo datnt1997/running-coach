@@ -24,6 +24,8 @@ def goal_payload(**extra):
         "targetTime": "1:55:00",
         "raceDate": (date.today() + timedelta(weeks=16)).isoformat(),
         "vdot": 40.0,
+        "weeklyKm": 40,
+        "longestRunKm": 18,
         "weeklyAvailability": runner_week(),
         **extra,
     }

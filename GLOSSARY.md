@@ -96,6 +96,10 @@ _Avoid_: Coach chat, chat
 The runner's single fitness number, computed from a recent race result (Daniels-Gilbert). It is shown to the runner with one decimal, and it is the only fitness input the plan generator receives: there is no beginner/intermediate/advanced label.
 _Avoid_: Fitness score, rating, fitness level, planner label
 
+**Current weekly distance** and **Longest recent run**:
+The total distance the runner covers in a typical week now, and their longest single run lately. The fitness chat asks for them and manual entry takes them as two numbers. They are the starting point of the Plan: week 1 stays within 10% of each. Not the same as Weekly volume, which is the Plan's target.
+_Avoid_: Weekly mileage, base mileage
+
 **Predicted times**:
 The race times implied by a runner's VDOT. Together with VDOT, these are the only fitness outputs the runner sees.
 _Avoid_: Estimates, projections

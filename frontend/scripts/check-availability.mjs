@@ -2,6 +2,7 @@
 // src/lib/availability.js and the Vietnamese messages in src/i18n/vi.js.
 import { readFileSync } from 'node:fs'
 import { MAX_WORKOUT_KM, MIN_TRAINING_DAYS, WEEKDAYS } from '../src/lib/availability.js'
+import { MAX_LONGEST_RUN_KM, MAX_WEEKLY_KM } from '../src/lib/load.js'
 import vi from '../src/i18n/vi.js'
 
 const py = readFileSync(new URL('../../app/models/goal.py', import.meta.url), 'utf8')
@@ -17,6 +18,12 @@ if (num('MIN_TRAINING_DAYS') !== MIN_TRAINING_DAYS)
   fail(`MIN_TRAINING_DAYS: goal.py ${num('MIN_TRAINING_DAYS')} vs availability.js ${MIN_TRAINING_DAYS}`)
 if (weekdays.join() !== WEEKDAYS.join())
   fail(`WEEKDAYS: goal.py [${weekdays}] vs availability.js [${WEEKDAYS}]`)
+if (num('MAX_WEEKLY_KM') !== MAX_WEEKLY_KM)
+  fail(`MAX_WEEKLY_KM: goal.py ${num('MAX_WEEKLY_KM')} vs load.js ${MAX_WEEKLY_KM}`)
+if (num('MAX_LONGEST_RUN_KM') !== MAX_LONGEST_RUN_KM)
+  fail(`MAX_LONGEST_RUN_KM: goal.py ${num('MAX_LONGEST_RUN_KM')} vs load.js ${MAX_LONGEST_RUN_KM}`)
+if (!vi['goal.loadRange'].includes(String(MAX_WEEKLY_KM)) || !vi['goal.loadRange'].includes(String(MAX_LONGEST_RUN_KM)))
+  fail('goal.loadRange does not mention the weekly and long run limits')
 if (!vi['goal.availabilityMinDays'].includes(String(MIN_TRAINING_DAYS)))
   fail(`goal.availabilityMinDays does not mention ${MIN_TRAINING_DAYS}`)
 if (!vi['goal.availabilityCap'].includes(String(MAX_WORKOUT_KM)))

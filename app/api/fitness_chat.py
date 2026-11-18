@@ -15,6 +15,7 @@ from app.i18n import (
     chat_starter,
     language_instruction,
 )
+from app.models.goal import MAX_LONGEST_RUN_KM, MAX_WEEKLY_KM
 from app.vdot import race_time_for_vdot, vdot_from_race
 
 logger = logging.getLogger(__name__)
@@ -121,10 +122,14 @@ def assess(data: dict) -> tuple[dict | None, list[str]]:
         missing.append("race")
 
     weekly_km = _number(data.get("weekly_km"))
-    if weekly_km is None:
+    if weekly_km is None or weekly_km > MAX_WEEKLY_KM:
+        weekly_km = None
         missing.append("weekly_km")
     longest_run_km = _number(data.get("longest_run_km"))
-    if longest_run_km is None:
+    # Same limits as the Goal, so a chat result is never rejected by POST /goal.
+    if longest_run_km is None or longest_run_km > MAX_LONGEST_RUN_KM or (
+        weekly_km is not None and longest_run_km > weekly_km
+    ):
         missing.append("longest_run_km")
 
     if missing:
