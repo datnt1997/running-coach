@@ -8,4 +8,4 @@ scripts/test.sh -q
 python_bin=python3
 [ -x .venv/bin/python ] && python_bin=.venv/bin/python
 "$python_bin" scripts/check_glossary.py
-(cd frontend && npm run -s check:i18n && npm run -s check:vdot && npm run -s check:availability)
+(cd frontend && npm run -s check:i18n && npm run -s check:vdot && npm run -s check:availability && npm run -s check:readiness)
