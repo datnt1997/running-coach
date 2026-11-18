@@ -1,5 +1,8 @@
 # Requirements: Multi-language support
 
+> **Superseded (issue #17, [ADR 0002](../../docs/adr/0002-vdot-replaces-fitness-level.md)):** `fitness_level` / `fitnessLevel`, the beginner/intermediate/advanced label and its VDOT cut-offs no longer exist. VDOT is the only fitness input and `vdot` is required on a Goal. Read every mention of the level below as how this was planned or built at the time, not as the current code.
+
+
 Source: `specs/mission.md` Success Definition: "The app supports multiple languages. The MVP ships in Vietnamese; English can be added later without redesigning the app."
 
 ## Objective

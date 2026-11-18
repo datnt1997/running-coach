@@ -2,6 +2,7 @@ from datetime import date
 
 from app.i18n import language_instruction
 from app.models.goal import GoalRequest
+from app.vdot import format_pace, training_paces
 
 SYSTEM_PROMPT = """\
 You are an expert running coach and sports scientist. You design safe, \
@@ -36,6 +37,25 @@ INJURY HISTORY
 reduce high-impact sessions, cap downhill/steep work, prefer softer surfaces, \
 and consider low-impact cross-training to maintain fitness while protecting the \
 joint. Adjust intensity and volume conservatively when injury risk is present.
+
+VDOT GUIDANCE
+- The athlete's VDOT (Daniels) is their current fitness. Do not ask for or \
+assume a level; calibrate everything from VDOT and the weekly availability.
+- Easy and long runs use E pace (Z1-Z2). Put the target pace for each run in \
+its notes, taken from the training paces given in the athlete data. Never \
+invent paces. Do not prescribe repetition (R) work.
+- Per-session limits, scaled to that week's total distance:
+  - Long run (L): at most 30% of the week if the week is under 64 km; \
+otherwise under 25% of the week or 150 minutes, whichever comes first.
+  - Threshold (T): at most 10% of the week.
+  - Interval (I): at most 8% of the week and never more than 10 km in a \
+session, and no more than two I sessions in any week.
+- Hold weekly distance steady for about 4 weeks before raising it again, and \
+never raise it by more than 10% from one week to the next.
+- The target time must be consistent with the VDOT. If it is much faster than \
+the VDOT predicts for that distance, still build the best safe plan, but say so \
+plainly in the plan summary and do not raise volume or intensity beyond the \
+limits above to chase it.
 
 OUTPUT
 - Call the generate_training_plan tool exactly once with the complete plan.
@@ -74,11 +94,14 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
     weeks_until_race = _weeks_until_race(goal.race_date, today)
     distance_label = goal.distance.replace("_", " ").title()
     injury = goal.injury_history or "none reported"
+    paces = training_paces(goal.vdot)
     vdot_line = (
-        f"- VDOT (Daniels): {goal.vdot:g}. Use it to calibrate training paces "
-        "and weekly load\n"
-        if goal.vdot is not None
-        else ""
+        f"- VDOT (Daniels): {goal.vdot:g}. Use it to calibrate weekly load\n"
+        "- Training paces per km: "
+        f"easy {format_pace(paces['easy_fast'])}-{format_pace(paces['easy_slow'])}, "
+        f"marathon {format_pace(paces['marathon'])}, "
+        f"threshold {format_pace(paces['threshold'])}, "
+        f"interval {format_pace(paces['interval'])}\n"
     )
 
     return (
@@ -87,7 +110,6 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
         f"- Target finish time: {goal.target_time}\n"
         f"- Race date: {goal.race_date.isoformat()}\n"
         f"- Weeks until race: {weeks_until_race}\n"
-        f"- Current fitness level: {goal.fitness_level}\n"
         f"{vdot_line}"
         "- Weekly availability (hard limits, per weekday):\n"
         f"{_availability_lines(goal)}\n"

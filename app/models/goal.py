@@ -46,10 +46,9 @@ class GoalRequest(BaseModel):
         examples=["1:55:00"],
     )
     race_date: date
-    fitness_level: Literal["beginner", "intermediate", "advanced"]
     weekly_availability: list[DayAvailability]
     injury_history: str | None = None
-    vdot: float | None = Field(None, ge=15, le=90)
+    vdot: float = Field(..., ge=15, le=90)
 
     @model_validator(mode="after")
     def _availability_covers_the_week(self):

@@ -136,7 +136,7 @@ async def list_goals(db: AsyncConnection = Depends(get_db)) -> dict:
             "distance": row["distance"],
             "targetTime": f"{h}:{m:02d}:{s:02d}",
             "raceDate": row["race_date"].isoformat(),
-            "fitnessLevel": row["fitness_level"],
+            "vdot": row["vdot"],
             "weeklyAvailability": row["weekly_availability"],
             "daysPerWeek": count_training_days(
                 [DayAvailability.model_validate(d) for d in row["weekly_availability"]]

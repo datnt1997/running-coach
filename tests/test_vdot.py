@@ -2,7 +2,8 @@ import pytest
 
 from app.vdot import (
     break_factor,
-    planner_label,
+    format_pace,
+    training_paces,
     race_time_for_vdot,
     vdot_from_race,
 )
@@ -53,12 +54,6 @@ def test_invalid_inputs():
         race_time_for_vdot(0, 5000)
 
 
-def test_planner_label():
-    assert [planner_label(v) for v in (20, 34.9, 35, 40.2, 49.9, 50, 80)] == [
-        "beginner", "beginner", "intermediate", "intermediate", "intermediate", "advanced", "advanced",
-    ]
-
-
 def test_break_factor_table_15_1():
     assert break_factor(0) == 1.0
     assert break_factor(5) == 1.0
@@ -66,3 +61,42 @@ def test_break_factor_table_15_1():
     assert break_factor(42, cross_trained=True) == pytest.approx(0.944, abs=0.001)
     assert break_factor(200) == 0.8
     assert break_factor(200, cross_trained=True) == 0.9
+
+
+def _s(pace: str) -> int:
+    m, s = pace.split(":")
+    return int(m) * 60 + int(s)
+
+
+# Daniels Table 5.2 (p. 136), per km: (easy fast, easy slow, marathon, threshold, interval).
+# VDOT 35, 45 and 55 were not used to fit the constants. Interval is not printed per km
+# below VDOT 40.
+PACE_ROWS = [
+    (35, "6:36", "7:21", "6:10", "5:40", None),
+    (40, "5:56", "6:38", "5:29", "5:06", "4:42"),
+    (45, "5:23", "6:03", "4:57", "4:38", "4:16"),
+    (55, "4:34", "5:10", "4:10", "3:56", "3:37"),
+]
+
+
+@pytest.mark.parametrize("vdot,ef,es,m,t,i", PACE_ROWS)
+def test_training_paces_match_table_5_2(vdot, ef, es, m, t, i):
+    got = training_paces(vdot)
+    assert got["easy_fast"] == pytest.approx(_s(ef), abs=2)
+    assert got["easy_slow"] == pytest.approx(_s(es), abs=2)
+    assert got["marathon"] == pytest.approx(_s(m), abs=2)
+    assert got["threshold"] == pytest.approx(_s(t), abs=2)
+    if i:
+        assert got["interval"] == pytest.approx(_s(i), abs=2)
+
+
+def test_training_paces_are_ordered_and_reject_bad_input():
+    p = training_paces(38.2)
+    assert p["easy_slow"] > p["easy_fast"] > p["marathon"] > p["threshold"] > p["interval"]
+    with pytest.raises(ValueError):
+        training_paces(0)
+
+
+def test_format_pace():
+    assert format_pace(329) == "5:29"
+    assert format_pace(305) == "5:05"

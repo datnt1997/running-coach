@@ -16,7 +16,6 @@ const INITIAL = {
   distance: 'half_marathon',
   targetTime: '',
   raceDate: '',
-  fitnessLevel: 'intermediate',
   weeklyAvailability: defaultWeek(),
   injuryHistory: '',
 }
@@ -59,6 +58,7 @@ export default function GoalForm() {
       e.raceDate = t('goal.required')
     else if (form.raceDate < MIN_RACE_DATE)
       e.raceDate = t('goal.raceTooSoon')
+    if (!assessmentData) e.assessment = t('goal.assessmentRequired')
     const availability = availabilityErrors(form.weeklyAvailability)
     if (availability) e.weeklyAvailability = availability
     return e
@@ -78,7 +78,7 @@ export default function GoalForm() {
         body: JSON.stringify({
           ...form,
           injuryHistory: form.injuryHistory.trim() || null,
-          vdot: assessmentData?.vdot ?? null,
+          vdot: assessmentData?.vdot,
         }),
       })
       const data = await res.json()
@@ -95,11 +95,9 @@ export default function GoalForm() {
     }
   }
 
-  // Chat result: { fitnessLevel, vdot, predictions, weeklyKm, longestRunKm, reasoning }
+  // Chat result: { vdot, predictions, weeklyKm, longestRunKm, reasoning }
   function handleAssessmentResult(data) {
-    set('fitnessLevel', data.fitnessLevel)
     setAssessmentData({
-      level: data.fitnessLevel,
       vdot: data.vdot,
       predictions: data.predictions,
       weeklyKm: data.weeklyKm,
@@ -123,7 +121,6 @@ export default function GoalForm() {
       ? t('goal.manualReasoningRace', { vdot: manualPreview.vdot, distance: distanceLabel(raceDist) })
       : t('goal.manualReasoningVdot', { vdot: manualPreview.vdot })
     handleAssessmentResult({
-      fitnessLevel: manualPreview.level,
       vdot: manualPreview.vdot,
       weeklyKm: 0,
       longestRunKm: 0,
@@ -186,6 +183,8 @@ export default function GoalForm() {
           {/* Fitness Assessment */}
           <div className="field">
             <span className="field__label">{t('goal.currentFitness')}</span>
+
+            {errors.assessment && !assessed && <span className="field__error">{errors.assessment}</span>}
 
             {/* State A: not yet assessed, chat closed */}
             {!assessed && !chatOpen && (

@@ -1,4 +1,4 @@
-"""Daniels-Gilbert VDOT: race result <-> VDOT, planner label, break factor.
+"""Daniels-Gilbert VDOT: race result <-> VDOT, training paces, break factor.
 
 The break factor comes from Daniels' Running Formula, Table 15.1 (p. 382).
 """
@@ -39,17 +39,49 @@ def race_time_for_vdot(vdot: float, distance_m: float) -> float:
     return (lo + hi) / 2
 
 
-def planner_label(vdot: float) -> str:
-    """Internal label the plan generator needs. Never shown to the runner.
+# Training paces (Daniels, Table 5.2, p. 136). Each intensity runs at a fixed share
+# of VO2max, so the pace for a VDOT follows from the same oxygen-cost formula.
+# The shares were fitted to the printed table: E 63-73%, T 88%, I 97.3%. Marathon
+# pace rises from 78% at VDOT 30 to 82.5% at VDOT 60, so it is interpolated.
+_EASY_SLOW, _EASY_FAST = 0.63, 0.73
+_THRESHOLD, _INTERVAL = 0.88, 0.973
+_MARATHON_SHARE = ((30, 0.778), (40, 0.802), (50, 0.817), (60, 0.825))
 
-    Cut-offs are ours, not Daniels': below 35 (slower than about a 2:04 half
-    marathon) beginner, below 50 (about 1:31) intermediate, else advanced.
+
+def _marathon_share(vdot: float) -> float:
+    if vdot <= _MARATHON_SHARE[0][0]:
+        return _MARATHON_SHARE[0][1]
+    for (v0, s0), (v1, s1) in zip(_MARATHON_SHARE, _MARATHON_SHARE[1:]):
+        if vdot <= v1:
+            return s0 + (s1 - s0) * (vdot - v0) / (v1 - v0)
+    return _MARATHON_SHARE[-1][1]
+
+
+def _seconds_per_km(vdot: float, share: float) -> int:
+    """Seconds per km at `share` of VO2max for this VDOT."""
+    c = -4.6 - vdot * share
+    metres_per_min = (-0.182258 + math.sqrt(0.182258**2 - 4 * 0.000104 * c)) / (2 * 0.000104)
+    return round(1000 / metres_per_min * 60)
+
+
+def training_paces(vdot: float) -> dict[str, int]:
+    """Daniels training paces for a VDOT, in whole seconds per km.
+
+    Keys: easy_fast, easy_slow (the E range), marathon, threshold, interval.
     """
-    if vdot < 35:
-        return "beginner"
-    if vdot < 50:
-        return "intermediate"
-    return "advanced"
+    if vdot <= 0:
+        raise ValueError("vdot must be positive")
+    return {
+        "easy_fast": _seconds_per_km(vdot, _EASY_FAST),
+        "easy_slow": _seconds_per_km(vdot, _EASY_SLOW),
+        "marathon": _seconds_per_km(vdot, _marathon_share(vdot)),
+        "threshold": _seconds_per_km(vdot, _THRESHOLD),
+        "interval": _seconds_per_km(vdot, _INTERVAL),
+    }
+
+
+def format_pace(seconds_per_km: int) -> str:
+    return f"{seconds_per_km // 60}:{seconds_per_km % 60:02d}"
 
 
 def break_factor(days_off: int, cross_trained: bool = False) -> float:

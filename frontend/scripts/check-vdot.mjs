@@ -1,6 +1,6 @@
 // Keeps src/lib/vdot.js in step with app/vdot.py. Uses rows of Daniels Table 5.6
 // (printed race times at exact VDOTs), the same fixtures as tests/test_vdot.py.
-import { plannerLabel, vdotFromRace } from '../src/lib/vdot.js'
+import { vdotFromRace } from '../src/lib/vdot.js'
 
 const secs = t => t.split(':').reduce((n, p) => n * 60 + Number(p), 0)
 const ROWS = [
@@ -21,12 +21,6 @@ for (const [vdot, ...times] of ROWS) {
     const got = vdotFromRace(DISTANCES[i], secs(t))
     if (Math.abs(got - vdot) > 0.15) fail(`vdot ${vdot} at ${DISTANCES[i]} m: got ${got.toFixed(2)}`)
   })
-}
-
-// Same expectations as test_planner_label in tests/test_vdot.py.
-const LABELS = [[20, 'beginner'], [34.9, 'beginner'], [35, 'intermediate'], [40.2, 'intermediate'], [49.9, 'intermediate'], [50, 'advanced'], [80, 'advanced']]
-for (const [vdot, label] of LABELS) {
-  if (plannerLabel(vdot) !== label) fail(`label for ${vdot}: got ${plannerLabel(vdot)}, want ${label}`)
 }
 
 if (failed) process.exit(1)

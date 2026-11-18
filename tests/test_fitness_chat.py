@@ -60,7 +60,6 @@ async def test_mid_conversation_returns_follow_up(make_client):
     data = res.json()
     assert res.status_code == 200
     assert data["done"] is False
-    assert data.get("fitnessLevel") is None
 
 
 @pytest.mark.asyncio
@@ -70,8 +69,7 @@ async def test_complete_assessment_is_computed_in_code(make_client):
     data = res.json()
     assert data["done"] is True
     assert data["vdot"] == pytest.approx(38.2, abs=0.1)  # 10K 52:00
-    assert data["fitnessLevel"] == "intermediate"  # internal planner label, VDOT 35-50
-    assert "level" not in data and "levelGroup" not in data
+    assert not {"fitnessLevel", "level", "levelGroup"} & set(data)
     assert set(data["predictions"]) == {"5k", "10k", "half_marathon", "full_marathon"}
     assert data["predictions"]["10k"] == "52:00"
     assert data["weeklyKm"] == 40.0
@@ -87,7 +85,6 @@ async def test_missing_weekly_km_is_not_done_and_names_the_gap(make_client):
     data = res.json()
     assert data["done"] is False
     assert "km chạy mỗi tuần" in data["message"]
-    assert data["fitnessLevel"] is None
 
 
 @pytest.mark.asyncio
