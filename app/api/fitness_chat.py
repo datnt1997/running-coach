@@ -15,7 +15,7 @@ from app.i18n import (
     chat_starter,
     language_instruction,
 )
-from app.vdot import planner_label, race_time_for_vdot, vdot_from_race
+from app.vdot import race_time_for_vdot, vdot_from_race
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,7 +73,6 @@ class FitnessChatRequest(BaseModel):
 class FitnessChatResponse(BaseModel):
     done: bool
     message: str
-    fitnessLevel: Optional[str] = None
     vdot: Optional[float] = None
     predictions: Optional[dict[str, str]] = None
     weeklyKm: Optional[float] = None
@@ -134,7 +133,6 @@ def assess(data: dict) -> tuple[dict | None, list[str]]:
     # Predictions use the unrounded VDOT so the runner's own race round-trips;
     # only the displayed value is rounded.
     return {
-        "fitness_level": planner_label(vdot),
         "vdot": round(vdot, 1),
         "predictions": {
             key: format_time(race_time_for_vdot(vdot, meters)) for key, meters in _RACE_METERS.items()
@@ -192,7 +190,6 @@ async def fitness_chat(
     return FitnessChatResponse(
         done=True,
         message=display_message or result["reasoning"],
-        fitnessLevel=result["fitness_level"],
         vdot=result["vdot"],
         predictions=result["predictions"],
         weeklyKm=result["weekly_km"],

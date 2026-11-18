@@ -64,7 +64,7 @@ async def test_valid_half_marathon(client):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": "left knee tendinopathy",
     }
@@ -84,7 +84,7 @@ async def test_valid_full_marathon(client):
         "distance": "full_marathon",
         "targetTime": "4:30:00",
         "raceDate": _race_date(20),
-        "fitnessLevel": "advanced",
+        "vdot": 55.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -99,7 +99,7 @@ async def test_hm_too_fast_rejected(client):
         "distance": "half_marathon",
         "targetTime": "1:38:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "advanced",
+        "vdot": 55.0,
         "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
@@ -114,7 +114,7 @@ async def test_fm_too_fast_rejected(client):
         "distance": "full_marathon",
         "targetTime": "3:50:00",
         "raceDate": _race_date(20),
-        "fitnessLevel": "advanced",
+        "vdot": 55.0,
         "weeklyAvailability": week_with_days(5),
         "injuryHistory": None,
     }
@@ -129,7 +129,7 @@ async def test_race_date_too_soon_rejected(client):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(6),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -150,7 +150,7 @@ async def test_list_goals(client):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -170,7 +170,7 @@ async def test_delete_goal(client):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -192,7 +192,7 @@ async def test_ai_client_called_once(client, fake_ai_client):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         "injuryHistory": None,
     }
@@ -208,7 +208,7 @@ def _goal_payload(**extra) -> dict:
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": _race_date(16),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": week_with_days(4),
         **extra,
     }
@@ -224,12 +224,17 @@ async def test_goal_with_vdot_is_saved(client):
 
 
 @pytest.mark.asyncio
-async def test_goal_without_vdot_reads_back_null(client):
-    goal_id, _ = await _submit_and_fetch_plan(client, _goal_payload())
-    from app.db.connection import get_pool
-    async with get_pool().connection() as conn:
-        cur = await conn.execute("SELECT vdot FROM user_goals WHERE id = %s", (goal_id,))
-        assert (await cur.fetchone())[0] is None
+async def test_goal_without_vdot_rejected(client):
+    payload = _goal_payload()
+    del payload["vdot"]
+    resp = await client.post("/goal", json=payload)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_goal_with_old_fitness_level_field_is_ignored(client):
+    resp = await client.post("/goal", json=_goal_payload(fitnessLevel="beginner"))
+    assert resp.status_code == 202, resp.text
 
 
 @pytest.mark.asyncio
@@ -238,19 +243,15 @@ async def test_out_of_range_vdot_rejected(client):
     assert resp.status_code == 422
 
 
-def test_plan_prompt_includes_vdot_only_when_set():
+def test_plan_prompt_gives_vdot_and_no_fitness_level():
     from app.agent.prompt import build_user_prompt
     from app.models.goal import GoalRequest
 
-    base = dict(
+    goal = GoalRequest(
         distance="half_marathon", target_time="1:55:00", race_date=date(2027, 3, 1),
-        fitness_level="intermediate", weekly_availability=week_with_days(4),
+        vdot=43, weekly_availability=week_with_days(4),
     )
-    today = date(2026, 11, 8)
-    without = build_user_prompt(GoalRequest(**base), today=today)
-    with_vdot = build_user_prompt(GoalRequest(**base, vdot=43.5), today=today)
-    assert "VDOT" not in without
-    assert "- VDOT (Daniels): 43.5" in with_vdot
-    # Only that one line differs.
-    extra = [l for l in with_vdot.splitlines() if l not in without.splitlines()]
-    assert len(extra) == 1
+    prompt = build_user_prompt(goal, today=date(2026, 11, 8))
+    assert "- VDOT (Daniels): 43" in prompt
+    assert "- Training paces per km: easy 5:35-6:16, marathon 5:09" in prompt  # Table 5.2, VDOT 43
+    assert "fitness level" not in prompt.lower()

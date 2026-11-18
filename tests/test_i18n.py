@@ -29,7 +29,7 @@ def test_language_instruction_names_language():
 def test_plan_prompt_has_instruction():
     goal = GoalRequest(
         distance="half_marathon", target_time="1:55:00", race_date="2030-01-01",
-        fitness_level="intermediate", weekly_availability=week_with_days(4),
+        vdot=40.0, weekly_availability=week_with_days(4),
     )
     assert i18n.language_instruction() in build_messages(goal)[0]["content"]
 

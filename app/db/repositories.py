@@ -29,16 +29,15 @@ class GoalRepository:
             await cur.execute(
                 """
                 INSERT INTO user_goals
-                    (distance, target_time, race_date, fitness_level,
+                    (distance, target_time, race_date,
                      weekly_availability, injury_history, vdot)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
                     goal.distance,
                     _parse_target_time(goal.target_time),
                     goal.race_date,
-                    goal.fitness_level,
                     Jsonb([d.model_dump(by_alias=True) for d in goal.weekly_availability]),
                     goal.injury_history,
                     goal.vdot,
@@ -66,7 +65,7 @@ class GoalRepository:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-                SELECT id, distance, target_time, race_date, fitness_level,
+                SELECT id, distance, target_time, race_date, vdot,
                        weekly_availability, plan_status, created_at
                 FROM user_goals
                 ORDER BY created_at DESC

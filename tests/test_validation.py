@@ -16,7 +16,7 @@ def _goal(distance: str, target_time: str, race_date: date) -> GoalRequest:
         distance=distance,
         target_time=target_time,
         race_date=race_date,
-        fitness_level="intermediate",
+        vdot=40.0,
         weekly_availability=week_with_days(4),
         injury_history=None,
     )

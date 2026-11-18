@@ -310,8 +310,8 @@ async def seeded_plan(db_pool):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO user_goals (distance, target_time, race_date, fitness_level, weekly_availability) "
-                "VALUES ('half_marathon', '2:00:00', %s, 'intermediate', %s) RETURNING id",
+                "INSERT INTO user_goals (distance, target_time, race_date, vdot, weekly_availability) "
+                "VALUES ('half_marathon', '2:00:00', %s, 40.0, %s) RETURNING id",
                 ((today + timedelta(weeks=16)), Jsonb(_FOUR_DAY_AVAILABILITY)),
             )
             goal_id = (await cur.fetchone())[0]

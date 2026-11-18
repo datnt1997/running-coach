@@ -23,7 +23,7 @@ def goal_payload(**extra):
         "distance": "half_marathon",
         "targetTime": "1:55:00",
         "raceDate": (date.today() + timedelta(weeks=16)).isoformat(),
-        "fitnessLevel": "intermediate",
+        "vdot": 40.0,
         "weeklyAvailability": runner_week(),
         **extra,
     }
