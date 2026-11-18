@@ -451,6 +451,33 @@ button.link-subtle:focus-visible {
   align-items: center;
 }
 
+.meta-chip--edit {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+.meta-chip--edit input {
+  width: 3.6rem;
+  padding: .1rem .3rem;
+  border: 1px solid #d1d5db;
+  border-radius: .35rem;
+  background: #fff;
+  font: inherit;
+  text-align: right;
+}
+
+.load-advice {
+  margin: .6rem 0 0;
+  padding: .6rem .8rem;
+  border-radius: .5rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: .85rem;
+  line-height: 1.5;
+}
+
 .assessment-result__reasoning {
   font-size: .82rem;
   color: #6b7280;

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:vdot": "node scripts/check-vdot.mjs",
-    "check:availability": "node scripts/check-availability.mjs"
+    "check:availability": "node scripts/check-availability.mjs",
+    "check:readiness": "node scripts/check-readiness.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
