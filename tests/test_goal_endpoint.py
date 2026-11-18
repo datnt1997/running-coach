@@ -131,12 +131,12 @@ async def test_fm_too_fast_rejected(client):
     assert resp.json()["detail"]["error"] == "goal_out_of_scope"
 
 
-# 5. Race date 6 weeks → 422
+# 5. Race date 3 weeks → 422
 async def test_race_date_too_soon_rejected(client):
     payload = {
         "distance": "half_marathon",
         "targetTime": "1:55:00",
-        "raceDate": _race_date(6),
+        "raceDate": _race_date(3),
         "vdot": 40.0,
         "weeklyKm": 40,
         "longestRunKm": 18,

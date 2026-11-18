@@ -16,7 +16,7 @@ Run with: `pytest tests/ -v`
 | 1.2 | `POST /goal` — valid FM (e.g. sub 4:30, 20 weeks out) | HTTP 200; `total_weeks` ≥ 12 |
 | 1.3 | `POST /goal` — HM target 1:38:00 (too fast) | HTTP 422; `error == "goal_out_of_scope"` |
 | 1.4 | `POST /goal` — FM target 3:50:00 (too fast) | HTTP 422; `error == "goal_out_of_scope"` |
-| 1.5 | `POST /goal` — race date 6 weeks from today (too soon) | HTTP 422; message references minimum lead time |
+| 1.5 | `POST /goal` — race date 3 weeks from today (too soon) | HTTP 422; message references minimum lead time |
 | 1.6 | `GET /plan/{plan_id}` after successful POST | HTTP 200; returned plan matches what POST returned |
 | 1.7 | `GET /plan/{unknown_uuid}` | HTTP 404 |
 
@@ -50,8 +50,8 @@ Run with: `pytest tests/test_validation.py -v`
 | HM at 1:43:59 | Rejected |
 | FM at exactly 3:59:00 | Accepted |
 | FM at 3:58:59 | Rejected |
-| Race date exactly 10 weeks out | Accepted |
-| Race date 9 weeks + 6 days | Rejected |
+| Race date exactly 6 weeks out | Accepted |
+| Race date 5 weeks + 6 days | Rejected |
 
 ---
 

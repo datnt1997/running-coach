@@ -104,7 +104,7 @@ export default {
   'goal.targetFormat': 'Nhập theo định dạng H:MM:SS (vd: 1:55:00)',
   'goal.required': 'Bắt buộc',
   'goal.assessmentRequired': 'Hãy đánh giá thể lực trước (trò chuyện hoặc nhập kết quả chạy).',
-  'goal.raceTooSoon': 'Ngày thi đấu phải cách hôm nay ít nhất 10 tuần',
+  'goal.raceTooSoon': 'Ngày thi đấu phải cách hôm nay ít nhất 6 tuần',
   'goal.outOfScope': 'Mục tiêu nằm ngoài phạm vi hỗ trợ.',
   'goal.serverError': 'Đã xảy ra lỗi không mong muốn từ máy chủ',
   'goal.manualReasoningRace': 'VDOT {vdot} từ thời gian {distance} của bạn',
