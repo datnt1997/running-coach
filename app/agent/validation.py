@@ -16,7 +16,7 @@ BOUNDS = {
     "full_marathon": time(3, 59, 0),
 }
 
-MIN_WEEKS_LEAD = 10
+MIN_WEEKS_LEAD = 6
 
 
 def _parse_target_time(target_time: str) -> time:

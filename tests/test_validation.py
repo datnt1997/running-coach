@@ -61,12 +61,12 @@ def test_fm_one_second_faster_rejected():
 
 # --- Race-date lead-time bounds -------------------------------------------
 
-def test_race_date_exactly_10_weeks_accepted():
-    goal = _goal("half_marathon", "1:55:00", _race_date(weeks=10))
+def test_race_date_exactly_6_weeks_accepted():
+    goal = _goal("half_marathon", "1:55:00", _race_date(weeks=6))
     validate_goal(goal, today=TODAY)  # should not raise
 
 
-def test_race_date_9_weeks_6_days_rejected():
-    goal = _goal("half_marathon", "1:55:00", _race_date(weeks=9, extra_days=6))
+def test_race_date_5_weeks_6_days_rejected():
+    goal = _goal("half_marathon", "1:55:00", _race_date(weeks=5, extra_days=6))
     with pytest.raises(GoalOutOfScopeError):
         validate_goal(goal, today=TODAY)

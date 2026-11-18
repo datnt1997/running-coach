@@ -4,7 +4,7 @@ A runner enters a half/full marathon goal, establishes fitness (chat, race time,
 
 ## Sub-features
 
-- `goal-form-validate` rejects a bad target time, a race date under 10 weeks out, and missing fields.
+- `goal-form-validate` rejects a bad target time, a race date under 6 weeks out, and missing fields.
 - `goal-manual-race` computes VDOT and book level from a race time.
 - `goal-manual-vdot` accepts a VDOT (20 to 85) directly.
 - `goal-chat` runs the fitness chat: distance opener, one question, then a result card.

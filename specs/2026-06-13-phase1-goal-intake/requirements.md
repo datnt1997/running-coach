@@ -35,7 +35,7 @@ Build the end-to-end path from a user submitting their goal to receiving a perso
 {
   "distance": "half_marathon",       // "half_marathon" | "full_marathon"
   "targetTime": "1:55:00",           // HH:MM:SS string
-  "raceDate": "2026-10-18",          // ISO date, must be ≥ 10 weeks from today
+  "raceDate": "2026-10-18",          // ISO date, must be ≥ 6 weeks from today
   "fitnessLevel": "intermediate",    // "beginner" | "intermediate" | "advanced"
   "daysPerWeek": 4,                  // 3–7
   "injuryHistory": "left knee tendinopathy"  // free text, nullable
@@ -172,7 +172,7 @@ Served as static files from `frontend/dist/` by FastAPI (`GET /app/{path}` + ind
 |---|---|---|
 | Distance | Select (`half_marathon` / `full_marathon`) | Required |
 | Target time | Text (`HH:MM:SS`) | Required, format check |
-| Race date | Date picker | Required, must be ≥ 10 weeks from today |
+| Race date | Date picker | Required, must be ≥ 6 weeks from today |
 | Fitness level | Select (`beginner` / `intermediate` / `advanced`) | Required |
 | Days per week | Number (3–7) | Required |
 | Injury history | Textarea | Optional |
@@ -186,7 +186,7 @@ Served as static files from `frontend/dist/` by FastAPI (`GET /app/{path}` + ind
 | Half Marathon | 1:44:00 | Return 422 with `goal_out_of_scope` |
 | Full Marathon | 3:59:00 | Return 422 with `goal_out_of_scope` |
 
-Minimum race date lead time: 10 weeks from `POST /goal` date (plan cannot be generated if race is too soon).
+Minimum race date lead time: 6 weeks from `POST /goal` date (plan cannot be generated if race is too soon).
 
 ## Database Schema (row-per-workout)
 

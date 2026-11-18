@@ -11,7 +11,7 @@ import { RACE_DISTANCES, assessRace, assessVdot } from '../lib/vdot.js'
 
 const today = new Date()
 const minRaceDate = new Date(today)
-minRaceDate.setDate(today.getDate() + 70) // 10 weeks
+minRaceDate.setDate(today.getDate() + 42) // 6 weeks
 const MIN_RACE_DATE = minRaceDate.toISOString().split('T')[0]
 
 const INITIAL = {
