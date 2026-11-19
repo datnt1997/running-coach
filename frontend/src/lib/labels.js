@@ -31,6 +31,7 @@ const PHASE = {
   build: 'Tăng tiến',
   peak: 'Đỉnh cao',
   taper: 'Giảm tải',
+  race: 'Tuần đua',
 }
 
 const lookup = (table, value) => table[value] ?? table[String(value).toLowerCase()] ?? value

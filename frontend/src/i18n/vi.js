@@ -52,6 +52,7 @@ export default {
   'phase.build': 'Tăng tiến',
   'phase.peak': 'Đỉnh cao',
   'phase.taper': 'Giảm tải',
+  'phase.race': 'Tuần đua',
 
   'distance.5k': '5K',
   'distance.10k': '10K',

@@ -8,6 +8,7 @@ const PHASE_CLASS = {
   build: 'phase-build',
   peak: 'phase-peak',
   taper: 'phase-taper',
+  race: 'phase-race',
 }
 
 export default function Dashboard() {
