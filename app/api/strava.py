@@ -166,7 +166,7 @@ async def _process_activity(
     pool = get_pool()
     async with pool.connection() as conn:
         try:
-            runner_id = await RunnerRepository(conn).find_by_strava_athlete(athlete_id)
+            runner_id = await RunnerRepository(conn).find_runner_id_by_strava_athlete(athlete_id)
             if runner_id is None:
                 # Acknowledged to Strava, but no Runner owns this athlete: change nothing.
                 logger.warning("Ignoring event for unknown Strava athlete %s", athlete_id)
