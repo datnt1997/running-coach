@@ -10,6 +10,7 @@ from app.auth import (
     get_google_verifier,
     is_allowed,
     make_session_token,
+    normalize_email,
     require_session,
 )
 
@@ -32,7 +33,7 @@ async def sign_in(
         raise HTTPException(status_code=401, detail="Invalid Google token")
     if not identity.email_verified or not is_allowed(identity.email):
         raise HTTPException(status_code=403, detail="This account is not allowed")
-    email = identity.email.strip().lower()
+    email = normalize_email(identity.email)
     response.set_cookie(
         SESSION_COOKIE,
         make_session_token(email),

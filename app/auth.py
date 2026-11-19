@@ -61,27 +61,39 @@ def get_google_verifier() -> GoogleVerifier:
     return GoogleVerifier()
 
 
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
 def allowed_emails() -> set[str]:
-    return {e.strip().lower() for e in (config.ALLOWED_EMAILS or "").split(",") if e.strip()}
+    return {normalize_email(e) for e in (config.ALLOWED_EMAILS or "").split(",") if e.strip()}
 
 
 def is_allowed(email: str) -> bool:
-    return email.strip().lower() in allowed_emails()
+    return normalize_email(email) in allowed_emails()
 
 
 # --- session cookie -------------------------------------------------------
+
+
+def _b64encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _b64decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
 def _sign(payload: bytes) -> str:
     if not config.SESSION_SECRET:
         raise RuntimeError("SESSION_SECRET is not set; refusing to sign a session")
     key = config.SESSION_SECRET.encode()
-    return base64.urlsafe_b64encode(hmac.new(key, payload, hashlib.sha256).digest()).decode().rstrip("=")
+    return _b64encode(hmac.new(key, payload, hashlib.sha256).digest())
 
 
 def make_session_token(email: str, now: float | None = None) -> str:
     body = json.dumps({"email": email, "exp": int((time.time() if now is None else now) + SESSION_MAX_AGE)}).encode()
-    return base64.urlsafe_b64encode(body).decode().rstrip("=") + "." + _sign(body)
+    return _b64encode(body) + "." + _sign(body)
 
 
 def read_session_token(token: str | None, now: float | None = None) -> str | None:
@@ -90,7 +102,7 @@ def read_session_token(token: str | None, now: float | None = None) -> str | Non
         return None
     encoded, signature = token.rsplit(".", 1)
     try:
-        body = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+        body = _b64decode(encoded)
         if not hmac.compare_digest(signature, _sign(body)):
             return None
         data = json.loads(body)
