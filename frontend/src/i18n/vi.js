@@ -43,6 +43,9 @@ export default {
   'type.tempo': 'Tempo',
   'type.interval': 'Interval',
   'type.long': 'Chạy dài',
+  'type.marathon_pace': 'Chạy pace marathon',
+  'type.shakeout': 'Chạy khởi động',
+  'type.race': 'Thi đấu',
   'type.cross': 'Tập chéo',
 
   'phase.base': 'Nền tảng',

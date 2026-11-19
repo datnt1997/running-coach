@@ -20,6 +20,9 @@ const WORKOUT_TYPE = {
   tempo: 'Tempo',
   interval: 'Interval',
   long: 'Chạy dài',
+  marathon_pace: 'Chạy pace marathon',
+  shakeout: 'Chạy khởi động',
+  race: 'Thi đấu',
   cross: 'Tập chéo',
 }
 
