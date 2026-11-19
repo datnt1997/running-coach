@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 import httpx
+from psycopg import AsyncConnection
 
 from app.config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REDIRECT_URI
 from app.strava.models import ActivityDetail, TokenSet
@@ -68,7 +70,7 @@ class StravaClient:
             )
 
 
-async def get_valid_access_token(conn, runner_id, strava_client: "StravaClient | None" = None) -> str:
+async def get_valid_access_token(conn: AsyncConnection, runner_id: UUID, strava_client: "StravaClient | None" = None) -> str:
     """Load the stored connection, refresh if expired, return a valid access token."""
     from app.db.repositories import StravaConnectionRepository
 
