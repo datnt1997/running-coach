@@ -1,13 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app.api import activities, fitness_chat, goals, plans, summaries
+from app.api import activities, auth as auth_api, fitness_chat, goals, plans, summaries
 from app.api import strava, ui
 from app import config
+from app.auth import require_session
 from app.config import FRONTEND_DIST, validate_config
 from app.db.connection import close_pool, init_pool
 
@@ -28,13 +29,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Running Coach", version="0.2.0", lifespan=lifespan)
 
-app.include_router(goals.router)
-app.include_router(fitness_chat.router)
-app.include_router(plans.router)
+# Every data and chat router needs a session. The Strava router mixes open routes
+# (the webhook) with protected ones, so it protects itself per endpoint.
+_session = [Depends(require_session)]
+app.include_router(auth_api.router)
+app.include_router(goals.router, dependencies=_session)
+app.include_router(fitness_chat.router, dependencies=_session)
+app.include_router(plans.router, dependencies=_session)
 app.include_router(strava.router)
 app.include_router(ui.router)
-app.include_router(activities.router)
-app.include_router(summaries.router)
+app.include_router(activities.router, dependencies=_session)
+app.include_router(summaries.router, dependencies=_session)
 
 
 @app.get("/health")

@@ -7,6 +7,9 @@ os.environ.setdefault("STRAVA_CLIENT_ID", "test_client_id")
 os.environ.setdefault("STRAVA_CLIENT_SECRET", "test_client_secret")
 os.environ.setdefault("STRAVA_WEBHOOK_VERIFY_TOKEN", "test_verify_token")
 os.environ.setdefault("STRAVA_REDIRECT_URI", "http://localhost:8000/strava/callback")
+os.environ.setdefault("SESSION_SECRET", "test-session-secret-not-for-production")
+os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
+os.environ["ALLOWED_EMAILS"] = "runner@example.com, Friend@Example.com"
 
 # Tests DROP all tables, so they must never see the dev DATABASE_URL from .env.
 # Point the app at TEST_DATABASE_URL (which must name a *_test database), or at
@@ -36,6 +39,7 @@ from psycopg.types.json import Jsonb
 
 from app.ai.client import AIResponse, TokenUsage, ToolCall
 from app.ai.factory import get_ai_client_dep
+from app.auth import GoogleIdentity, InvalidGoogleToken, get_google_verifier
 from app.config import DATABASE_URL
 from app.db import connection as db_connection
 from app.main import app
@@ -218,6 +222,22 @@ class FakeStravaClient:
 
 
 # ---------------------------------------------------------------------------
+# Fake Google token verifier
+# ---------------------------------------------------------------------------
+
+ALLOWED_EMAIL = "runner@example.com"
+
+
+class FakeGoogleVerifier:
+    """Accepts tokens shaped "fake:<email>"; anything else is an invalid token."""
+
+    async def verify(self, id_token: str) -> GoogleIdentity:
+        if not id_token.startswith("fake:"):
+            raise InvalidGoogleToken("not a valid token")
+        return GoogleIdentity(email=id_token[len("fake:"):], email_verified=True)
+
+
+# ---------------------------------------------------------------------------
 # DB fixture
 # ---------------------------------------------------------------------------
 
@@ -259,9 +279,17 @@ async def fake_strava_client():
     return FakeStravaClient()
 
 
+async def sign_in(ac: httpx.AsyncClient, email: str = ALLOWED_EMAIL) -> httpx.Response:
+    resp = await ac.post("/auth/google", json={"credential": f"fake:{email}"})
+    assert resp.status_code == 200, resp.text
+    return resp
+
+
 @pytest_asyncio.fixture
-async def client(db_pool, fake_ai_client):
+async def anon_client(db_pool, fake_ai_client):
+    """A client with no session. Google verification is faked."""
     app.dependency_overrides[get_ai_client_dep] = lambda: fake_ai_client
+    app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier()
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
@@ -269,14 +297,29 @@ async def client(db_pool, fake_ai_client):
 
 
 @pytest_asyncio.fixture
-async def webhook_client(db_pool, fake_analysis_ai_client, fake_strava_client):
+async def client(anon_client):
+    """A client signed in as the allowlisted fake runner."""
+    await sign_in(anon_client)
+    return anon_client
+
+
+@pytest_asyncio.fixture
+async def anon_webhook_client(db_pool, fake_analysis_ai_client, fake_strava_client):
     from app.api.strava import get_strava_client
     app.dependency_overrides[get_ai_client_dep] = lambda: fake_analysis_ai_client
     app.dependency_overrides[get_strava_client] = lambda: fake_strava_client
+    app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier()
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def webhook_client(anon_webhook_client):
+    """Webhook-wiring client that is also signed in, for reading results back."""
+    await sign_in(anon_webhook_client)
+    return anon_webhook_client
 
 
 @pytest_asyncio.fixture
