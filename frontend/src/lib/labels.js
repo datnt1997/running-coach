@@ -20,6 +20,9 @@ const WORKOUT_TYPE = {
   tempo: 'Tempo',
   interval: 'Interval',
   long: 'Chạy dài',
+  marathon_pace: 'Chạy pace marathon',
+  shakeout: 'Chạy khởi động',
+  race: 'Thi đấu',
   cross: 'Tập chéo',
 }
 
@@ -28,6 +31,7 @@ const PHASE = {
   build: 'Tăng tiến',
   peak: 'Đỉnh cao',
   taper: 'Giảm tải',
+  race: 'Tuần đua',
 }
 
 const lookup = (table, value) => table[value] ?? table[String(value).toLowerCase()] ?? value

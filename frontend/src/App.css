@@ -616,6 +616,7 @@ details[open] summary { border-bottom: 1px solid #dee2e6; }
 .phase-build   { background: #fff3cd; color: #856404; }
 .phase-peak    { background: #f8d7da; color: #842029; }
 .phase-taper   { background: #d4edda; color: #155724; }
+.phase-race    { background: #e2d9f3; color: #432874; }
 
 /* ── Tables ── */
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }
