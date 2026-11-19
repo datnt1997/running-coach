@@ -1,5 +1,7 @@
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+
+from app.config import FRONTEND_DIST
 
 router = APIRouter()
 
@@ -50,5 +52,10 @@ _PAGE = """<!DOCTYPE html>
 
 
 @router.get("/", response_class=HTMLResponse)
-async def connect_ui() -> HTMLResponse:
+async def connect_ui() -> Response:
+    # With the SPA built, the front door is the SPA: it shows the dashboard when
+    # signed in and the sign-in screen when not. The page below is the fallback
+    # for a checkout without a frontend build (the Strava callback uses it too).
+    if FRONTEND_DIST.exists():
+        return RedirectResponse(url="/app", status_code=302)
     return HTMLResponse(content=_PAGE)
