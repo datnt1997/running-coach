@@ -154,9 +154,13 @@ async def test_cookie_secure_can_be_turned_off_for_http_dev(anon_client, monkeyp
 def test_cookie_secure_config_defaults_to_true(monkeypatch):
     import importlib
 
+    import dotenv
+
     from app import config
 
     try:
+        # config calls load_dotenv() on reload; keep a developer's real .env out of this test
+        monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
         monkeypatch.delenv("COOKIE_SECURE", raising=False)
         importlib.reload(config)
         assert config.COOKIE_SECURE is True
