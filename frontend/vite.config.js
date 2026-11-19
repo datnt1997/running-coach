@@ -11,6 +11,8 @@ export default defineConfig({
       '/goals': 'http://localhost:8000',
       '/plan': 'http://localhost:8000',
       '/strava': 'http://localhost:8000',
+      '/auth': 'http://localhost:8000',
+      '/activities': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
     },
   },

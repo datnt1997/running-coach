@@ -13,6 +13,7 @@ from app.agent.matching import match_activity_to_workout
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
 from app import config
+from app.auth import require_session
 from app.config import STRAVA_CLIENT_ID, STRAVA_REDIRECT_URI, STRAVA_WEBHOOK_VERIFY_TOKEN
 from app.db.connection import get_db
 from app.db.repositories import (
@@ -40,7 +41,7 @@ def get_strava_client() -> StravaClient:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/strava/connect")
+@router.get("/strava/connect", dependencies=[Depends(require_session)])
 async def strava_connect() -> RedirectResponse:
     state = secrets.token_urlsafe(32)
     params = {
@@ -57,7 +58,7 @@ async def strava_connect() -> RedirectResponse:
     return response
 
 
-@router.get("/strava/callback")
+@router.get("/strava/callback", dependencies=[Depends(require_session)])
 async def strava_callback(
     request: Request,
     code: str,
@@ -86,7 +87,7 @@ async def strava_callback(
     return response
 
 
-@router.get("/strava/status")
+@router.get("/strava/status", dependencies=[Depends(require_session)])
 async def strava_status(db: AsyncConnection = Depends(get_db)) -> dict:
     row = await StravaConnectionRepository(db).get()
     if row is None:
@@ -94,7 +95,7 @@ async def strava_status(db: AsyncConnection = Depends(get_db)) -> dict:
     return {"connected": True, "athlete_id": row["strava_athlete_id"]}
 
 
-@router.post("/strava/disconnect")
+@router.post("/strava/disconnect", dependencies=[Depends(require_session)])
 async def strava_disconnect(db: AsyncConnection = Depends(get_db)) -> dict:
     await StravaConnectionRepository(db).delete()
     await db.commit()
