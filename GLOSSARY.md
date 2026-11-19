@@ -96,6 +96,10 @@ _Avoid_: Coach chat, chat
 A signed cookie proving the browser holds an allowlisted Google identity. It is checked on every request and ends when the email leaves the allowlist. Not a training session: see Planned workout.
 _Avoid_: Login token, user session
 
+**Runner**:
+An account, identified by its Google email. Every Goal, Plan, Strava connection, Activity analysis and Weekly summary belongs to exactly one Runner and is invisible to every other. The first Runner is the allowlisted owner, who receives all data that existed before accounts. A Strava webhook reaches a Runner through the athlete on their connection; an unknown athlete is ignored.
+_Avoid_: User, account holder
+
 ### Fitness assessment
 
 **VDOT**:

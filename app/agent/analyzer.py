@@ -41,6 +41,7 @@ async def build_weekly_summary(
     plan_id: UUID,
     week_number: int,
     conn: AsyncConnection,
+    runner_id: UUID,
     client: AIClient | None = None,
 ) -> str:
     """Generate a human-readable weekly summary by calling Claude once.
@@ -53,7 +54,7 @@ async def build_weekly_summary(
     if client is None:
         client = get_ai_client()
 
-    repo = ActivityAnalysisRepository(conn)
+    repo = ActivityAnalysisRepository(conn, runner_id)
     analyses = await repo.list_for_week(plan_id, week_number)
 
     messages = build_weekly_summary_messages(week_number, analyses)

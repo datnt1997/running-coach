@@ -11,9 +11,14 @@ import time
 from dataclasses import dataclass
 
 import httpx
-from fastapi import HTTPException, Request
+from uuid import UUID
+
+from fastapi import Depends, HTTPException, Request
+from psycopg import AsyncConnection
 
 from app import config
+from app.db.connection import get_db
+from app.db.repositories import RunnerRepository
 
 SESSION_COOKIE = "rc_session"
 SESSION_MAX_AGE = 365 * 24 * 3600  # a year: sign in once per device
@@ -126,3 +131,12 @@ def require_session(request: Request) -> str:
     if email is None or not is_allowed(email):
         raise HTTPException(status_code=401, detail="Not signed in")
     return email
+
+
+async def require_runner(email: str = Depends(require_session), db: AsyncConnection = Depends(get_db)) -> UUID:
+    """Dependency: the signed-in Runner's id; every data route passes it to its repositories.
+
+    A Runner row is created on their first request after sign-in (the allowlist
+    already vetted the email).
+    """
+    return await RunnerRepository(db).get_or_create(normalize_email(email))

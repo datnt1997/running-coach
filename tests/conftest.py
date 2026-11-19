@@ -59,7 +59,7 @@ _FOUR_DAY_AVAILABILITY = [
 
 _ALL_TABLES = (
     "weekly_summaries, activity_analyses, strava_connections, "
-    "workout_sessions, training_plans, user_goals"
+    "workout_sessions, training_plans, user_goals, runners"
 )
 
 
@@ -323,9 +323,23 @@ async def webhook_client(anon_webhook_client):
     return anon_webhook_client
 
 
+async def make_runner(email: str):
+    """Insert (or find) the Runner with this email and return their id."""
+    from app.db.connection import get_pool
+    from app.db.repositories import RunnerRepository
+    async with get_pool().connection() as conn:
+        return await RunnerRepository(conn).get_or_create(email)
+
+
 @pytest_asyncio.fixture
-async def seeded_strava_connection(db_pool):
-    """Insert a Strava connection that never expires."""
+async def runner_id(db_pool):
+    """The id of the signed-in fake runner (ALLOWED_EMAIL)."""
+    return await make_runner(ALLOWED_EMAIL)
+
+
+@pytest_asyncio.fixture
+async def seeded_strava_connection(db_pool, runner_id):
+    """Insert a Strava connection that never expires, owned by the fake runner."""
     from app.db.connection import get_pool
     pool = get_pool()
     async with pool.connection() as conn:
@@ -333,17 +347,21 @@ async def seeded_strava_connection(db_pool):
             await cur.execute(
                 """
                 INSERT INTO strava_connections
-                    (strava_athlete_id, access_token, refresh_token, expires_at)
-                VALUES (12345, 'test_access', 'test_refresh', %s)
+                    (strava_athlete_id, access_token, refresh_token, expires_at, runner_id)
+                VALUES (12345, 'test_access', 'test_refresh', %s, %s)
                 """,
-                (datetime(2099, 1, 1, tzinfo=timezone.utc),),
+                (datetime(2099, 1, 1, tzinfo=timezone.utc), runner_id),
             )
         await conn.commit()
 
 
 @pytest_asyncio.fixture
-async def seeded_plan(db_pool):
-    """Insert a training plan with a workout scheduled for today."""
+async def seeded_plan(db_pool, runner_id):
+    """Insert a training plan with a workout scheduled for today, owned by the fake runner."""
+    return await _seed_plan(runner_id)
+
+
+async def _seed_plan(runner_id):
     from app.db.connection import get_pool
     today = date.today()
     week_start = today - timedelta(days=today.weekday())  # Monday of this week
@@ -354,16 +372,16 @@ async def seeded_plan(db_pool):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO user_goals (distance, target_time, race_date, vdot, weekly_availability) "
-                "VALUES ('half_marathon', '2:00:00', %s, 40.0, %s) RETURNING id",
-                ((today + timedelta(weeks=16)), Jsonb(_FOUR_DAY_AVAILABILITY)),
+                "INSERT INTO user_goals (distance, target_time, race_date, vdot, weekly_availability, runner_id) "
+                "VALUES ('half_marathon', '2:00:00', %s, 40.0, %s, %s) RETURNING id",
+                ((today + timedelta(weeks=16)), Jsonb(_FOUR_DAY_AVAILABILITY), runner_id),
             )
             goal_id = (await cur.fetchone())[0]
 
             await cur.execute(
-                "INSERT INTO training_plans (goal_id, total_weeks, summary, start_date) "
-                "VALUES (%s, 4, 'Test plan', %s) RETURNING id",
-                (goal_id, week_start),
+                "INSERT INTO training_plans (goal_id, total_weeks, summary, start_date, runner_id) "
+                "VALUES (%s, 4, 'Test plan', %s, %s) RETURNING id",
+                (goal_id, week_start, runner_id),
             )
             plan_id = (await cur.fetchone())[0]
 
@@ -376,4 +394,4 @@ async def seeded_plan(db_pool):
             workout_id = (await cur.fetchone())[0]
         await conn.commit()
 
-    return {"plan_id": plan_id, "workout_id": workout_id, "date": today, "week_start": week_start}
+    return {"goal_id": goal_id, "plan_id": plan_id, "workout_id": workout_id, "date": today, "week_start": week_start}
