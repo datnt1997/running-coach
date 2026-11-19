@@ -17,6 +17,14 @@ export default {
   'strava.connect': 'Kết nối với Strava',
   'strava.disconnect': 'Ngắt kết nối',
 
+  'auth.title': 'Đăng nhập',
+  'auth.intro': 'Đăng nhập bằng tài khoản Google để xem kế hoạch chạy của bạn.',
+  'auth.signOut': 'Đăng xuất',
+  'auth.error.forbidden': 'Tài khoản Google này không được phép sử dụng ứng dụng.',
+  'auth.error.invalid': 'Đăng nhập không thành công — vui lòng thử lại.',
+  'auth.error.network': 'Không thể kết nối với Google — vui lòng thử lại.',
+  'auth.error.config': 'Chưa cấu hình VITE_GOOGLE_CLIENT_ID.',
+
   'common.loading': 'Đang tải…',
   'common.back': '← Quay lại',
   'common.use': 'Sử dụng',

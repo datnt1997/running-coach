@@ -50,6 +50,12 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - `frontend/src/lib/vdot.js` mirrors the formula for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
 - Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. How to search `references/daniels.txt` (Vietnamese, page-number rule): `specs/2026-11-13-weekly-availability-and-missed-workouts/research.md`. The book PDF is git-ignored and copyrighted.
 
+### Sign-in (`app/auth.py` + `app/api/auth.py`)
+
+- `POST /auth/google` takes a Google ID token (`credential`), checks it through `GoogleVerifier` (tokeninfo endpoint; tests inject a fake through `get_google_verifier`), checks the email against `ALLOWED_EMAILS`, and sets a signed session cookie. `GET /auth/me` says who is signed in; `POST /auth/logout` clears it. The session is stateless (no table); the allowlist is re-checked on every request.
+- `require_session` guards every data, chat and Strava status/connect/callback/disconnect route (401 without a session). Open: `/health`, `/`, `/auth/google`, `/auth/logout`, and the Strava webhook (GET challenge and POST). `tests/test_auth.py` enumerates the OpenAPI paths, so a new route must be guarded or added to its `OPEN_ROUTES` list.
+- Tests: the `client` and `webhook_client` fixtures are signed in as an allowlisted fake runner; `anon_client` and `anon_webhook_client` have no session.
+
 ### AI abstraction (`app/ai/`)
 
 - `AIClient` (ABC in `client.py`) — the single interface all AI code depends on
@@ -97,6 +103,10 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava app credentials |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Secret string for webhook handshake |
 | `STRAVA_REDIRECT_URI` | Must match Strava app's callback domain setting |
+| `GOOGLE_CLIENT_ID` | Google OAuth client id; the ID token's audience must match. The SPA reads the same value at build time as `VITE_GOOGLE_CLIENT_ID` |
+| `ALLOWED_EMAILS` | Comma-separated emails allowed to sign in (case-insensitive); others get 403 |
+| `SESSION_SECRET` | Signs the session cookie (HttpOnly, SameSite=Lax, one year); signing refuses an empty value |
+| `COOKIE_SECURE` | Session cookie `Secure` flag; defaults to true. Set `false` for local development over plain http, or the browser drops the cookie |
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

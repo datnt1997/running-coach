@@ -5,8 +5,9 @@ from httpx import ASGITransport
 
 from app.ai.factory import get_chat_ai_client_dep
 from app.api.fitness_chat import assess, format_time
+from app.auth import get_google_verifier
 from app.main import app
-from tests.conftest import FakeFitnessChatAIClient
+from tests.conftest import FakeFitnessChatAIClient, FakeGoogleVerifier, sign_in
 
 
 @pytest_asyncio.fixture
@@ -17,7 +18,9 @@ async def make_client():
     async def _make(**kwargs):
         fake = FakeFitnessChatAIClient(**kwargs)
         app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
+        app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier()
         ac = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver")
+        await sign_in(ac)
         opened.append(ac)
         return ac, fake
 
