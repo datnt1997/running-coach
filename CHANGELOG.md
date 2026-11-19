@@ -2,6 +2,11 @@
 
 All notable changes to this project are recorded here, grouped by date (newest first).
 
+## 2026-11-19
+
+- Google sign-in with an email allowlist (issue #30). `POST /auth/google` verifies a Google ID token and, for emails in `ALLOWED_EMAILS`, sets a signed one-year session cookie (`SESSION_SECRET`); other accounts get 403. `GET /auth/me` and `POST /auth/logout` added. Every data, chat and Strava status/connect/callback/disconnect endpoint now returns 401 without a session; `/health` and the Strava webhook (POST and GET challenge) stay open. New required env vars: `GOOGLE_CLIENT_ID`, `ALLOWED_EMAILS`, `SESSION_SECRET` (and `VITE_GOOGLE_CLIENT_ID` for the frontend build).
+- The SPA shows a Vietnamese sign-in screen (Google Identity Services) until signed in, returns to it on any 401, and has a sign-out button.
+
 ## 2026-11-18
 
 - VDOT is now the only fitness input (issue #17, ADR 0002). Removed `fitness_level` and the beginner/intermediate/advanced Planner label: `POST /goal` no longer takes `fitnessLevel` and requires `vdot`; `GET /goals` and `POST /fitness-chat` no longer return `fitnessLevel`; migration 007 deletes Goals saved without a VDOT, then drops the column. The Goal form cannot be submitted before the fitness assessment is done.

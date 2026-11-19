@@ -85,6 +85,8 @@ async def test_sign_out_ends_the_session(client):
 OPEN_ROUTES = {
     ("GET", "/health"),
     ("GET", "/"),  # static landing page, holds no data
+    ("GET", "/app"),  # the SPA shell (only when built); it holds no data and shows the sign-in screen
+    ("GET", "/app/{full_path}"),
     ("POST", "/auth/google"),  # this is the sign-in itself
     ("POST", "/auth/logout"),
     ("GET", "/strava/webhook"),  # Strava's verification challenge
