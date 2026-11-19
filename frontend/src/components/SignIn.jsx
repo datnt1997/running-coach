@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { GOOGLE_CLIENT_ID, signInWithGoogle } from '../lib/auth.js'
+import { AUTH_ERROR, GOOGLE_CLIENT_ID, signInWithGoogle } from '../lib/auth.js'
 import { t } from '../i18n/index.js'
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
@@ -18,7 +18,7 @@ function loadGoogleIdentity() {
 
 export default function SignIn({ onSignedIn }) {
   const buttonRef = useRef(null)
-  const [error, setError] = useState(GOOGLE_CLIENT_ID ? null : 'config')
+  const [error, setError] = useState(GOOGLE_CLIENT_ID ? null : AUTH_ERROR.CONFIG)
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return
@@ -36,7 +36,7 @@ export default function SignIn({ onSignedIn }) {
         })
         window.google.accounts.id.renderButton(buttonRef.current, { theme: 'outline', size: 'large' })
       })
-      .catch(() => !cancelled && setError('network'))
+      .catch(() => !cancelled && setError(AUTH_ERROR.NETWORK))
     return () => { cancelled = true }
   }, [onSignedIn])
 
