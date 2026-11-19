@@ -3,9 +3,12 @@ import secrets
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode
 
+from uuid import UUID
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from psycopg import AsyncConnection
+from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
 from app.agent.analyzer import AnalysisGenerationError, analyze_activity, build_weekly_summary
@@ -13,12 +16,13 @@ from app.agent.matching import match_activity_to_workout
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
 from app import config
-from app.auth import require_session
+from app.auth import require_runner, require_session
 from app.config import STRAVA_CLIENT_ID, STRAVA_REDIRECT_URI, STRAVA_WEBHOOK_VERIFY_TOKEN
 from app.db.connection import get_db
 from app.db.repositories import (
     ActivityAnalysisRepository,
     PlanRepository,
+    RunnerRepository,
     StravaConnectionRepository,
     WeeklySummaryRepository,
 )
@@ -64,6 +68,7 @@ async def strava_callback(
     code: str,
     state: str,
     db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
     strava_client: StravaClient = Depends(get_strava_client),
 ) -> RedirectResponse:
     expected = request.cookies.get(_CSRF_COOKIE)
@@ -71,14 +76,18 @@ async def strava_callback(
         raise HTTPException(status_code=403, detail="Invalid OAuth state")
 
     tokens = await strava_client.exchange_code(code)
-    repo = StravaConnectionRepository(db)
-    await repo.upsert(
-        athlete_id=tokens.athlete_id,
-        access_token=tokens.access_token,
-        refresh_token=tokens.refresh_token,
-        expires_at=datetime.fromtimestamp(tokens.expires_at, tz=timezone.utc),
-    )
-    await db.commit()
+    repo = StravaConnectionRepository(db, runner_id)
+    try:
+        await repo.upsert(
+            athlete_id=tokens.athlete_id,
+            access_token=tokens.access_token,
+            refresh_token=tokens.refresh_token,
+            expires_at=datetime.fromtimestamp(tokens.expires_at, tz=timezone.utc),
+        )
+        await db.commit()
+    except UniqueViolation:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="This Strava athlete is connected to another runner")
 
     # The SPA only exists after `npm run build`; fall back to the plain page at "/".
     spa_built = (config.FRONTEND_DIST / "index.html").is_file()
@@ -88,16 +97,20 @@ async def strava_callback(
 
 
 @router.get("/strava/status", dependencies=[Depends(require_session)])
-async def strava_status(db: AsyncConnection = Depends(get_db)) -> dict:
-    row = await StravaConnectionRepository(db).get()
+async def strava_status(
+    db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
+) -> dict:
+    row = await StravaConnectionRepository(db, runner_id).get()
     if row is None:
         return {"connected": False, "athlete_id": None}
     return {"connected": True, "athlete_id": row["strava_athlete_id"]}
 
 
 @router.post("/strava/disconnect", dependencies=[Depends(require_session)])
-async def strava_disconnect(db: AsyncConnection = Depends(get_db)) -> dict:
-    await StravaConnectionRepository(db).delete()
+async def strava_disconnect(
+    db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
+) -> dict:
+    await StravaConnectionRepository(db, runner_id).delete()
     await db.commit()
     return {"connected": False}
 
@@ -136,12 +149,15 @@ async def strava_webhook_event(
     ai_client: AIClient = Depends(get_ai_client_dep),
 ) -> Response:
     if event.aspect_type == "create" and event.object_type == "activity":
-        background_tasks.add_task(_process_activity, event.object_id, strava_client, ai_client)
+        background_tasks.add_task(
+            _process_activity, event.object_id, event.owner_id, strava_client, ai_client
+        )
     return Response(status_code=200)
 
 
 async def _process_activity(
     activity_id: int,
+    athlete_id: int,
     strava_client: StravaClient,
     ai_client: AIClient,
 ) -> None:
@@ -150,11 +166,16 @@ async def _process_activity(
     pool = get_pool()
     async with pool.connection() as conn:
         try:
-            access_token = await get_valid_access_token(conn, strava_client)
+            runner_id = await RunnerRepository(conn).find_runner_id_by_strava_athlete(athlete_id)
+            if runner_id is None:
+                # Acknowledged to Strava, but no Runner owns this athlete: change nothing.
+                logger.warning("Ignoring event for unknown Strava athlete %s", athlete_id)
+                return
+            access_token = await get_valid_access_token(conn, runner_id, strava_client)
             activity = await strava_client.get_activity(activity_id, access_token)
             activity_date = date.fromisoformat(activity.start_date_local[:10])
 
-            plan_repo = PlanRepository(conn)
+            plan_repo = PlanRepository(conn, runner_id)
             plan_id = await plan_repo.get_latest_plan_id()
             if plan_id is None:
                 logger.warning("No training plan found; skipping activity %s", activity_id)
@@ -179,7 +200,7 @@ async def _process_activity(
                 except AnalysisGenerationError as exc:
                     logger.error("Analysis failed for activity %s: %s", activity_id, exc)
 
-            analysis_repo = ActivityAnalysisRepository(conn)
+            analysis_repo = ActivityAnalysisRepository(conn, runner_id)
             await analysis_repo.insert(
                 strava_activity_id=activity_id,
                 matched_workout_id=match.workout.id if match.workout else None,
@@ -196,9 +217,9 @@ async def _process_activity(
             if match.matched and match.workout is not None:
                 try:
                     summary = await build_weekly_summary(
-                        plan_id, match.workout.week_number, conn, ai_client
+                        plan_id, match.workout.week_number, conn, runner_id, ai_client
                     )
-                    await WeeklySummaryRepository(conn).upsert(
+                    await WeeklySummaryRepository(conn, runner_id).upsert(
                         plan_id, match.workout.week_number, summary
                     )
                 except Exception as exc:

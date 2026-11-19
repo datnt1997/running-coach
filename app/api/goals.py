@@ -9,6 +9,7 @@ from app.agent.planner import PlanGenerationError, generate_plan
 from app.agent.validation import GoalOutOfScopeError, validate_goal
 from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
+from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import GoalRepository, PlanRepository
 from app.models.goal import DayAvailability, GoalRequest, count_training_days
@@ -59,6 +60,7 @@ async def create_goal(
     goal: GoalRequest,
     background_tasks: BackgroundTasks,
     db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
     ai_client: AIClient = Depends(get_ai_client_dep),
 ) -> dict:
     try:
@@ -69,15 +71,15 @@ async def create_goal(
             detail={"error": "goal_out_of_scope", "message": exc.message},
         )
 
-    goal_id = await GoalRepository(db).insert(goal)
+    goal_id = await GoalRepository(db, runner_id).insert(goal)
     await db.commit()
 
-    background_tasks.add_task(_generate_plan_background, goal_id, goal, ai_client)
+    background_tasks.add_task(_generate_plan_background, goal_id, goal, ai_client, runner_id)
     return {"goalId": str(goal_id), "status": "generating"}
 
 
 async def _generate_plan_background(
-    goal_id: UUID, goal: GoalRequest, ai_client: AIClient
+    goal_id: UUID, goal: GoalRequest, ai_client: AIClient, runner_id: UUID
 ) -> None:
     from app.db.connection import get_pool
 
@@ -85,7 +87,7 @@ async def _generate_plan_background(
     async with pool.connection() as conn:
         try:
             plan = await generate_plan(goal, client=ai_client)
-            plan_repo = PlanRepository(conn)
+            plan_repo = PlanRepository(conn, runner_id)
             plan_id = await plan_repo.insert_plan(
                 goal_id=goal_id,
                 total_weeks=plan.total_weeks,
@@ -104,27 +106,29 @@ async def _generate_plan_background(
                         pace_zone=workout.pace_zone,
                         notes=workout.notes,
                     )
-            await GoalRepository(conn).update_status(goal_id, "ready")
+            await GoalRepository(conn, runner_id).update_status(goal_id, "ready")
             await conn.commit()
         except PlanGenerationError as exc:
             logger.error("Plan generation failed for goal %s: %s", goal_id, exc)
             try:
-                await GoalRepository(conn).update_status(goal_id, "failed")
+                await GoalRepository(conn, runner_id).update_status(goal_id, "failed")
                 await conn.commit()
             except Exception:
                 pass
         except Exception as exc:
             logger.error("Unexpected error for goal %s: %s", goal_id, exc, exc_info=True)
             try:
-                await GoalRepository(conn).update_status(goal_id, "failed")
+                await GoalRepository(conn, runner_id).update_status(goal_id, "failed")
                 await conn.commit()
             except Exception:
                 pass
 
 
 @router.get("/goals")
-async def list_goals(db: AsyncConnection = Depends(get_db)) -> dict:
-    rows = await GoalRepository(db).list_all()
+async def list_goals(
+    db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
+) -> dict:
+    rows = await GoalRepository(db, runner_id).list_all()
     goals = []
     for row in rows:
         tt = row["target_time"]
@@ -149,9 +153,11 @@ async def list_goals(db: AsyncConnection = Depends(get_db)) -> dict:
 
 @router.get("/goal/{goal_id}/plan")
 async def get_goal_plan(
-    goal_id: UUID, db: AsyncConnection = Depends(get_db)
+    goal_id: UUID,
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
 ) -> JSONResponse:
-    goal_row = await GoalRepository(db).get(goal_id)
+    goal_row = await GoalRepository(db, runner_id).get(goal_id)
     if goal_row is None:
         raise HTTPException(
             status_code=404,
@@ -177,7 +183,7 @@ async def get_goal_plan(
         )
 
     # status == "ready"
-    plan = await PlanRepository(db).get_plan_by_goal_id(goal_id)
+    plan = await PlanRepository(db, runner_id).get_plan_by_goal_id(goal_id)
     if plan is None:
         raise HTTPException(status_code=500, detail="Plan marked ready but not found in DB")
 
@@ -188,9 +194,11 @@ async def get_goal_plan(
 
 @router.delete("/goal/{goal_id}")
 async def delete_goal(
-    goal_id: UUID, db: AsyncConnection = Depends(get_db)
+    goal_id: UUID,
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
 ) -> dict:
-    deleted = await GoalRepository(db).delete(goal_id)
+    deleted = await GoalRepository(db, runner_id).delete(goal_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
