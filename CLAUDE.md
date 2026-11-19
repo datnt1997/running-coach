@@ -73,11 +73,6 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - `matching.py` — pure logic (no AI) to match an incoming Strava activity to a planned workout by date + distance (±30% tolerance)
 - `validation.py` — scope bounds: fastest supported time per distance, minimum weeks to the race (`specs/mission.md`)
 
-### Plan import (`app/api/plan_import.py` + `app/agent/plan_import.py`)
-
-- `POST /plan/import` (signed in; no UI) takes `distance`, `targetTime`, `raceDate`, `startDate` (a Monday, first day of week 1) and `csv`: a header row `week,phase,day,type,distance_km[,pace_zone,notes]` then one row per Planned workout, comma or tab separated. It creates an Active Goal (status `ready`) with its Plan in one transaction; any bad row returns 422 with `rows: [{line, message}]` and writes nothing.
-- The target-time and six-week bounds in `validation.py` do not apply to an import; they still guard `POST /goal`. Weekly availability is derived from the days the Plan uses; VDOT from the target time.
-
 ### Database (`app/db/`)
 
 - Connection pool via `psycopg-pool`; `get_db()` yields a single `AsyncConnection` per request

@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app.api import activities, auth as auth_api, fitness_chat, goals, plan_import, plans, summaries
+from app.api import activities, auth as auth_api, fitness_chat, goals, plans, summaries
 from app.api import strava, ui
 from app import config
 from app.auth import require_session
@@ -36,7 +36,6 @@ app.include_router(auth_api.router)
 app.include_router(goals.router, dependencies=_session_required)
 app.include_router(fitness_chat.router, dependencies=_session_required)
 app.include_router(plans.router, dependencies=_session_required)
-app.include_router(plan_import.router, dependencies=_session_required)
 app.include_router(strava.router)
 app.include_router(ui.router)
 app.include_router(activities.router, dependencies=_session_required)
