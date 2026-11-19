@@ -92,24 +92,32 @@ class GoalRepository:
             await cur.execute(
                 """
                 UPDATE activity_analyses SET matched_workout_id = NULL
-                WHERE matched_workout_id IN (
+                WHERE runner_id = %s AND matched_workout_id IN (
                     SELECT ws.id FROM workout_sessions ws
                     JOIN training_plans tp ON ws.plan_id = tp.id
-                    WHERE tp.goal_id = %s
+                    WHERE tp.goal_id = %s AND tp.runner_id = %s
                 )
                 """,
-                (goal_id,),
+                (self.runner_id, goal_id, self.runner_id),
             )
             await cur.execute(
-                "DELETE FROM weekly_summaries WHERE plan_id IN (SELECT id FROM training_plans WHERE goal_id = %s)",
-                (goal_id,),
+                "DELETE FROM weekly_summaries WHERE runner_id = %s"
+                " AND plan_id IN (SELECT id FROM training_plans WHERE goal_id = %s AND runner_id = %s)",
+                (self.runner_id, goal_id, self.runner_id),
             )
             await cur.execute(
-                "DELETE FROM workout_sessions WHERE plan_id IN (SELECT id FROM training_plans WHERE goal_id = %s)",
-                (goal_id,),
+                "DELETE FROM workout_sessions"
+                " WHERE plan_id IN (SELECT id FROM training_plans WHERE goal_id = %s AND runner_id = %s)",
+                (goal_id, self.runner_id),
             )
-            await cur.execute("DELETE FROM training_plans WHERE goal_id = %s", (goal_id,))
-            await cur.execute("DELETE FROM user_goals WHERE id = %s RETURNING id", (goal_id,))
+            await cur.execute(
+                "DELETE FROM training_plans WHERE goal_id = %s AND runner_id = %s",
+                (goal_id, self.runner_id),
+            )
+            await cur.execute(
+                "DELETE FROM user_goals WHERE id = %s AND runner_id = %s RETURNING id",
+                (goal_id, self.runner_id),
+            )
             row = await cur.fetchone()
             return row is not None
 
@@ -508,10 +516,9 @@ class RunnerRepository:
                     (email,),
                 )
                 row = await cur.fetchone()
-                await self.conn.commit()
             return row[0]
 
-    async def find_by_strava_athlete(self, athlete_id: int) -> UUID | None:
+    async def find_runner_id_by_strava_athlete(self, athlete_id: int) -> UUID | None:
         async with self.conn.cursor() as cur:
             await cur.execute(
                 "SELECT runner_id FROM strava_connections WHERE strava_athlete_id = %s",
