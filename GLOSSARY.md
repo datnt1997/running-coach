@@ -90,6 +90,12 @@ _Avoid_: Level chat, assessment chat, chat
 The conversation after a Plan exists, in which the runner asks the coach to change the Plan's current and future weeks. It never changes the Goal's race, time or date; those start a new Goal.
 _Avoid_: Coach chat, chat
 
+### Sign-in
+
+**Sign-in session**:
+A signed cookie proving the browser holds an allowlisted Google identity. It is checked on every request and ends when the email leaves the allowlist. Not a training session: see Planned workout.
+_Avoid_: Login token, user session
+
 ### Fitness assessment
 
 **VDOT**:
