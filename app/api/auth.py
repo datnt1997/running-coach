@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
+from app import config
 from app.auth import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
@@ -38,7 +39,7 @@ async def sign_in(
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=False,  # the app may be served over plain http in development
+        secure=config.COOKIE_SECURE,  # COOKIE_SECURE=false for plain-http development
         path="/",
     )
     return {"email": email}

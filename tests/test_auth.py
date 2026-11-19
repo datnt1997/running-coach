@@ -133,3 +133,81 @@ async def test_webhook_and_challenge_reachable_without_a_session(anon_webhook_cl
 
 async def test_health_is_open(anon_client):
     assert (await anon_client.get("/health")).status_code == 200
+
+
+async def test_session_cookie_is_secure_by_default(anon_client, monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "COOKIE_SECURE", True)
+    resp = await sign_in(anon_client)
+    assert "secure" in resp.headers["set-cookie"].lower().split("; ")
+
+
+async def test_cookie_secure_can_be_turned_off_for_http_dev(anon_client, monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "COOKIE_SECURE", False)
+    resp = await sign_in(anon_client)
+    assert "secure" not in resp.headers["set-cookie"].lower().split("; ")
+
+
+def test_cookie_secure_config_defaults_to_true(monkeypatch):
+    import importlib
+
+    from app import config
+
+    try:
+        monkeypatch.delenv("COOKIE_SECURE", raising=False)
+        importlib.reload(config)
+        assert config.COOKIE_SECURE is True
+        monkeypatch.setenv("COOKIE_SECURE", "false")
+        importlib.reload(config)
+        assert config.COOKIE_SECURE is False
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_empty_session_secret_is_refused(monkeypatch):
+    from app import auth, config
+
+    monkeypatch.setattr(config, "SESSION_SECRET", "")
+    with pytest.raises(RuntimeError):
+        auth.make_session_token("runner@example.com")
+    monkeypatch.setattr(config, "SESSION_SECRET", None)
+    with pytest.raises(RuntimeError):
+        auth.make_session_token("runner@example.com")
+
+
+def _signed(payload) -> str:
+    import base64
+    import json
+
+    from app import auth
+
+    body = json.dumps(payload).encode()
+    return base64.urlsafe_b64encode(body).decode().rstrip("=") + "." + auth._sign(body)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"email": "runner@example.com", "exp": "soon"},
+        {"email": "runner@example.com", "exp": None},
+        {"email": "runner@example.com"},
+        {"email": 5, "exp": 9999999999},
+        ["not", "a", "dict"],
+    ],
+)
+def test_malformed_signed_payload_is_invalid_not_an_error(payload):
+    from app.auth import read_session_token
+
+    assert read_session_token(_signed(payload)) is None
+
+
+def test_now_of_zero_is_not_treated_as_unset():
+    from app.auth import SESSION_MAX_AGE, make_session_token, read_session_token
+
+    token = make_session_token("runner@example.com", now=0)
+    assert read_session_token(token, now=0) == "runner@example.com"
+    assert read_session_token(token, now=SESSION_MAX_AGE + 1) is None

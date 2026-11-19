@@ -105,7 +105,8 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | `STRAVA_REDIRECT_URI` | Must match Strava app's callback domain setting |
 | `GOOGLE_CLIENT_ID` | Google OAuth client id; the ID token's audience must match. The SPA reads the same value at build time as `VITE_GOOGLE_CLIENT_ID` |
 | `ALLOWED_EMAILS` | Comma-separated emails allowed to sign in (case-insensitive); others get 403 |
-| `SESSION_SECRET` | Signs the session cookie (HttpOnly, SameSite=Lax, one year) |
+| `SESSION_SECRET` | Signs the session cookie (HttpOnly, SameSite=Lax, one year); signing refuses an empty value |
+| `COOKIE_SECURE` | Session cookie `Secure` flag; defaults to true. Set `false` for local development over plain http, or the browser drops the cookie |
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

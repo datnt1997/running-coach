@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import SignIn from './components/SignIn.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -22,10 +22,8 @@ export default function App() {
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expired)
   }, [])
 
-  const handleSignedIn = useCallback(setEmail, [])
-
   if (email === undefined) return <main><p>{t('common.loading')}</p></main>
-  if (email === null) return <SignIn onSignedIn={handleSignedIn} />
+  if (email === null) return <SignIn onSignedIn={setEmail} />
 
   return (
     <BrowserRouter basename="/app">

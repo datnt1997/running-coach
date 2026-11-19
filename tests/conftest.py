@@ -8,6 +8,7 @@ os.environ.setdefault("STRAVA_CLIENT_SECRET", "test_client_secret")
 os.environ.setdefault("STRAVA_WEBHOOK_VERIFY_TOKEN", "test_verify_token")
 os.environ.setdefault("STRAVA_REDIRECT_URI", "http://localhost:8000/strava/callback")
 os.environ.setdefault("SESSION_SECRET", "test-session-secret-not-for-production")
+os.environ["COOKIE_SECURE"] = "false"  # TestClient talks plain http, so a Secure cookie would not come back
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ["ALLOWED_EMAILS"] = "runner@example.com, Friend@Example.com"
 

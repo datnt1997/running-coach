@@ -16,6 +16,8 @@ APP_LANGUAGE = os.getenv("APP_LANGUAGE", "vi")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET")
+# The session cookie is Secure (https only) unless this is explicitly false, e.g. http dev
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").strip().lower() not in ("false", "0", "no")
 
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
