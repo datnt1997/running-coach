@@ -215,3 +215,113 @@ def test_now_of_zero_is_not_treated_as_unset():
     token = make_session_token("runner@example.com", now=0)
     assert read_session_token(token, now=0) == "runner@example.com"
     assert read_session_token(token, now=SESSION_MAX_AGE + 1) is None
+
+
+@pytest.fixture
+def valid_config(monkeypatch):
+    """Every required setting present, so a test varies only SESSION_SECRET."""
+    from app import config
+
+    for name, value in {
+        "ANTHROPIC_API_KEY": "k",
+        "AI_PROVIDER": "anthropic",
+        "CHAT_AI_PROVIDER": None,
+        "DATABASE_URL": "postgresql://u:p@localhost/db_test",
+        "GOOGLE_CLIENT_ID": "client-id",
+        "ALLOWED_EMAILS": "runner@example.com",
+        "STRAVA_CLIENT_ID": "id",
+        "STRAVA_CLIENT_SECRET": "secret",
+        "STRAVA_WEBHOOK_VERIFY_TOKEN": "token",
+        "STRAVA_REDIRECT_URI": "http://localhost:8000/strava/callback",
+        "SESSION_SECRET": "x" * 32,
+    }.items():
+        monkeypatch.setattr(config, name, value)
+    return config
+
+
+def test_strong_session_secret_passes_validation(valid_config):
+    valid_config.validate_config()
+
+
+@pytest.mark.parametrize("secret", ["change_me", "x" * 31])
+def test_weak_session_secret_is_rejected_with_how_to_generate(valid_config, monkeypatch, secret):
+    monkeypatch.setattr(valid_config, "SESSION_SECRET", secret)
+    with pytest.raises(RuntimeError, match=r"secrets\.token_urlsafe\(48\)"):
+        valid_config.validate_config()
+
+
+# --- the real GoogleVerifier, with only the HTTP boundary faked -------------
+
+import httpx  # noqa: E402
+
+from app import auth  # noqa: E402
+
+
+def _verifier_with(monkeypatch, handler):
+    from app import config
+
+    monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "client-id")
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        auth.httpx,
+        "AsyncClient",
+        lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw),
+    )
+    return auth.GoogleVerifier()
+
+
+def _claims(**over):
+    claims = {
+        "aud": "client-id",
+        "iss": "https://accounts.google.com",
+        "email": "runner@example.com",
+        "email_verified": "true",
+    }
+    claims.update(over)
+    return claims
+
+
+async def test_real_verifier_accepts_a_valid_token(monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json=_claims())
+
+    identity = await _verifier_with(monkeypatch, handler).verify("tok")
+    assert identity == auth.GoogleIdentity(email="runner@example.com", email_verified=True)
+    assert seen["url"].startswith("https://oauth2.googleapis.com/tokeninfo")
+    assert "id_token=tok" in seen["url"]
+
+
+async def test_real_verifier_accepts_bare_google_issuer(monkeypatch):
+    v = _verifier_with(monkeypatch, lambda r: httpx.Response(200, json=_claims(iss="accounts.google.com")))
+    assert (await v.verify("tok")).email == "runner@example.com"
+
+
+async def test_real_verifier_reports_unverified_email(monkeypatch):
+    v = _verifier_with(monkeypatch, lambda r: httpx.Response(200, json=_claims(email_verified="false")))
+    assert (await v.verify("tok")).email_verified is False
+
+
+@pytest.mark.parametrize(
+    "over", [{"aud": "someone-elses-client"}, {"iss": "https://evil.example.com"}, {"email": ""}]
+)
+async def test_real_verifier_rejects_wrong_audience_issuer_or_missing_email(monkeypatch, over):
+    v = _verifier_with(monkeypatch, lambda r: httpx.Response(200, json=_claims(**over)))
+    with pytest.raises(auth.InvalidGoogleToken):
+        await v.verify("tok")
+
+
+async def test_real_verifier_rejects_non_200(monkeypatch):
+    v = _verifier_with(monkeypatch, lambda r: httpx.Response(400, json={"error": "invalid_token"}))
+    with pytest.raises(auth.InvalidGoogleToken):
+        await v.verify("tok")
+
+
+async def test_real_verifier_turns_network_error_into_invalid_token(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(auth.InvalidGoogleToken):
+        await _verifier_with(monkeypatch, handler).verify("tok")

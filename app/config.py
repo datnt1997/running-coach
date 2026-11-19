@@ -56,3 +56,8 @@ def validate_config():
         missing.append("STRAVA_REDIRECT_URI")
     if missing:
         raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
+    if SESSION_SECRET == "change_me" or len(SESSION_SECRET) < 32:
+        raise RuntimeError(
+            "SESSION_SECRET is the placeholder or shorter than 32 characters. Generate one: "
+            'python -c "import secrets; print(secrets.token_urlsafe(48))"'
+        )
