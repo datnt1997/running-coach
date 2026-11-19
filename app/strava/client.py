@@ -68,14 +68,14 @@ class StravaClient:
             )
 
 
-async def get_valid_access_token(conn, strava_client: "StravaClient | None" = None) -> str:
+async def get_valid_access_token(conn, runner_id, strava_client: "StravaClient | None" = None) -> str:
     """Load the stored connection, refresh if expired, return a valid access token."""
     from app.db.repositories import StravaConnectionRepository
 
     if strava_client is None:
         strava_client = StravaClient()
 
-    repo = StravaConnectionRepository(conn)
+    repo = StravaConnectionRepository(conn, runner_id)
     connection = await repo.get()
     if connection is None:
         raise RuntimeError("No Strava connection found")

@@ -1,6 +1,9 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from psycopg import AsyncConnection
 
+from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import ActivityAnalysisRepository, PlanRepository
 
@@ -11,12 +14,13 @@ router = APIRouter()
 async def list_activities(
     week: int | None = None,
     db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
 ) -> dict:
-    plan_id = await PlanRepository(db).get_latest_plan_id()
+    plan_id = await PlanRepository(db, runner_id).get_latest_plan_id()
     if plan_id is None:
         return {"activities": []}
 
-    rows = await ActivityAnalysisRepository(db).list_for_week(plan_id, week)
+    rows = await ActivityAnalysisRepository(db, runner_id).list_for_week(plan_id, week)
 
     activities = []
     for row in rows:

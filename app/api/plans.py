@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import AsyncConnection
 
+from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import PlanRepository
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
@@ -51,9 +52,11 @@ def _build_plan_response(plan: dict) -> PlanResponse:
 
 @router.get("/plan/{plan_id}", response_model=PlanResponse)
 async def get_plan(
-    plan_id: UUID, db: AsyncConnection = Depends(get_db)
+    plan_id: UUID,
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
 ) -> PlanResponse:
-    repo = PlanRepository(db)
+    repo = PlanRepository(db, runner_id)
     plan = await repo.get_plan(plan_id)
     if plan is None:
         raise HTTPException(

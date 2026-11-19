@@ -1,8 +1,10 @@
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import AsyncConnection
 
+from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import ActivityAnalysisRepository, PlanRepository, WeeklySummaryRepository
 
@@ -13,8 +15,9 @@ router = APIRouter()
 async def get_weekly_summary(
     week_number: int | None = None,
     db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
 ) -> dict:
-    plan_repo = PlanRepository(db)
+    plan_repo = PlanRepository(db, runner_id)
     plan_id = await plan_repo.get_latest_plan_id()
     if plan_id is None:
         raise HTTPException(status_code=404, detail="No training plan found")
@@ -26,11 +29,11 @@ async def get_weekly_summary(
         elapsed = (date.today() - plan["start_date"]).days
         week_number = max(1, min(elapsed // 7 + 1, plan["total_weeks"]))
 
-    summary_row = await WeeklySummaryRepository(db).get_by_week(plan_id, week_number)
+    summary_row = await WeeklySummaryRepository(db, runner_id).get_by_week(plan_id, week_number)
     if summary_row is None:
         raise HTTPException(status_code=404, detail=f"No summary for week {week_number}")
 
-    rows = await ActivityAnalysisRepository(db).list_for_week(plan_id, week_number)
+    rows = await ActivityAnalysisRepository(db, runner_id).list_for_week(plan_id, week_number)
 
     sessions = []
     for row in rows:
