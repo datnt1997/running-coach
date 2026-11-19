@@ -73,12 +73,14 @@ def is_allowed(email: str) -> bool:
 
 
 def _sign(payload: bytes) -> str:
-    key = (config.SESSION_SECRET or "").encode()
+    if not config.SESSION_SECRET:
+        raise RuntimeError("SESSION_SECRET is not set; refusing to sign a session")
+    key = config.SESSION_SECRET.encode()
     return base64.urlsafe_b64encode(hmac.new(key, payload, hashlib.sha256).digest()).decode().rstrip("=")
 
 
 def make_session_token(email: str, now: float | None = None) -> str:
-    body = json.dumps({"email": email, "exp": int((now or time.time()) + SESSION_MAX_AGE)}).encode()
+    body = json.dumps({"email": email, "exp": int((time.time() if now is None else now) + SESSION_MAX_AGE)}).encode()
     return base64.urlsafe_b64encode(body).decode().rstrip("=") + "." + _sign(body)
 
 
@@ -92,11 +94,14 @@ def read_session_token(token: str | None, now: float | None = None) -> str | Non
         if not hmac.compare_digest(signature, _sign(body)):
             return None
         data = json.loads(body)
-    except (ValueError, TypeError):
+        exp, email = data["exp"], data["email"]
+    except (ValueError, TypeError, KeyError):
         return None
-    if data.get("exp", 0) < (now or time.time()):
+    if not isinstance(exp, (int, float)) or isinstance(exp, bool) or not isinstance(email, str):
         return None
-    return data.get("email")
+    if exp < (time.time() if now is None else now):
+        return None
+    return email
 
 
 def require_session(request: Request) -> str:
