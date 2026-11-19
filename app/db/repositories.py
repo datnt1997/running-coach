@@ -51,6 +51,35 @@ class GoalRepository:
             row = await cur.fetchone()
             return row[0]
 
+    async def insert_imported(
+        self,
+        distance: str,
+        target_time: str,
+        race_date: date,
+        weekly_availability: list[dict],
+        vdot: float,
+    ) -> UUID:
+        """A Goal for an imported Plan: the Plan already exists, so it starts 'ready'."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO user_goals
+                    (distance, target_time, race_date, weekly_availability, vdot,
+                     plan_status, runner_id)
+                VALUES (%s, %s, %s, %s, %s, 'ready', %s)
+                RETURNING id
+                """,
+                (
+                    distance,
+                    _parse_target_time(target_time),
+                    race_date,
+                    Jsonb(weekly_availability),
+                    vdot,
+                    self.runner_id,
+                ),
+            )
+            return (await cur.fetchone())[0]
+
     async def get(self, goal_id: UUID) -> dict | None:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
