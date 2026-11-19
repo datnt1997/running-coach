@@ -146,3 +146,28 @@ async def test_webhook_for_an_unknown_athlete_is_acknowledged_and_changes_nothin
             assert (await cur.fetchone())[0] == 0, table
         cur = await conn.execute("SELECT access_token FROM strava_connections")
         assert [r[0] for r in await cur.fetchall()] == ["test_access"]
+
+
+async def test_a_foreign_plan_id_leaks_nothing_through_any_repository(
+    webhook_client, friend_client, seeded_plan, seeded_strava_connection
+):
+    from app.db.repositories import (
+        ActivityAnalysisRepository, PlanRepository, WeeklySummaryRepository,
+    )
+    import pytest
+
+    assert (await webhook_client.post("/strava/webhook", json=_activity_event(12345))).status_code == 200
+    plan_id = seeded_plan["plan_id"]
+    friend = await make_runner(FRIEND)
+    activity_date = date.today()
+
+    assert (await friend_client.get(f"/plan/{plan_id}")).status_code == 404
+    async with get_pool().connection() as conn:
+        plans = PlanRepository(conn, friend)
+        assert await plans.get_plan(plan_id) is None
+        assert await plans.get_workouts_for_date(plan_id, activity_date) == []
+        assert await ActivityAnalysisRepository(conn, friend).list_for_week(plan_id, 1) == []
+        summaries = WeeklySummaryRepository(conn, friend)
+        assert await summaries.get_by_week(plan_id, 1) is None
+        with pytest.raises(LookupError):
+            await summaries.upsert(plan_id, 1, "intruder")
