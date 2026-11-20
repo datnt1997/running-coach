@@ -19,6 +19,7 @@ export default {
   'profile.saved': 'Đã lưu hồ sơ.',
   'profile.loadError': 'Không thể tải hồ sơ.',
   'profile.saveError': 'Lưu thất bại — vui lòng thử lại.',
+  'profile.required': '{field}: bắt buộc nhập.',
   'profile.outOfRange': '{field}: nhập số nguyên từ {min} đến {max}.',
   'profile.restingAboveMax': 'Nhịp tim nghỉ phải thấp hơn nhịp tim tối đa.',
   'profile.lactateAboveMax': 'Nhịp tim ngưỡng lactate phải thấp hơn nhịp tim tối đa.',

@@ -8,10 +8,16 @@ const FIELDS = [
   ['lactateThresholdHr', 'profile.lactateThresholdHr', 'profile.lactateThresholdHrHint', 80, 220],
 ]
 
+// Needed to compute the heart-rate zones; lactate-threshold HR is optional.
+const REQUIRED = ['maxHr', 'restingHr']
+
 // First problem in the form as a message key (with params), or null.
 function validate(form) {
   for (const [key, , , min, max] of FIELDS) {
-    if (form[key] === '') continue
+    if (form[key] === '') {
+      if (REQUIRED.includes(key)) return { key: 'profile.required', label: key }
+      continue
+    }
     const n = Number(form[key])
     if (!Number.isInteger(n) || n < min || n > max) {
       return { key: 'profile.outOfRange', label: key, min, max }
