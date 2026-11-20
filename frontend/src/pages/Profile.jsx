@@ -46,7 +46,7 @@ export default function Profile() {
     fetch('/profile')
       .then(res => { if (!res.ok) throw new Error(); return res.json() })
       .then(body => { setData(body); setForm(toForm(body)) })
-      .catch(() => setError(t('profile.loadError')))
+      .catch(() => setError({ text: t('profile.loadError') }))
   }, [])
 
   async function save(e) {
@@ -55,7 +55,7 @@ export default function Profile() {
     const problem = validate(form)
     if (problem) {
       const label = problem.label ? t(FIELDS.find(f => f[0] === problem.label)[1]) : ''
-      setError(t(problem.key, { field: label, min: problem.min, max: problem.max }))
+      setError({ field: problem.label, text: t(problem.key, { field: label, min: problem.min, max: problem.max }) })
       return
     }
     setBusy(true)
@@ -69,75 +69,97 @@ export default function Profile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (res.status === 422) { setError(t('profile.invalid')); return }
+      if (res.status === 422) { setError({ text: t('profile.invalid') }); return }
       if (!res.ok) throw new Error()
       const body = await res.json()
       setData(body)
       setForm(toForm(body))
       setSaved(true)
     } catch {
-      setError(t('profile.saveError'))
+      setError({ text: t('profile.saveError') })
     } finally {
       setBusy(false)
     }
   }
 
-  if (!data) return error ? <p className="error-msg">{error}</p> : <p>{t('common.loading')}</p>
+  if (!data) return error ? <p className="error-msg">{error.text}</p> : <p>{t('common.loading')}</p>
 
   return (
     <div className="profile-page">
-      <h1>{t('profile.title')}</h1>
-      <p>{t('profile.intro')}</p>
+      <header className="profile-page__header">
+        <h1>{t('profile.title')}</h1>
+        <p className="profile-page__intro">{t('profile.intro')}</p>
+      </header>
 
-      <form onSubmit={save}>
-        {FIELDS.map(([key, labelKey, hintKey, min, max]) => (
-          <div className="field" key={key}>
-            <label className="field__label" htmlFor={key}>{t(labelKey)}</label>
-            <input
-              id={key}
-              className="field__input"
-              type="number"
-              inputMode="numeric"
-              min={min}
-              max={max}
-              step="1"
-              value={form[key]}
-              onChange={e => {
-                setForm({ ...form, [key]: e.target.value })
-                setSaved(false)
-                setError(null)
-              }}
-            />
-            {hintKey && <small className="field__hint">{t(hintKey)}</small>}
+      <div className="profile-page__grid">
+        <form className="profile-card" onSubmit={save} noValidate>
+          {FIELDS.map(([key, labelKey, hintKey, min, max]) => {
+            const required = REQUIRED.includes(key)
+            const invalid = error?.field === key
+            return (
+              <div className="profile-field" key={key}>
+                <label className="profile-field__label" htmlFor={key}>
+                  {t(labelKey)}
+                  {required && <span className="profile-field__req" aria-hidden="true"> *</span>}
+                </label>
+                <div className="profile-field__control">
+                  <input
+                    id={key}
+                    className={`profile-field__input${invalid ? ' is-invalid' : ''}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={min}
+                    max={max}
+                    step="1"
+                    required={required}
+                    placeholder={`${min}–${max}`}
+                    aria-invalid={invalid || undefined}
+                    aria-describedby={hintKey ? `${key}-hint` : undefined}
+                    value={form[key]}
+                    onChange={e => {
+                      setForm({ ...form, [key]: e.target.value })
+                      setSaved(false)
+                      setError(null)
+                    }}
+                  />
+                  <span className="profile-field__unit" aria-hidden="true">bpm</span>
+                </div>
+                {hintKey && <small id={`${key}-hint`} className="profile-field__hint">{t(hintKey)}</small>}
+              </div>
+            )
+          })}
+          <div className="profile-card__footer">
+            <button type="submit" disabled={busy}>{t('profile.save')}</button>
+            {error && <p className="profile-msg profile-msg--error" role="alert">{error.text}</p>}
+            {saved && <p className="profile-msg profile-msg--ok" role="status">{t('profile.saved')}</p>}
           </div>
-        ))}
-        {error && <p className="error-msg">{error}</p>}
-        {saved && <p>{t('profile.saved')}</p>}
-        <button type="submit" disabled={busy}>{t('profile.save')}</button>
-      </form>
+        </form>
 
-      <h2>{t('profile.zonesTitle')}</h2>
-      {data.zones ? (
-        <table>
-          <thead>
-            <tr><th>{t('table.zone')}</th><th>{t('profile.bpm')}</th></tr>
-          </thead>
-          <tbody>
-            {data.zones.map(z => (
-              <tr key={z.zone}>
-                <td>Z{z.zone}</td>
-                <td>{z.min}–{z.max}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="hint">
-          {data.missing.length
-            ? t('profile.zonesMissing', { fields: data.missing.map(k => t(`profile.${k}`)).join(', ') })
-            : t('profile.zonesInconsistent')}
-        </p>
-      )}
+        <section className="profile-card" aria-labelledby="zones-title">
+          <h2 id="zones-title">{t('profile.zonesTitle')}</h2>
+          {data.zones ? (
+            <table className="zone-table">
+              <thead>
+                <tr><th>{t('table.zone')}</th><th>{t('profile.bpm')}</th></tr>
+              </thead>
+              <tbody>
+                {data.zones.map(z => (
+                  <tr key={z.zone}>
+                    <td><span className={`zone-chip zone-chip--${z.zone}`}>Z{z.zone}</span></td>
+                    <td>{z.min}–{z.max}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="profile-empty">
+              {data.missing.length
+                ? t('profile.zonesMissing', { fields: data.missing.map(k => t(`profile.${k}`)).join(', ') })
+                : t('profile.zonesInconsistent')}
+            </p>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

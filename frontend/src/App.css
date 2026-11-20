@@ -836,3 +836,93 @@ tr:hover td { background: #f8f9fa; }
 }
 .availability__km--invalid { border-color: #dc2626; }
 .availability__row-error { grid-column: 1 / -1; }
+
+/* ═══════════════════════════════════════
+   Profile page
+═══════════════════════════════════════ */
+.profile-page { max-width: 860px; }
+.profile-page__header { margin-bottom: 1.5rem; }
+.profile-page__header h1 { margin-bottom: .35rem; }
+.profile-page__intro { color: #4b5563; font-size: .95rem; max-width: 60ch; }
+
+.profile-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .profile-page__grid { grid-template-columns: 1fr; }
+}
+
+.profile-card {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: .75rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  text-align: left;
+}
+.profile-card h2 { margin-bottom: 0; }
+
+.profile-field { display: flex; flex-direction: column; gap: .35rem; }
+.profile-field__label { display: block; font-weight: 600; font-size: .9rem; color: #374151; text-align: left; }
+.profile-field__req { color: #dc3545; }
+.profile-field__control { position: relative; }
+.profile-field__input {
+  width: 100%;
+  padding: .6rem 3.25rem .6rem .8rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: .5rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #fff;
+  color: #1a1d23;
+}
+.profile-field__input::placeholder { color: #9ca3af; }
+.profile-field__input.is-invalid { border-color: #dc3545; }
+.profile-field__input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(220,53,69,.15); }
+.profile-field__unit {
+  position: absolute;
+  right: .8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: .85rem;
+  color: #6b7280;
+  pointer-events: none;
+}
+.profile-field__hint { color: #6b7280; font-size: .82rem; line-height: 1.4; }
+
+.profile-card__footer { display: flex; flex-direction: column; gap: .75rem; margin-top: .25rem; }
+.profile-card__footer button { width: 100%; padding: .65rem 1.25rem; font-weight: 600; }
+.profile-msg { font-size: .9rem; padding: .6rem .8rem; border-radius: .5rem; }
+.profile-msg--error { color: #842029; background: #f8d7da; border: 1px solid #f5c2c7; }
+.profile-msg--ok { color: #0f5132; background: #d1e7dd; border: 1px solid #badbcc; }
+
+.profile-empty {
+  color: #4b5563;
+  background: #f8f9fa;
+  border: 1px dashed #ced4da;
+  border-radius: .5rem;
+  padding: 1rem;
+  font-size: .9rem;
+}
+
+.zone-table td { padding: .6rem .75rem; font-variant-numeric: tabular-nums; }
+.zone-table tr:hover td { background: transparent; }
+.zone-chip {
+  display: inline-block;
+  min-width: 2.4rem;
+  text-align: center;
+  padding: .15rem .5rem;
+  border-radius: .35rem;
+  font-weight: 700;
+  font-size: .85rem;
+}
+.zone-chip--1 { background: #e2e8f0; color: #334155; }
+.zone-chip--2 { background: #d1e7dd; color: #0f5132; }
+.zone-chip--3 { background: #fff3cd; color: #664d03; }
+.zone-chip--4 { background: #ffe5d0; color: #8a3b05; }
+.zone-chip--5 { background: #f8d7da; color: #842029; }
