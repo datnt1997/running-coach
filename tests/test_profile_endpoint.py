@@ -1,4 +1,4 @@
-"""Runner profile (heart rates, cadence), the zones computed from it, and where they show up."""
+"""Runner profile (heart rates), the zones computed from it, and where they show up."""
 from datetime import date, timedelta
 
 from app.ai.factory import get_ai_client_dep
@@ -6,13 +6,13 @@ from app.db.connection import get_pool
 from app.main import app
 from tests.availability import week_with_days
 
-FULL = {"maxHr": 190, "restingHr": 50, "cadence": 176}
+FULL = {"maxHr": 190, "restingHr": 50}
 EVENT = {"object_type": "activity", "object_id": 1, "aspect_type": "create", "owner_id": 12345}
 
 
 async def test_an_empty_profile_says_what_is_missing_and_invents_no_zones(client):
     body = (await client.get("/profile")).json()
-    assert body["maxHr"] is None and body["cadence"] is None
+    assert body["maxHr"] is None
     assert body["zones"] is None
     assert body["missing"] == ["maxHr", "restingHr"]
 
@@ -25,10 +25,17 @@ async def test_profile_values_are_saved_and_edited(client):
     assert body["missing"] == []
     assert [z["max"] for z in body["zones"]] == [138, 154, 168, 176, 190]
 
-    await client.put("/profile", json={**FULL, "maxHr": 195, "cadence": None})
+    await client.put("/profile", json={**FULL, "maxHr": 195})
     body = (await client.get("/profile")).json()
-    assert body["maxHr"] == 195 and body["cadence"] is None and body["restingHr"] == 50
+    assert body["maxHr"] == 195 and body["restingHr"] == 50
     assert body["zones"][-1]["max"] == 195
+
+
+async def test_cadence_is_no_longer_part_of_the_profile(client):
+    resp = await client.put("/profile", json={**FULL, "cadence": 176})
+    assert resp.status_code == 200
+    assert "cadence" not in resp.json()
+    assert "cadence" not in (await client.get("/profile")).json()
 
 
 async def test_a_partial_profile_gives_a_message_not_zones(client):
@@ -42,7 +49,7 @@ async def test_inconsistent_values_are_rejected(client):
     for bad in (
         {"maxHr": 150, "restingHr": 150},
         {"maxHr": 400},
-        {"cadence": 10},
+        {"lactateThresholdHr": 10},
     ):
         assert (await client.put("/profile", json=bad)).status_code == 422, bad
     assert (await client.get("/profile")).json()["maxHr"] is None

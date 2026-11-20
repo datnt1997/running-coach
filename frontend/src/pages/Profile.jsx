@@ -5,7 +5,6 @@ const FIELDS = [
   ['maxHr', 'profile.maxHr'],
   ['restingHr', 'profile.restingHr'],
   ['lactateThresholdHr', 'profile.lactateThresholdHr', 'profile.lactateThresholdHrHint'],
-  ['cadence', 'profile.cadence'],
 ]
 
 const toForm = data => Object.fromEntries(FIELDS.map(([k]) => [k, data[k] ?? '']))

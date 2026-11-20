@@ -15,7 +15,6 @@ export default {
   'profile.restingHr': 'Nhịp tim nghỉ (bpm)',
   'profile.lactateThresholdHr': 'Nhịp tim ngưỡng lactate (bpm), tùy chọn',
   'profile.lactateThresholdHrHint': 'Dùng khi phân tích buổi chạy (đánh giá buổi tempo/ngưỡng), không dùng để tính vùng nhịp tim.',
-  'profile.cadence': 'Nhịp chân (bước/phút)',
   'profile.save': 'Lưu',
   'profile.saved': 'Đã lưu hồ sơ.',
   'profile.loadError': 'Không thể tải hồ sơ.',
