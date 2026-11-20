@@ -1,6 +1,6 @@
 import pytest
 
-from app.hr_zones import heart_rate_zones, missing_for_zones, target_zone, zone_for_bpm
+from app.hr_zones import heart_rate_zones, missing_for_zones, profile_zones, target_zone, zone_for_bpm
 
 
 def test_zones_are_shares_of_heart_rate_reserve_with_z5_ending_at_max():
@@ -66,3 +66,10 @@ def test_workouts_without_a_heart_rate_target_have_none():
 def test_periodization_text_matches_target_zones():
     from app.agent.prompt import SYSTEM_PROMPT
     assert "tempo runs (Z4) and intervals (Z5)" in SYSTEM_PROMPT
+
+
+def test_lactate_threshold_does_not_change_zones_or_missing():
+    base = {"max_hr": 190, "resting_hr": 50}
+    with_lthr = {**base, "lactate_threshold_hr": 171}
+    assert profile_zones(with_lthr) == profile_zones(base)
+    assert missing_for_zones({"lactate_threshold_hr": 171}) == ["max_hr", "resting_hr"]

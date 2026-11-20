@@ -48,3 +48,23 @@ def test_analysis_prompt_has_instruction():
 
     messages = build_activity_analysis_messages(P, A)
     assert i18n.language_instruction() in messages[0]["content"]
+
+
+def _analysis_text(profile):
+    class P:
+        workout_type, distance_km, pace_zone = "tempo", 8, "T"
+
+    class A:
+        distance, moving_time, average_heartrate = 8000, 2400, 168
+
+    return "\n".join(m["content"] for m in build_activity_analysis_messages(P, A, profile))
+
+
+def test_analysis_prompt_includes_lactate_threshold_when_set():
+    text = _analysis_text({"max_hr": 190, "resting_hr": 50, "lactate_threshold_hr": 171})
+    assert "171" in text and "lactate" in text.lower()
+
+
+def test_analysis_prompt_omits_lactate_threshold_when_unset():
+    for profile in (None, {"max_hr": 190, "resting_hr": 50}, {"lactate_threshold_hr": None}):
+        assert "lactate" not in _analysis_text(profile).lower()
