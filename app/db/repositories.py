@@ -498,6 +498,40 @@ class WeeklySummaryRepository:
             return await cur.fetchone()
 
 
+class ProfileRepository:
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def get(self) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT max_hr, lactate_threshold_hr, resting_hr, cadence"
+                " FROM runner_profiles WHERE runner_id = %s",
+                (self.runner_id,),
+            )
+            return await cur.fetchone()
+
+    async def save(self, profile) -> None:
+        """Replace this runner's profile with the values in a ProfileRequest."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO runner_profiles
+                    (runner_id, max_hr, lactate_threshold_hr, resting_hr, cadence)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (runner_id) DO UPDATE SET
+                    max_hr = EXCLUDED.max_hr,
+                    lactate_threshold_hr = EXCLUDED.lactate_threshold_hr,
+                    resting_hr = EXCLUDED.resting_hr,
+                    cadence = EXCLUDED.cadence,
+                    updated_at = now()
+                """,
+                (self.runner_id, profile.max_hr, profile.lactate_threshold_hr,
+                 profile.resting_hr, profile.cadence),
+            )
+
+
 class RunnerRepository:
     """Runners themselves are not owned, so this one is not scoped."""
 

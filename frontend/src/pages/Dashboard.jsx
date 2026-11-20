@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { currentWeekNumber } from '../lib/weeks.js'
 import { dayLabel, phaseLabel, typeLabel } from '../lib/labels.js'
+import { targetZoneText } from '../lib/zones.js'
+import { t } from '../i18n/index.js'
+import ZoneHint from '../components/ZoneHint.jsx'
 
 const PHASE_CLASS = {
   base: 'phase-base',
@@ -99,6 +102,8 @@ export default function Dashboard() {
         <span className={`phase-tag ${PHASE_CLASS[week.phase] || ''}`}>{phaseLabel(week.phase)}</span>
       </div>
 
+      <ZoneHint plan={plan} />
+
       <table>
         <thead>
           <tr>
@@ -106,6 +111,7 @@ export default function Dashboard() {
             <th>Loại</th>
             <th>Quãng đường</th>
             <th>Vùng</th>
+            <th>{t('table.hrZone')}</th>
             <th>Ghi chú</th>
           </tr>
         </thead>
@@ -116,6 +122,7 @@ export default function Dashboard() {
               <td>{typeLabel(w.type)}</td>
               <td>{w.distanceKm} km</td>
               <td>{w.paceZone}</td>
+              <td>{targetZoneText(w.targetZone) ?? '—'}</td>
               <td style={{ color: '#6c757d', fontSize: '.85rem' }}>{w.notes}</td>
             </tr>
           ))}

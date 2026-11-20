@@ -22,10 +22,12 @@ from app.db.connection import get_db
 from app.db.repositories import (
     ActivityAnalysisRepository,
     PlanRepository,
+    ProfileRepository,
     RunnerRepository,
     StravaConnectionRepository,
     WeeklySummaryRepository,
 )
+from app.hr_zones import profile_zones, zone_for_bpm
 from app.strava.client import StravaClient, get_valid_access_token
 
 logger = logging.getLogger(__name__)
@@ -188,12 +190,13 @@ async def _process_activity(
             if activity.distance > 0:
                 avg_pace = timedelta(seconds=int(activity.moving_time / (activity.distance / 1000)))
 
-            avg_hr_zone = _hr_zone(activity.average_heartrate)
+            profile = await ProfileRepository(conn, runner_id).get()
+            avg_hr_zone = zone_for_bpm(activity.average_heartrate, profile_zones(profile))
             pace_adh = hr_adh = load_adh = None
 
             if match.matched and match.workout is not None:
                 try:
-                    result = await analyze_activity(match.workout, activity, ai_client)
+                    result = await analyze_activity(match.workout, activity, ai_client, profile)
                     pace_adh = result.get("pace_adherence")
                     hr_adh = result.get("hr_adherence")
                     load_adh = result.get("load_adherence")
@@ -229,18 +232,3 @@ async def _process_activity(
 
         except Exception as exc:
             logger.error("Error processing activity %s: %s", activity_id, exc, exc_info=True)
-
-
-def _hr_zone(bpm: float | None) -> str | None:
-    if bpm is None:
-        return None
-    pct = bpm / 180  # default HRmax estimate
-    if pct < 0.65:
-        return "Z1"
-    if pct < 0.75:
-        return "Z2"
-    if pct < 0.85:
-        return "Z3"
-    if pct < 0.92:
-        return "Z4"
-    return "Z5"

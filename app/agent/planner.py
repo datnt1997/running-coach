@@ -56,7 +56,7 @@ def _parse_plan_arguments(arguments: dict, goal: GoalRequest) -> PlanResponse:
 
 
 async def generate_plan(
-    goal: GoalRequest, client: AIClient | None = None
+    goal: GoalRequest, client: AIClient | None = None, profile: dict | None = None
 ) -> PlanResponse:
     """Generate a training plan for a validated goal via the configured AI client.
 
@@ -67,7 +67,7 @@ async def generate_plan(
     """
     if client is None:
         client = get_ai_client()
-    messages = build_messages(goal)
+    messages = build_messages(goal, profile=profile)
 
     response = await client.generate(messages, tools=TOOLS)
 

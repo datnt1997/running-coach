@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.hr_zones import missing_for_zones, profile_zones, target_zone, zone_range_text
 from app.i18n import language_instruction
 from app.models.goal import GoalRequest
 from app.vdot import format_pace, training_paces
@@ -26,11 +27,15 @@ phase transition.
 - Include recovery/easy days between hard sessions.
 
 HEART-RATE / PACE ZONES
-- Z1 (recovery): < 65% of HRmax — very easy, regeneration.
-- Z2 (aerobic): 65-75% of HRmax — conversational endurance pace.
-- Z3 (tempo): 75-85% of HRmax — comfortably hard, sustained efforts.
-- Z4 (threshold): 85-92% of HRmax — lactate threshold intervals.
-- Z5 (VO2max): 92-100% of HRmax — short, very hard repeats.
+- Z1 (recovery): very easy, regeneration.
+- Z2 (aerobic): conversational endurance pace.
+- Z3 (marathon pace): comfortably hard, sustained efforts.
+- Z4 (threshold): lactate threshold work.
+- Z5 (VO2max): short, very hard repeats.
+- The athlete's heart-rate zones in bpm are given in the athlete data, computed \
+from their own maximum and lactate-threshold heart rate. Quote only those \
+numbers. If they are unavailable, give no bpm numbers and never estimate a \
+maximum heart rate or zone.
 
 INJURY HISTORY
 - Respect the athlete's injury history. For knee issues (e.g. tendinopathy), \
@@ -98,7 +103,25 @@ def _availability_lines(goal: GoalRequest) -> str:
     return "\n".join(lines)
 
 
-def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
+def zones_line(profile: dict | None) -> str:
+    """The prompt line for the runner's heart-rate zones, or why there are none."""
+    zones = profile_zones(profile)
+    if zones is not None:
+        return f"- Heart-rate zones: {zone_range_text(zones)}\n"
+    missing = missing_for_zones(profile)
+    why = (
+        f"the profile has no {', '.join(missing)}" if missing
+        else "the profile's heart rates are inconsistent"
+    )
+    return (
+        f"- Heart-rate zones: unavailable ({why}). "
+        "Do not state or estimate heart-rate numbers.\n"
+    )
+
+
+def build_user_prompt(
+    goal: GoalRequest, today: date | None = None, profile: dict | None = None
+) -> str:
     if today is None:
         today = date.today()
     weeks_until_race = _weeks_until_race(goal.race_date, today)
@@ -123,6 +146,7 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
         f"- Race date: {goal.race_date.isoformat()}\n"
         f"- Weeks until race: {weeks_until_race}\n"
         f"{vdot_line}"
+        f"{zones_line(profile)}"
         "- Weekly availability (hard limits, per weekday):\n"
         f"{_availability_lines(goal)}\n"
         f"- Injury history: {injury}\n\n"
@@ -132,10 +156,12 @@ def build_user_prompt(goal: GoalRequest, today: date | None = None) -> str:
     )
 
 
-def build_messages(goal: GoalRequest, today: date | None = None) -> list[dict]:
+def build_messages(
+    goal: GoalRequest, today: date | None = None, profile: dict | None = None
+) -> list[dict]:
     return [
         {"role": "system", "content": f"{SYSTEM_PROMPT}\n{language_instruction()}"},
-        {"role": "user", "content": build_user_prompt(goal, today=today)},
+        {"role": "user", "content": build_user_prompt(goal, today=today, profile=profile)},
     ]
 
 
@@ -151,16 +177,33 @@ Assess adherence across three dimensions:
 - hr_adherence: was average HR consistent with the prescribed effort zone? ('on_target', 'above_prescribed', 'below_prescribed')
 - load_adherence: was total load (volume × intensity) appropriate? ('on_target', 'overreaching', 'underloaded')
 
-Zone reference (using default HRmax 180 bpm when actual HRmax unknown):
-Z1 <65% · Z2 65-75% · Z3 75-85% · Z4 85-92% · Z5 92-100%
+Heart-rate zones come from the athlete's own profile and are given below with the \
+target zone for this workout. Compare the average heart rate with that target zone \
+only. If the target zone or the average heart rate is unavailable, never guess a \
+maximum heart rate or zone: say in the rationale that the heart-rate comparison is \
+unavailable, and use 'on_target' for hr_adherence only as a neutral placeholder.
 
 Call the analyze_activity tool with your assessment and a brief rationale.
 """
 
 
+def _target_hr_text(workout_type: str, profile: dict | None) -> str:
+    zones = profile_zones(profile)
+    if zones is None:
+        return "Target heart-rate zone: unavailable (no usable heart-rate profile)"
+    target = target_zone(workout_type, zones)
+    if target is None:
+        return "Target heart-rate zone: none for this workout type"
+    lo, hi = target["minZone"], target["maxZone"]
+    label = f"Z{lo}" if lo == hi else f"Z{lo}-Z{hi}"
+    span = f"up to {target['max']}" if target["min"] is None else f"{target['min']}-{target['max']}"
+    return f"Target heart-rate zone: {label} ({span} bpm)"
+
+
 def build_activity_analysis_messages(
     planned,
     actual,
+    profile: dict | None = None,
 ) -> list[dict]:
     from datetime import timedelta
 
@@ -175,7 +218,8 @@ def build_activity_analysis_messages(
         f"Planned workout:\n"
         f"- Type: {planned.workout_type}\n"
         f"- Distance: {planned.distance_km} km\n"
-        f"- Target zone: {planned.pace_zone}\n\n"
+        f"- Target zone: {planned.pace_zone}\n"
+        f"- {_target_hr_text(planned.workout_type, profile)}\n\n"
         f"Actual activity:\n"
         f"- Distance: {actual.distance / 1000:.2f} km\n"
         f"- Moving time: {timedelta(seconds=actual.moving_time)}\n"

@@ -102,6 +102,10 @@ _Avoid_: User, account holder
 
 ### Fitness assessment
 
+**Heart-rate zones**:
+Five bpm ranges Python computes from the Runner's maximum and lactate-threshold heart rate (set on their profile, with resting heart rate and cadence). Each Planned workout type has a target zone, shown on the plan and passed into plan and Adherence prompts. Without both values there are no zones and the app says what is missing; it never estimates a maximum heart rate.
+_Avoid_: HR bands, intensity levels
+
 **VDOT**:
 The runner's single fitness number, computed from a recent race result (Daniels-Gilbert). It is shown to the runner with one decimal, and it is the only fitness input the plan generator receives: there is no beginner/intermediate/advanced label.
 _Avoid_: Fitness score, rating, fitness level, planner label
