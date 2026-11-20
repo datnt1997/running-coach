@@ -10,7 +10,7 @@ export default {
   'nav.profile': 'Hồ Sơ',
 
   'profile.title': 'Hồ Sơ Của Bạn',
-  'profile.intro': 'Nhập nhịp tim và nhịp chân của bạn. Ứng dụng tính các vùng nhịp tim (theo nhịp tim dự trữ, như Garmin) từ nhịp tim tối đa và nhịp tim nghỉ; không bao giờ tự ước lượng.',
+  'profile.intro': 'Nhập các chỉ số nhịp tim của bạn. Ứng dụng tính các vùng nhịp tim (theo nhịp tim dự trữ, như Garmin) từ nhịp tim tối đa và nhịp tim nghỉ; không bao giờ tự ước lượng.',
   'profile.maxHr': 'Nhịp tim tối đa (bpm)',
   'profile.restingHr': 'Nhịp tim nghỉ (bpm)',
   'profile.lactateThresholdHr': 'Nhịp tim ngưỡng lactate (bpm), tùy chọn',
@@ -19,6 +19,9 @@ export default {
   'profile.saved': 'Đã lưu hồ sơ.',
   'profile.loadError': 'Không thể tải hồ sơ.',
   'profile.saveError': 'Lưu thất bại — vui lòng thử lại.',
+  'profile.outOfRange': '{field}: nhập số nguyên từ {min} đến {max}.',
+  'profile.restingAboveMax': 'Nhịp tim nghỉ phải thấp hơn nhịp tim tối đa.',
+  'profile.lactateAboveMax': 'Nhịp tim ngưỡng lactate phải thấp hơn nhịp tim tối đa.',
   'profile.invalid': 'Giá trị không hợp lệ: nhịp tim nghỉ và nhịp tim ngưỡng lactate phải thấp hơn nhịp tim tối đa.',
   'profile.zonesTitle': 'Vùng nhịp tim',
   'profile.bpm': 'Nhịp tim (bpm)',

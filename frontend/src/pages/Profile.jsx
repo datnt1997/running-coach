@@ -1,11 +1,31 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n/index.js'
 
+// Ranges mirror app/models/profile.py (and the table CHECKs).
 const FIELDS = [
-  ['maxHr', 'profile.maxHr'],
-  ['restingHr', 'profile.restingHr'],
-  ['lactateThresholdHr', 'profile.lactateThresholdHr', 'profile.lactateThresholdHrHint'],
+  ['maxHr', 'profile.maxHr', null, 100, 230],
+  ['restingHr', 'profile.restingHr', null, 25, 120],
+  ['lactateThresholdHr', 'profile.lactateThresholdHr', 'profile.lactateThresholdHrHint', 80, 220],
 ]
+
+// First problem in the form as a message key (with params), or null.
+function validate(form) {
+  for (const [key, , , min, max] of FIELDS) {
+    if (form[key] === '') continue
+    const n = Number(form[key])
+    if (!Number.isInteger(n) || n < min || n > max) {
+      return { key: 'profile.outOfRange', label: key, min, max }
+    }
+  }
+  const { maxHr, restingHr, lactateThresholdHr } = form
+  if (maxHr !== '' && restingHr !== '' && Number(restingHr) >= Number(maxHr)) {
+    return { key: 'profile.restingAboveMax' }
+  }
+  if (maxHr !== '' && lactateThresholdHr !== '' && Number(lactateThresholdHr) >= Number(maxHr)) {
+    return { key: 'profile.lactateAboveMax' }
+  }
+  return null
+}
 
 const toForm = data => Object.fromEntries(FIELDS.map(([k]) => [k, data[k] ?? '']))
 
@@ -25,9 +45,15 @@ export default function Profile() {
 
   async function save(e) {
     e.preventDefault()
+    setSaved(false)
+    const problem = validate(form)
+    if (problem) {
+      const label = problem.label ? t(FIELDS.find(f => f[0] === problem.label)[1]) : ''
+      setError(t(problem.key, { field: label, min: problem.min, max: problem.max }))
+      return
+    }
     setBusy(true)
     setError(null)
-    setSaved(false)
     try {
       const payload = Object.fromEntries(
         FIELDS.map(([k]) => [k, form[k] === '' ? null : Number(form[k])]),
@@ -58,7 +84,7 @@ export default function Profile() {
       <p>{t('profile.intro')}</p>
 
       <form onSubmit={save}>
-        {FIELDS.map(([key, labelKey, hintKey]) => (
+        {FIELDS.map(([key, labelKey, hintKey, min, max]) => (
           <div className="field" key={key}>
             <label className="field__label" htmlFor={key}>{t(labelKey)}</label>
             <input
@@ -66,6 +92,9 @@ export default function Profile() {
               className="field__input"
               type="number"
               inputMode="numeric"
+              min={min}
+              max={max}
+              step="1"
               value={form[key]}
               onChange={e => setForm({ ...form, [key]: e.target.value })}
             />
