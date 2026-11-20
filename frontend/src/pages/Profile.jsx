@@ -96,7 +96,11 @@ export default function Profile() {
               max={max}
               step="1"
               value={form[key]}
-              onChange={e => setForm({ ...form, [key]: e.target.value })}
+              onChange={e => {
+                setForm({ ...form, [key]: e.target.value })
+                setSaved(false)
+                setError(null)
+              }}
             />
             {hintKey && <small className="field__hint">{t(hintKey)}</small>}
           </div>
