@@ -926,3 +926,5 @@ tr:hover td { background: #f8f9fa; }
 .zone-chip--3 { background: #fff3cd; color: #664d03; }
 .zone-chip--4 { background: #ffe5d0; color: #8a3b05; }
 .zone-chip--5 { background: #f8d7da; color: #842029; }
+
+.profile-field__error { color: #b02a37; font-size: .85rem; font-weight: 500; }

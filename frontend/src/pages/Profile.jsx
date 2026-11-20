@@ -11,26 +11,29 @@ const FIELDS = [
 // Needed to compute the heart-rate zones; lactate-threshold HR is optional.
 const REQUIRED = ['maxHr', 'restingHr']
 
-// First problem in the form as a message key (with params), or null.
+// Every problem in the form, keyed by field: { maxHr: 'message', ... }.
 function validate(form) {
-  for (const [key, , , min, max] of FIELDS) {
+  const errors = {}
+  for (const [key, labelKey, , min, max] of FIELDS) {
     if (form[key] === '') {
-      if (REQUIRED.includes(key)) return { key: 'profile.required', label: key }
+      if (REQUIRED.includes(key)) errors[key] = t('profile.required', { field: t(labelKey) })
       continue
     }
     const n = Number(form[key])
     if (!Number.isInteger(n) || n < min || n > max) {
-      return { key: 'profile.outOfRange', label: key, min, max }
+      errors[key] = t('profile.outOfRange', { min, max })
     }
   }
   const { maxHr, restingHr, lactateThresholdHr } = form
-  if (maxHr !== '' && restingHr !== '' && Number(restingHr) >= Number(maxHr)) {
-    return { key: 'profile.restingAboveMax' }
+  if (!errors.maxHr && !errors.restingHr && maxHr !== '' && restingHr !== ''
+      && Number(restingHr) >= Number(maxHr)) {
+    errors.restingHr = t('profile.restingAboveMax')
   }
-  if (maxHr !== '' && lactateThresholdHr !== '' && Number(lactateThresholdHr) >= Number(maxHr)) {
-    return { key: 'profile.lactateAboveMax' }
+  if (!errors.maxHr && !errors.lactateThresholdHr && maxHr !== '' && lactateThresholdHr !== ''
+      && Number(lactateThresholdHr) >= Number(maxHr)) {
+    errors.lactateThresholdHr = t('profile.lactateAboveMax')
   }
-  return null
+  return errors
 }
 
 const toForm = data => Object.fromEntries(FIELDS.map(([k]) => [k, data[k] ?? '']))
@@ -38,7 +41,8 @@ const toForm = data => Object.fromEntries(FIELDS.map(([k]) => [k, data[k] ?? '']
 export default function Profile() {
   const [data, setData] = useState(null) // the API response, zones included
   const [form, setForm] = useState({})
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(null) // form-level: load/save/server problems
+  const [fieldErrors, setFieldErrors] = useState({})
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -52,10 +56,10 @@ export default function Profile() {
   async function save(e) {
     e.preventDefault()
     setSaved(false)
-    const problem = validate(form)
-    if (problem) {
-      const label = problem.label ? t(FIELDS.find(f => f[0] === problem.label)[1]) : ''
-      setError({ field: problem.label, text: t(problem.key, { field: label, min: problem.min, max: problem.max }) })
+    const problems = validate(form)
+    setFieldErrors(problems)
+    if (Object.keys(problems).length) {
+      setError(null)
       return
     }
     setBusy(true)
@@ -95,7 +99,8 @@ export default function Profile() {
         <form className="profile-card" onSubmit={save} noValidate>
           {FIELDS.map(([key, labelKey, hintKey, min, max]) => {
             const required = REQUIRED.includes(key)
-            const invalid = error?.field === key
+            const message = fieldErrors[key]
+            const invalid = Boolean(message)
             return (
               <div className="profile-field" key={key}>
                 <label className="profile-field__label" htmlFor={key}>
@@ -114,16 +119,18 @@ export default function Profile() {
                     required={required}
                     placeholder={`${min}–${max}`}
                     aria-invalid={invalid || undefined}
-                    aria-describedby={hintKey ? `${key}-hint` : undefined}
+                    aria-describedby={invalid ? `${key}-error` : hintKey ? `${key}-hint` : undefined}
                     value={form[key]}
                     onChange={e => {
                       setForm({ ...form, [key]: e.target.value })
                       setSaved(false)
                       setError(null)
+                      setFieldErrors({ ...fieldErrors, [key]: undefined })
                     }}
                   />
                   <span className="profile-field__unit" aria-hidden="true">bpm</span>
                 </div>
+                {invalid && <small id={`${key}-error`} className="profile-field__error" role="alert">{message}</small>}
                 {hintKey && <small id={`${key}-hint`} className="profile-field__hint">{t(hintKey)}</small>}
               </div>
             )
