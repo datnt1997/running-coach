@@ -509,7 +509,7 @@ class ProfileRepository:
     async def get(self) -> dict | None:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT max_hr, lactate_threshold_hr, resting_hr, cadence"
+                "SELECT max_hr, resting_hr, cadence"
                 " FROM runner_profiles WHERE runner_id = %s",
                 (self.runner_id,),
             )
@@ -521,17 +521,15 @@ class ProfileRepository:
             await cur.execute(
                 """
                 INSERT INTO runner_profiles
-                    (runner_id, max_hr, lactate_threshold_hr, resting_hr, cadence)
-                VALUES (%s, %s, %s, %s, %s)
+                    (runner_id, max_hr, resting_hr, cadence)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (runner_id) DO UPDATE SET
                     max_hr = EXCLUDED.max_hr,
-                    lactate_threshold_hr = EXCLUDED.lactate_threshold_hr,
                     resting_hr = EXCLUDED.resting_hr,
                     cadence = EXCLUDED.cadence,
                     updated_at = now()
                 """,
-                (self.runner_id, profile.max_hr, profile.lactate_threshold_hr,
-                 profile.resting_hr, profile.cadence),
+                (self.runner_id, profile.max_hr, profile.resting_hr, profile.cadence),
             )
 
 

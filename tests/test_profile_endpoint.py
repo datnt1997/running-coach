@@ -6,7 +6,7 @@ from app.db.connection import get_pool
 from app.main import app
 from tests.availability import week_with_days
 
-FULL = {"maxHr": 190, "lactateThresholdHr": 170, "restingHr": 50, "cadence": 176}
+FULL = {"maxHr": 190, "restingHr": 50, "cadence": 176}
 EVENT = {"object_type": "activity", "object_id": 1, "aspect_type": "create", "owner_id": 12345}
 
 
@@ -14,7 +14,7 @@ async def test_an_empty_profile_says_what_is_missing_and_invents_no_zones(client
     body = (await client.get("/profile")).json()
     assert body["maxHr"] is None and body["cadence"] is None
     assert body["zones"] is None
-    assert body["missing"] == ["maxHr", "lactateThresholdHr"]
+    assert body["missing"] == ["maxHr", "restingHr"]
 
 
 async def test_profile_values_are_saved_and_edited(client):
@@ -23,7 +23,7 @@ async def test_profile_values_are_saved_and_edited(client):
     body = (await client.get("/profile")).json()
     assert {k: body[k] for k in FULL} == FULL
     assert body["missing"] == []
-    assert [z["max"] for z in body["zones"]] == [138, 151, 158, 168, 190]
+    assert [z["max"] for z in body["zones"]] == [138, 154, 168, 176, 190]
 
     await client.put("/profile", json={**FULL, "maxHr": 195, "cadence": None})
     body = (await client.get("/profile")).json()
@@ -35,13 +35,12 @@ async def test_a_partial_profile_gives_a_message_not_zones(client):
     await client.put("/profile", json={"maxHr": 190})
     body = (await client.get("/profile")).json()
     assert body["zones"] is None
-    assert body["missing"] == ["lactateThresholdHr"]
+    assert body["missing"] == ["restingHr"]
 
 
 async def test_inconsistent_values_are_rejected(client):
     for bad in (
-        {"maxHr": 170, "lactateThresholdHr": 170},
-        {"maxHr": 190, "lactateThresholdHr": 170, "restingHr": 175},
+        {"maxHr": 150, "restingHr": 150},
         {"maxHr": 400},
         {"cadence": 10},
     ):
@@ -69,7 +68,7 @@ async def test_planned_workouts_show_a_target_zone_once_the_profile_has_one(clie
     await client.put("/profile", json=FULL)
     after = _plan_workouts((await client.get(f"/goal/{goal_id}/plan")).json())
     easy = next(w for w in after if w["type"] == "easy")
-    assert easy["targetZone"] == {"minZone": 2, "maxZone": 2, "min": 139, "max": 151}
+    assert easy["targetZone"] == {"minZone": 2, "maxZone": 2, "min": 139, "max": 154}
 
     by_id = (await client.get(f"/plan/{seeded_plan['plan_id']}")).json()
     assert _plan_workouts(by_id)[0]["targetZone"]["minZone"] == 2
@@ -88,14 +87,14 @@ async def test_plan_prompt_carries_the_computed_zones(client, fake_ai_client):
     await client.put("/profile", json=FULL)
     await _create_goal(client)
     user = fake_ai_client.last_messages[1]["content"]
-    assert "Z2 139-151 bpm" in user and "Z5 169-190 bpm" in user
+    assert "Z2 139-154 bpm" in user and "Z5 177-190 bpm" in user
 
 
 async def test_plan_prompt_says_zones_are_unavailable_when_the_profile_is_empty(client, fake_ai_client):
     await _create_goal(client)
     user = fake_ai_client.last_messages[1]["content"]
     assert "Heart-rate zones: unavailable" in user
-    assert "max_hr" in user and "lactate_threshold_hr" in user
+    assert "max_hr" in user and "resting_hr" in user
     assert "bpm" not in user
 
 
@@ -124,7 +123,7 @@ async def test_adherence_prompt_names_the_target_zone_and_the_runners_average_hr
     assert (await webhook_client.post("/strava/webhook", json=EVENT)).status_code == 200
 
     text = _analysis_prompt(seen)
-    assert "Target heart-rate zone: Z2 (139-151 bpm)" in text
+    assert "Target heart-rate zone: Z2 (139-154 bpm)" in text
     assert "Avg heart rate: 145.0 bpm" in text
 
 
@@ -139,11 +138,11 @@ async def test_adherence_prompt_without_a_profile_does_not_invent_zones(
     assert "139" not in text
 
 
-async def test_resting_hr_must_be_below_every_heart_rate_given(client):
-    assert (await client.put("/profile", json={"maxHr": 150, "restingHr": 150})).status_code == 422
-    resp = await client.put("/profile", json={"maxHr": 190, "lactateThresholdHr": 100, "restingHr": 100})
+async def test_resting_hr_must_be_below_max_hr(client):
+    resp = await client.put("/profile", json={"maxHr": 150, "restingHr": 150})
     assert resp.status_code == 422
-    assert "lactate-threshold" in str(resp.json()).lower()
+    assert "resting" in str(resp.json()).lower()
+
 
 
 async def test_plan_says_whether_zones_are_available(client, seeded_plan):
