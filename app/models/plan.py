@@ -37,6 +37,8 @@ class PlanResponse(BaseModel):
     total_weeks: int
     phase_breakdown: dict[str, int]
     weeks: list[PlanWeek]
+    # False when the runner's profile lacks the values the heart-rate zones need.
+    zones_available: bool = False
 
 
 class PlannedWorkout(BaseModel):

@@ -53,3 +53,8 @@ def test_workouts_without_a_heart_rate_target_have_none():
     for kind in ("rest", "race", "cross", "something_new"):
         assert target_zone(kind, zones) is None
     assert target_zone("easy", None) is None
+
+
+def test_periodization_text_matches_target_zones():
+    from app.agent.prompt import SYSTEM_PROMPT
+    assert "tempo runs (Z4) and intervals (Z5)" in SYSTEM_PROMPT

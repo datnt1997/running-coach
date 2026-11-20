@@ -61,7 +61,7 @@ ANALYZE_ACTIVITY_TOOL = {
             },
             "hr_adherence": {
                 "type": "string",
-                "enum": ["on_target", "above_prescribed", "below_prescribed"],
+                "enum": ["on_target", "above_prescribed", "below_prescribed", "unavailable"],
                 "description": "Was average HR consistent with the prescribed effort zone?",
             },
             "load_adherence": {

@@ -21,7 +21,10 @@ class ProfileRequest(BaseModel):
         ):
             raise ValueError("Lactate-threshold heart rate must be below maximum heart rate")
         if self.resting_hr is not None:
-            above = self.lactate_threshold_hr or self.max_hr
-            if above is not None and self.resting_hr >= above:
-                raise ValueError("Resting heart rate must be below the other heart rates")
+            for above in (self.lactate_threshold_hr, self.max_hr):
+                if above is not None and self.resting_hr >= above:
+                    raise ValueError(
+                        "Resting heart rate must be below the lactate-threshold "
+                        "and maximum heart rates"
+                    )
         return self

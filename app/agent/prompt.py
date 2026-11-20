@@ -13,7 +13,7 @@ principles.
 PERIODIZATION GUIDELINES
 - base: Build an aerobic foundation. Predominantly easy Z2 running, gradually \
 increasing weekly volume. Establish consistency and durability.
-- build: Introduce quality work — tempo runs (Z3) and intervals (Z4) — on top of \
+- build: Introduce quality work — tempo runs (Z4) and intervals (Z5) — on top of \
 maintained aerobic volume. Develop lactate threshold and efficiency.
 - peak: Sharpen with race-specific intensity. Workouts mirror goal pace and \
 race demands; volume is high but quality is prioritized.
@@ -174,14 +174,14 @@ You are an expert running coach analyzing a completed run against its planned wo
 
 Assess adherence across three dimensions:
 - pace_adherence: was the actual pace within the prescribed zone? ('on_target', 'too_fast', 'too_slow')
-- hr_adherence: was average HR consistent with the prescribed effort zone? ('on_target', 'above_prescribed', 'below_prescribed')
+- hr_adherence: was average HR consistent with the prescribed effort zone? ('on_target', 'above_prescribed', 'below_prescribed', or 'unavailable' when no comparison is possible)
 - load_adherence: was total load (volume × intensity) appropriate? ('on_target', 'overreaching', 'underloaded')
 
 Heart-rate zones come from the athlete's own profile and are given below with the \
 target zone for this workout. Compare the average heart rate with that target zone \
 only. If the target zone or the average heart rate is unavailable, never guess a \
 maximum heart rate or zone: say in the rationale that the heart-rate comparison is \
-unavailable, and use 'on_target' for hr_adherence only as a neutral placeholder.
+unavailable, and set hr_adherence to 'unavailable'.
 
 Call the analyze_activity tool with your assessment and a brief rationale.
 """
@@ -244,7 +244,7 @@ def build_weekly_summary_messages(week_number: int, analyses: list[dict]) -> lis
                 f"planned {a.get('planned_distance_km', '?')} km ({a.get('pace_zone', '?')}), "
                 f"actual {float(a['distance_km']):.1f} km | "
                 f"pace: {a.get('pace_adherence', 'n/a')}, "
-                f"HR: {a.get('hr_adherence', 'n/a')}, "
+                f"HR: {a.get('hr_adherence') or 'n/a'}, "
                 f"load: {a.get('load_adherence', 'n/a')}"
             )
         body = (
