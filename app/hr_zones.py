@@ -3,17 +3,16 @@
 This is the heart-rate-reserve (Karvonen) method: HRR = max HR - resting HR and
 bpm = resting HR + share * HRR. Garmin's default bands, as a share of HRR:
 Z1 49-63%, Z2 63-74%, Z3 74-84%, Z4 84-90%, Z5 90-100% (Z5 ends at max HR).
-Edges are rounded half up to whole bpm; each zone starts one bpm above the
-previous one. The model never invents a zone: only these values reach a prompt or the UI.
+Each zone's start (resting + share * HRR) is rounded half up to whole bpm, and
+the zone before it ends one bpm lower, as Garmin shows them (Z5 ends at max HR). The model never invents a zone: only these values reach a prompt or the UI.
 """
 
 from __future__ import annotations
 
 import math
 
-# Z1 lower edge, then each zone's upper edge, as a share of heart-rate reserve.
-_LOWER_SHARE = 0.49
-_UPPER_SHARE = (0.63, 0.74, 0.84, 0.90, 1.00)
+# Where each zone starts, as a share of heart-rate reserve.
+_START_SHARE = (0.49, 0.63, 0.74, 0.84, 0.90)
 
 # Target zone range (min, max) per workout type. Types missing here (rest, race,
 # cross) have no heart-rate target.
@@ -44,11 +43,9 @@ def heart_rate_zones(max_hr: int, resting_hr: int) -> list[dict]:
     if resting_hr >= max_hr:
         raise ValueError("resting heart rate must be below maximum heart rate")
     reserve = max_hr - resting_hr
-    zones, lower = [], _bpm(resting_hr, reserve, _LOWER_SHARE)
-    for i, share in enumerate(_UPPER_SHARE, start=1):
-        upper = max_hr if share == 1.0 else _bpm(resting_hr, reserve, share)
-        zones.append({"zone": i, "min": lower, "max": upper})
-        lower = upper + 1
+    starts = [_bpm(resting_hr, reserve, share) for share in _START_SHARE]
+    uppers = [start - 1 for start in starts[1:]] + [max_hr]
+    zones = [{"zone": i, "min": lo, "max": hi} for i, (lo, hi) in enumerate(zip(starts, uppers), start=1)]
     return zones
 
 

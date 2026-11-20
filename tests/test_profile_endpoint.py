@@ -23,7 +23,7 @@ async def test_profile_values_are_saved_and_edited(client):
     body = (await client.get("/profile")).json()
     assert {k: body[k] for k in FULL} == FULL
     assert body["missing"] == []
-    assert [z["max"] for z in body["zones"]] == [138, 154, 168, 176, 190]
+    assert [z["max"] for z in body["zones"]] == [137, 153, 167, 175, 190]
 
     await client.put("/profile", json={**FULL, "maxHr": 195})
     body = (await client.get("/profile")).json()
@@ -100,7 +100,7 @@ async def test_planned_workouts_show_a_target_zone_once_the_profile_has_one(clie
     await client.put("/profile", json=FULL)
     after = _plan_workouts((await client.get(f"/goal/{goal_id}/plan")).json())
     easy = next(w for w in after if w["type"] == "easy")
-    assert easy["targetZone"] == {"minZone": 2, "maxZone": 2, "min": 139, "max": 154}
+    assert easy["targetZone"] == {"minZone": 2, "maxZone": 2, "min": 138, "max": 153}
 
     by_id = (await client.get(f"/plan/{seeded_plan['plan_id']}")).json()
     assert _plan_workouts(by_id)[0]["targetZone"]["minZone"] == 2
@@ -119,7 +119,7 @@ async def test_plan_prompt_carries_the_computed_zones(client, fake_ai_client):
     await client.put("/profile", json=FULL)
     await _create_goal(client)
     user = fake_ai_client.last_messages[1]["content"]
-    assert "Z2 139-154 bpm" in user and "Z5 177-190 bpm" in user
+    assert "Z2 138-153 bpm" in user and "Z5 176-190 bpm" in user
 
 
 async def test_plan_prompt_says_zones_are_unavailable_when_the_profile_is_empty(client, fake_ai_client):
@@ -155,7 +155,7 @@ async def test_adherence_prompt_names_the_target_zone_and_the_runners_average_hr
     assert (await webhook_client.post("/strava/webhook", json=EVENT)).status_code == 200
 
     text = _analysis_prompt(seen)
-    assert "Target heart-rate zone: Z2 (139-154 bpm)" in text
+    assert "Target heart-rate zone: Z2 (138-153 bpm)" in text
     assert "Avg heart rate: 145.0 bpm" in text
 
 
