@@ -11,7 +11,7 @@ from app.models.profile import ProfileRequest
 
 router = APIRouter()
 
-_CAMEL = {"max_hr": "maxHr", "lactate_threshold_hr": "lactateThresholdHr"}
+_CAMEL = {"max_hr": "maxHr", "resting_hr": "restingHr"}
 
 
 def profile_response(row: dict | None) -> dict:

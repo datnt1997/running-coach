@@ -3,7 +3,10 @@ from pydantic.alias_generators import to_camel
 
 
 class ProfileRequest(BaseModel):
-    """The runner's personal numbers. A value left out or null is cleared."""
+    """The runner's personal numbers. A value left out or null is cleared.
+
+    Zones use maximum and resting heart rate. The lactate-threshold heart rate is
+    optional and stored only; zones do not use it."""
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -20,11 +23,10 @@ class ProfileRequest(BaseModel):
             and self.lactate_threshold_hr >= self.max_hr
         ):
             raise ValueError("Lactate-threshold heart rate must be below maximum heart rate")
-        if self.resting_hr is not None:
-            for above in (self.lactate_threshold_hr, self.max_hr):
-                if above is not None and self.resting_hr >= above:
-                    raise ValueError(
-                        "Resting heart rate must be below the lactate-threshold "
-                        "and maximum heart rates"
-                    )
+        if (
+            self.max_hr is not None
+            and self.resting_hr is not None
+            and self.resting_hr >= self.max_hr
+        ):
+            raise ValueError("Resting heart rate must be below maximum heart rate")
         return self

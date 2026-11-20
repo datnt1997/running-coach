@@ -33,7 +33,7 @@ HEART-RATE / PACE ZONES
 - Z4 (threshold): lactate threshold work.
 - Z5 (VO2max): short, very hard repeats.
 - The athlete's heart-rate zones in bpm are given in the athlete data, computed \
-from their own maximum and lactate-threshold heart rate. Quote only those \
+from their own maximum and resting heart rate (heart-rate-reserve method). Quote only those \
 numbers. If they are unavailable, give no bpm numbers and never estimate a \
 maximum heart rate or zone.
 

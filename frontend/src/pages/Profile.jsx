@@ -3,8 +3,8 @@ import { t } from '../i18n/index.js'
 
 const FIELDS = [
   ['maxHr', 'profile.maxHr'],
-  ['lactateThresholdHr', 'profile.lactateThresholdHr'],
   ['restingHr', 'profile.restingHr'],
+  ['lactateThresholdHr', 'profile.lactateThresholdHr'],
   ['cadence', 'profile.cadence'],
 ]
 
@@ -87,7 +87,7 @@ export default function Profile() {
             {data.zones.map(z => (
               <tr key={z.zone}>
                 <td>Z{z.zone}</td>
-                <td>{z.min == null ? `≤ ${z.max}` : `${z.min}–${z.max}`}</td>
+                <td>{z.min}–{z.max}</td>
               </tr>
             ))}
           </tbody>
