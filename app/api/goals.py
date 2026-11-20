@@ -11,48 +11,14 @@ from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
 from app.auth import require_runner
 from app.db.connection import get_db
-from app.db.repositories import GoalRepository, PlanRepository
+from app.db.repositories import GoalRepository, PlanRepository, ProfileRepository
+from app.api.plans import build_plan_response
+from app.hr_zones import profile_zones
 from app.models.goal import DayAvailability, GoalRequest, count_training_days
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _build_plan_response(plan: dict) -> PlanResponse:
-    weeks_map: dict[int, PlanWeek] = {}
-    phase_breakdown: dict[str, int] = {}
-
-    for row in plan["workouts"]:
-        week_number = row["week_number"]
-        phase = row["phase"]
-        week = weeks_map.get(week_number)
-        if week is None:
-            week = PlanWeek(week_number=week_number, phase=phase, workouts=[])
-            weeks_map[week_number] = week
-            phase_breakdown[phase] = phase_breakdown.get(phase, 0) + 1
-
-        distance = row["distance_km"]
-        week.workouts.append(
-            WorkoutSession(
-                day=row["day_of_week"],
-                type=row["workout_type"],
-                distance_km=float(distance) if distance is not None else 0.0,
-                pace_zone=row["pace_zone"] or "",
-                notes=row["notes"],
-            )
-        )
-
-    return PlanResponse(
-        plan_id=str(plan["id"]),
-        goal_id=str(plan["goal_id"]),
-        summary=plan["summary"],
-        start_date=plan["start_date"],
-        language=plan["language"],
-        total_weeks=plan["total_weeks"],
-        phase_breakdown=phase_breakdown,
-        weeks=[weeks_map[n] for n in sorted(weeks_map)],
-    )
 
 
 @router.post("/goal", status_code=202)
@@ -86,7 +52,8 @@ async def _generate_plan_background(
     pool = get_pool()
     async with pool.connection() as conn:
         try:
-            plan = await generate_plan(goal, client=ai_client)
+            profile = await ProfileRepository(conn, runner_id).get()
+            plan = await generate_plan(goal, client=ai_client, profile=profile)
             plan_repo = PlanRepository(conn, runner_id)
             plan_id = await plan_repo.insert_plan(
                 goal_id=goal_id,
@@ -187,7 +154,8 @@ async def get_goal_plan(
     if plan is None:
         raise HTTPException(status_code=500, detail="Plan marked ready but not found in DB")
 
-    response_data = _build_plan_response(plan).model_dump(mode="json", by_alias=True)
+    zones = profile_zones(await ProfileRepository(db, runner_id).get())
+    response_data = build_plan_response(plan, zones).model_dump(mode="json", by_alias=True)
     response_data["status"] = "ready"
     return JSONResponse(status_code=200, content=response_data)
 

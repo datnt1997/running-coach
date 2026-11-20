@@ -13,6 +13,9 @@ class WorkoutSession(BaseModel):
     distance_km: float
     pace_zone: str
     notes: str | None = None
+    # Heart-rate target {minZone, maxZone, min, max}; None when the runner's profile
+    # has no zones or the workout type has no heart-rate target.
+    target_zone: dict | None = None
 
 
 class PlanWeek(BaseModel):
@@ -34,6 +37,8 @@ class PlanResponse(BaseModel):
     total_weeks: int
     phase_breakdown: dict[str, int]
     weeks: list[PlanWeek]
+    # False when the runner's profile lacks the values the heart-rate zones need.
+    zones_available: bool = False
 
 
 class PlannedWorkout(BaseModel):

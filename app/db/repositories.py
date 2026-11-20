@@ -378,6 +378,7 @@ class ActivityAnalysisRepository:
         hr_adherence: str | None,
         load_adherence: str | None,
         mismatch: bool,
+        avg_hr_bpm: float | None = None,
     ) -> UUID:
         async with self.conn.cursor() as cur:
             await cur.execute(
@@ -385,8 +386,9 @@ class ActivityAnalysisRepository:
                 INSERT INTO activity_analyses
                     (strava_activity_id, matched_workout_id, activity_date,
                      distance_km, avg_pace_per_km, avg_hr_zone,
-                     pace_adherence, hr_adherence, load_adherence, mismatch, runner_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     pace_adherence, hr_adherence, load_adherence, mismatch, runner_id,
+                     avg_hr_bpm)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -401,6 +403,7 @@ class ActivityAnalysisRepository:
                     load_adherence,
                     mismatch,
                     self.runner_id,
+                    avg_hr_bpm,
                 ),
             )
             row = await cur.fetchone()
@@ -434,7 +437,7 @@ class ActivityAnalysisRepository:
                     """
                     SELECT aa.id, aa.strava_activity_id, aa.matched_workout_id,
                            aa.activity_date, aa.distance_km, aa.avg_pace_per_km,
-                           aa.avg_hr_zone, aa.pace_adherence, aa.hr_adherence,
+                           aa.avg_hr_zone, aa.avg_hr_bpm, aa.pace_adherence, aa.hr_adherence,
                            aa.load_adherence, aa.mismatch, aa.created_at,
                            ws.day_of_week, ws.workout_type,
                            ws.distance_km AS planned_distance_km,
@@ -451,7 +454,7 @@ class ActivityAnalysisRepository:
                     """
                     SELECT aa.id, aa.strava_activity_id, aa.matched_workout_id,
                            aa.activity_date, aa.distance_km, aa.avg_pace_per_km,
-                           aa.avg_hr_zone, aa.pace_adherence, aa.hr_adherence,
+                           aa.avg_hr_zone, aa.avg_hr_bpm, aa.pace_adherence, aa.hr_adherence,
                            aa.load_adherence, aa.mismatch, aa.created_at,
                            ws.day_of_week, ws.workout_type,
                            ws.distance_km AS planned_distance_km,
@@ -496,6 +499,39 @@ class WeeklySummaryRepository:
                 (plan_id, week_number, self.runner_id),
             )
             return await cur.fetchone()
+
+
+class ProfileRepository:
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def get(self) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT max_hr, lactate_threshold_hr, resting_hr"
+                " FROM runner_profiles WHERE runner_id = %s",
+                (self.runner_id,),
+            )
+            return await cur.fetchone()
+
+    async def save(self, profile) -> None:
+        """Replace this runner's profile with the values in a ProfileRequest."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO runner_profiles
+                    (runner_id, max_hr, lactate_threshold_hr, resting_hr)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (runner_id) DO UPDATE SET
+                    max_hr = EXCLUDED.max_hr,
+                    lactate_threshold_hr = EXCLUDED.lactate_threshold_hr,
+                    resting_hr = EXCLUDED.resting_hr,
+                    updated_at = now()
+                """,
+                (self.runner_id, profile.max_hr, profile.lactate_threshold_hr,
+                 profile.resting_hr),
+            )
 
 
 class RunnerRepository:

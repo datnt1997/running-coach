@@ -102,6 +102,10 @@ _Avoid_: User, account holder
 
 ### Fitness assessment
 
+**Heart-rate zones**:
+Five bpm ranges Python computes from the Runner's maximum and resting heart rate (set on their profile) by Garmin's default %HRR (heart rate reserve, Karvonen) method: Z1 49-63%, Z2 63-74%, Z3 74-84%, Z4 84-90%, Z5 90-100% of reserve, bpm = resting + share * (max - resting). Each Planned workout type has a target zone, shown on the plan and passed into plan and Adherence prompts. Without max and resting heart rate there are no zones and the app says what is missing; it never estimates a maximum heart rate. The profile may also hold an optional lactate-threshold heart rate; it is passed into Activity analysis to judge threshold workouts and is not used in the zone calculation.
+_Avoid_: HR bands, intensity levels
+
 **VDOT**:
 The runner's single fitness number, computed from a recent race result (Daniels-Gilbert). It is shown to the runner with one decimal, and it is the only fitness input the plan generator receives: there is no beginner/intermediate/advanced label.
 _Avoid_: Fitness score, rating, fitness level, planner label

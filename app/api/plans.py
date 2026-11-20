@@ -5,13 +5,14 @@ from psycopg import AsyncConnection
 
 from app.auth import require_runner
 from app.db.connection import get_db
-from app.db.repositories import PlanRepository
+from app.db.repositories import PlanRepository, ProfileRepository
+from app.hr_zones import profile_zones, target_zone
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 
 router = APIRouter()
 
 
-def _build_plan_response(plan: dict) -> PlanResponse:
+def build_plan_response(plan: dict, zones: list[dict] | None = None) -> PlanResponse:
     """Assemble a PlanResponse from the joined plan/workout rows."""
     weeks_map: dict[int, PlanWeek] = {}
     phase_breakdown: dict[str, int] = {}
@@ -33,6 +34,7 @@ def _build_plan_response(plan: dict) -> PlanResponse:
                 distance_km=float(distance) if distance is not None else 0.0,
                 pace_zone=row["pace_zone"] or "",
                 notes=row["notes"],
+                target_zone=target_zone(row["workout_type"], zones),
             )
         )
 
@@ -47,6 +49,7 @@ def _build_plan_response(plan: dict) -> PlanResponse:
         total_weeks=plan["total_weeks"],
         phase_breakdown=phase_breakdown,
         weeks=weeks,
+        zones_available=zones is not None,
     )
 
 
@@ -63,4 +66,5 @@ async def get_plan(
             status_code=404,
             detail={"error": "plan_not_found", "message": "Plan not found"},
         )
-    return _build_plan_response(plan)
+    zones = profile_zones(await ProfileRepository(db, runner_id).get())
+    return build_plan_response(plan, zones)
