@@ -200,6 +200,16 @@ def _target_hr_text(workout_type: str, profile: dict | None) -> str:
     return f"Target heart-rate zone: {label} ({span} bpm)"
 
 
+def _lactate_threshold_text(profile: dict | None) -> str:
+    lthr = (profile or {}).get("lactate_threshold_hr")
+    if not lthr:
+        return ""
+    return (
+        f"- Lactate-threshold heart rate: {lthr} bpm. For threshold (tempo/T) workouts, "
+        "compare the average and peak heart rate with it.\n"
+    )
+
+
 def build_activity_analysis_messages(
     planned,
     actual,
@@ -219,7 +229,8 @@ def build_activity_analysis_messages(
         f"- Type: {planned.workout_type}\n"
         f"- Distance: {planned.distance_km} km\n"
         f"- Target zone: {planned.pace_zone}\n"
-        f"- {_target_hr_text(planned.workout_type, profile)}\n\n"
+        f"- {_target_hr_text(planned.workout_type, profile)}\n"
+        f"{_lactate_threshold_text(profile)}\n"
         f"Actual activity:\n"
         f"- Distance: {actual.distance / 1000:.2f} km\n"
         f"- Moving time: {timedelta(seconds=actual.moving_time)}\n"

@@ -48,6 +48,31 @@ async def test_inconsistent_values_are_rejected(client):
     assert (await client.get("/profile")).json()["maxHr"] is None
 
 
+async def test_lactate_threshold_is_saved_edited_and_cleared(client):
+    await client.put("/profile", json={**FULL, "lactateThresholdHr": 170})
+    assert (await client.get("/profile")).json()["lactateThresholdHr"] == 170
+    await client.put("/profile", json={**FULL, "lactateThresholdHr": 172})
+    assert (await client.get("/profile")).json()["lactateThresholdHr"] == 172
+    await client.put("/profile", json=FULL)
+    assert (await client.get("/profile")).json()["lactateThresholdHr"] is None
+
+
+async def test_lactate_threshold_must_be_below_max_hr(client):
+    for bad in ({"maxHr": 170, "lactateThresholdHr": 170}, {"lactateThresholdHr": 300}):
+        assert (await client.put("/profile", json=bad)).status_code == 422, bad
+
+
+async def test_zones_ignore_the_lactate_threshold(client):
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50, "lactateThresholdHr": 170})
+    with_lthr = (await client.get("/profile")).json()
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
+    without = (await client.get("/profile")).json()
+    assert with_lthr["zones"] == without["zones"] and with_lthr["missing"] == []
+    await client.put("/profile", json={"lactateThresholdHr": 170})
+    only = (await client.get("/profile")).json()
+    assert only["zones"] is None and only["missing"] == ["maxHr", "restingHr"]
+
+
 async def test_profile_requires_sign_in(anon_client):
     assert (await anon_client.get("/profile")).status_code == 401
     assert (await anon_client.put("/profile", json=FULL)).status_code == 401

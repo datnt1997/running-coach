@@ -4,6 +4,7 @@ import { t } from '../i18n/index.js'
 const FIELDS = [
   ['maxHr', 'profile.maxHr'],
   ['restingHr', 'profile.restingHr'],
+  ['lactateThresholdHr', 'profile.lactateThresholdHr', 'profile.lactateThresholdHrHint'],
   ['cadence', 'profile.cadence'],
 ]
 
@@ -58,7 +59,7 @@ export default function Profile() {
       <p>{t('profile.intro')}</p>
 
       <form onSubmit={save}>
-        {FIELDS.map(([key, labelKey]) => (
+        {FIELDS.map(([key, labelKey, hintKey]) => (
           <div className="field" key={key}>
             <label className="field__label" htmlFor={key}>{t(labelKey)}</label>
             <input
@@ -69,6 +70,7 @@ export default function Profile() {
               value={form[key]}
               onChange={e => setForm({ ...form, [key]: e.target.value })}
             />
+            {hintKey && <small className="field__hint">{t(hintKey)}</small>}
           </div>
         ))}
         {error && <p className="error-msg">{error}</p>}
