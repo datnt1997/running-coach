@@ -18,7 +18,6 @@ def profile_response(row: dict | None) -> dict:
     row = row or {}
     return {
         "maxHr": row.get("max_hr"),
-        "lactateThresholdHr": row.get("lactate_threshold_hr"),
         "restingHr": row.get("resting_hr"),
         "cadence": row.get("cadence"),
         "zones": profile_zones(row),

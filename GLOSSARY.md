@@ -103,7 +103,7 @@ _Avoid_: User, account holder
 ### Fitness assessment
 
 **Heart-rate zones**:
-Five bpm ranges Python computes from the Runner's maximum and resting heart rate (set on their profile, with cadence) by Garmin's default %HRR (heart rate reserve, Karvonen) method: Z1 49-63%, Z2 63-74%, Z3 74-84%, Z4 84-90%, Z5 90-100% of reserve, bpm = resting + share * (max - resting). The lactate-threshold heart rate may still be stored but zones ignore it. Each Planned workout type has a target zone, shown on the plan and passed into plan and Adherence prompts. Without max and resting heart rate there are no zones and the app says what is missing; it never estimates a maximum heart rate.
+Five bpm ranges Python computes from the Runner's maximum and resting heart rate (set on their profile, with cadence) by Garmin's default %HRR (heart rate reserve, Karvonen) method: Z1 49-63%, Z2 63-74%, Z3 74-84%, Z4 84-90%, Z5 90-100% of reserve, bpm = resting + share * (max - resting). Each Planned workout type has a target zone, shown on the plan and passed into plan and Adherence prompts. Without max and resting heart rate there are no zones and the app says what is missing; it never estimates a maximum heart rate.
 _Avoid_: HR bands, intensity levels
 
 **VDOT**:

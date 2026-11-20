@@ -4,7 +4,6 @@ import { t } from '../i18n/index.js'
 const FIELDS = [
   ['maxHr', 'profile.maxHr'],
   ['restingHr', 'profile.restingHr'],
-  ['lactateThresholdHr', 'profile.lactateThresholdHr'],
   ['cadence', 'profile.cadence'],
 ]
 

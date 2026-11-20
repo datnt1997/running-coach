@@ -6,7 +6,7 @@ from app.db.connection import get_pool
 from app.main import app
 from tests.availability import week_with_days
 
-FULL = {"maxHr": 190, "lactateThresholdHr": 170, "restingHr": 50, "cadence": 176}
+FULL = {"maxHr": 190, "restingHr": 50, "cadence": 176}
 EVENT = {"object_type": "activity", "object_id": 1, "aspect_type": "create", "owner_id": 12345}
 
 
@@ -38,17 +38,9 @@ async def test_a_partial_profile_gives_a_message_not_zones(client):
     assert body["missing"] == ["restingHr"]
 
 
-async def test_zones_do_not_need_the_lactate_threshold(client):
-    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
-    body = (await client.get("/profile")).json()
-    assert body["lactateThresholdHr"] is None and body["missing"] == []
-    assert body["zones"][0] == {"zone": 1, "min": 119, "max": 138}
-
-
 async def test_inconsistent_values_are_rejected(client):
     for bad in (
-        {"maxHr": 170, "lactateThresholdHr": 170},
-        {"maxHr": 190, "restingHr": 190},
+        {"maxHr": 150, "restingHr": 150},
         {"maxHr": 400},
         {"cadence": 10},
     ):
@@ -151,12 +143,6 @@ async def test_resting_hr_must_be_below_max_hr(client):
     assert resp.status_code == 422
     assert "resting" in str(resp.json()).lower()
 
-
-async def test_lactate_threshold_is_still_stored_though_zones_ignore_it(client):
-    # Stored but unused for zones: only "below max" is still enforced.
-    ok = await client.put("/profile", json={"maxHr": 190, "restingHr": 50, "lactateThresholdHr": 170})
-    assert ok.status_code == 200
-    assert (await client.get("/profile")).json()["lactateThresholdHr"] == 170
 
 
 async def test_plan_says_whether_zones_are_available(client, seeded_plan):

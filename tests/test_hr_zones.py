@@ -27,8 +27,6 @@ def test_missing_values_are_named():
     assert missing_for_zones({"max_hr": None, "resting_hr": 50}) == ["max_hr"]
     assert missing_for_zones({"max_hr": None, "resting_hr": None}) == ["max_hr", "resting_hr"]
     assert missing_for_zones({"max_hr": 190, "resting_hr": 50}) == []
-    # The lactate-threshold heart rate is not needed for zones.
-    assert missing_for_zones({"max_hr": 190, "resting_hr": 50, "lactate_threshold_hr": None}) == []
 
 
 def test_target_zone_by_workout_type():
