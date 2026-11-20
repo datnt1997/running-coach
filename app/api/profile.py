@@ -20,7 +20,6 @@ def profile_response(row: dict | None) -> dict:
         "maxHr": row.get("max_hr"),
         "lactateThresholdHr": row.get("lactate_threshold_hr"),
         "restingHr": row.get("resting_hr"),
-        "cadence": row.get("cadence"),
         "zones": profile_zones(row),
         # What the zones still need; the UI turns this into a message.
         "missing": [_CAMEL[k] for k in missing_for_zones(row)],

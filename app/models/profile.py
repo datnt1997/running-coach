@@ -13,7 +13,6 @@ class ProfileRequest(BaseModel):
     max_hr: int | None = Field(default=None, ge=100, le=230)
     lactate_threshold_hr: int | None = Field(default=None, ge=80, le=220)
     resting_hr: int | None = Field(default=None, ge=25, le=120)
-    cadence: int | None = Field(default=None, ge=120, le=230)
 
     @model_validator(mode="after")
     def _heart_rates_are_ordered(self):
