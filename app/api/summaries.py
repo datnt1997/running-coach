@@ -6,7 +6,13 @@ from psycopg import AsyncConnection
 
 from app.auth import require_runner
 from app.db.connection import get_db
-from app.db.repositories import ActivityAnalysisRepository, PlanRepository, WeeklySummaryRepository
+from app.db.repositories import (
+    ActivityAnalysisRepository,
+    PlanRepository,
+    ProfileRepository,
+    WeeklySummaryRepository,
+)
+from app.hr_zones import profile_zones, zone_for_bpm
 
 router = APIRouter()
 
@@ -35,6 +41,7 @@ async def get_weekly_summary(
 
     rows = await ActivityAnalysisRepository(db, runner_id).list_for_week(plan_id, week_number)
 
+    zones = profile_zones(await ProfileRepository(db, runner_id).get())
     sessions = []
     for row in rows:
         if row.get("matched_workout_id") is None:
@@ -61,7 +68,7 @@ async def get_weekly_summary(
                 "actual": {
                     "distanceKm": float(row["distance_km"]),
                     "avgPacePerKm": avg_pace_str,
-                    "avgHrZone": row.get("avg_hr_zone"),
+                    "avgHrZone": _avg_zone(row, zones),
                 },
                 "paceAdherence": row.get("pace_adherence"),
                 "hrAdherence": row.get("hr_adherence"),
@@ -76,3 +83,11 @@ async def get_weekly_summary(
         "summary": summary_row["summary"],
         "sessions": sessions,
     }
+
+
+def _avg_zone(row: dict, zones: list[dict] | None) -> str | None:
+    """Zone from the current profile when the average HR was kept, else the stored label."""
+    bpm = row.get("avg_hr_bpm")
+    if bpm is not None:
+        return zone_for_bpm(float(bpm), zones)
+    return row.get("avg_hr_zone")

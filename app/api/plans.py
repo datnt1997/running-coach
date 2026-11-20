@@ -12,7 +12,7 @@ from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 router = APIRouter()
 
 
-def _build_plan_response(plan: dict, zones: list[dict] | None = None) -> PlanResponse:
+def build_plan_response(plan: dict, zones: list[dict] | None = None) -> PlanResponse:
     """Assemble a PlanResponse from the joined plan/workout rows."""
     weeks_map: dict[int, PlanWeek] = {}
     phase_breakdown: dict[str, int] = {}
@@ -49,6 +49,7 @@ def _build_plan_response(plan: dict, zones: list[dict] | None = None) -> PlanRes
         total_weeks=plan["total_weeks"],
         phase_breakdown=phase_breakdown,
         weeks=weeks,
+        zones_available=zones is not None,
     )
 
 
@@ -66,4 +67,4 @@ async def get_plan(
             detail={"error": "plan_not_found", "message": "Plan not found"},
         )
     zones = profile_zones(await ProfileRepository(db, runner_id).get())
-    return _build_plan_response(plan, zones)
+    return build_plan_response(plan, zones)

@@ -137,3 +137,52 @@ async def test_adherence_prompt_without_a_profile_does_not_invent_zones(
     text = _analysis_prompt(seen)
     assert "Target heart-rate zone: unavailable" in text
     assert "139" not in text
+
+
+async def test_resting_hr_must_be_below_every_heart_rate_given(client):
+    assert (await client.put("/profile", json={"maxHr": 150, "restingHr": 150})).status_code == 422
+    resp = await client.put("/profile", json={"maxHr": 190, "lactateThresholdHr": 100, "restingHr": 100})
+    assert resp.status_code == 422
+    assert "lactate-threshold" in str(resp.json()).lower()
+
+
+async def test_plan_says_whether_zones_are_available(client, seeded_plan):
+    goal_id = seeded_plan["goal_id"]
+    async with get_pool().connection() as conn:
+        await conn.execute("UPDATE user_goals SET plan_status = 'ready' WHERE id = %s", (goal_id,))
+        await conn.commit()
+    assert (await client.get(f"/goal/{goal_id}/plan")).json()["zonesAvailable"] is False
+    await client.put("/profile", json=FULL)
+    assert (await client.get(f"/goal/{goal_id}/plan")).json()["zonesAvailable"] is True
+    assert (await client.get(f"/plan/{seeded_plan['plan_id']}")).json()["zonesAvailable"] is True
+
+
+async def test_hr_adherence_is_not_stored_when_zones_are_unavailable(
+    webhook_client, seeded_plan, seeded_strava_connection
+):
+    await webhook_client.post("/strava/webhook", json=EVENT)
+    async with get_pool().connection() as conn:
+        cur = await conn.execute("SELECT hr_adherence, pace_adherence FROM activity_analyses")
+        hr, pace = await cur.fetchone()
+    assert hr is None and pace == "on_target"
+
+
+async def test_hr_adherence_is_stored_when_zones_are_available(
+    webhook_client, seeded_plan, seeded_strava_connection
+):
+    await webhook_client.put("/profile", json=FULL)
+    await webhook_client.post("/strava/webhook", json=EVENT)
+    async with get_pool().connection() as conn:
+        cur = await conn.execute("SELECT hr_adherence FROM activity_analyses")
+        assert (await cur.fetchone())[0] == "on_target"
+
+
+async def test_avg_hr_zone_follows_the_profile_filled_in_after_the_run(
+    webhook_client, seeded_plan, seeded_strava_connection
+):
+    await webhook_client.post("/strava/webhook", json=EVENT)
+    before = (await webhook_client.get("/weekly-summary?week_number=1")).json()
+    assert before["sessions"][0]["actual"]["avgHrZone"] is None
+    await webhook_client.put("/profile", json=FULL)
+    after = (await webhook_client.get("/weekly-summary?week_number=1")).json()
+    assert after["sessions"][0]["actual"]["avgHrZone"] == "Z2"

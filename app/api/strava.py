@@ -191,7 +191,8 @@ async def _process_activity(
                 avg_pace = timedelta(seconds=int(activity.moving_time / (activity.distance / 1000)))
 
             profile = await ProfileRepository(conn, runner_id).get()
-            avg_hr_zone = zone_for_bpm(activity.average_heartrate, profile_zones(profile))
+            zones = profile_zones(profile)
+            avg_hr_zone = zone_for_bpm(activity.average_heartrate, zones)
             pace_adh = hr_adh = load_adh = None
 
             if match.matched and match.workout is not None:
@@ -199,6 +200,8 @@ async def _process_activity(
                     result = await analyze_activity(match.workout, activity, ai_client, profile)
                     pace_adh = result.get("pace_adherence")
                     hr_adh = result.get("hr_adherence")
+                    if zones is None or activity.average_heartrate is None or hr_adh == "unavailable":
+                        hr_adh = None  # no honest comparison: never store a placeholder
                     load_adh = result.get("load_adherence")
                 except AnalysisGenerationError as exc:
                     logger.error("Analysis failed for activity %s: %s", activity_id, exc)
@@ -211,6 +214,7 @@ async def _process_activity(
                 distance_km=activity.distance / 1000,
                 avg_pace_per_km=avg_pace,
                 avg_hr_zone=avg_hr_zone,
+                avg_hr_bpm=activity.average_heartrate,
                 pace_adherence=pace_adh,
                 hr_adherence=hr_adh,
                 load_adherence=load_adh,
