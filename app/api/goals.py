@@ -11,7 +11,8 @@ from app.ai.client import AIClient
 from app.ai.factory import get_ai_client_dep
 from app.auth import require_runner
 from app.db.connection import get_db
-from app.db.repositories import GoalRepository, PlanRepository
+from app.db.repositories import GoalRepository, PlanRepository, ProfileRepository
+from app.hr_zones import profile_zones, target_zone
 from app.models.goal import DayAvailability, GoalRequest, count_training_days
 from app.models.plan import PlanResponse, PlanWeek, WorkoutSession
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _build_plan_response(plan: dict) -> PlanResponse:
+def _build_plan_response(plan: dict, zones: list[dict] | None = None) -> PlanResponse:
     weeks_map: dict[int, PlanWeek] = {}
     phase_breakdown: dict[str, int] = {}
 
@@ -40,6 +41,7 @@ def _build_plan_response(plan: dict) -> PlanResponse:
                 distance_km=float(distance) if distance is not None else 0.0,
                 pace_zone=row["pace_zone"] or "",
                 notes=row["notes"],
+                target_zone=target_zone(row["workout_type"], zones),
             )
         )
 
@@ -86,7 +88,8 @@ async def _generate_plan_background(
     pool = get_pool()
     async with pool.connection() as conn:
         try:
-            plan = await generate_plan(goal, client=ai_client)
+            profile = await ProfileRepository(conn, runner_id).get()
+            plan = await generate_plan(goal, client=ai_client, profile=profile)
             plan_repo = PlanRepository(conn, runner_id)
             plan_id = await plan_repo.insert_plan(
                 goal_id=goal_id,
@@ -187,7 +190,8 @@ async def get_goal_plan(
     if plan is None:
         raise HTTPException(status_code=500, detail="Plan marked ready but not found in DB")
 
-    response_data = _build_plan_response(plan).model_dump(mode="json", by_alias=True)
+    zones = profile_zones(await ProfileRepository(db, runner_id).get())
+    response_data = _build_plan_response(plan, zones).model_dump(mode="json", by_alias=True)
     response_data["status"] = "ready"
     return JSONResponse(status_code=200, content=response_data)
 

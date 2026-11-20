@@ -59,7 +59,7 @@ _FOUR_DAY_AVAILABILITY = [
 
 _ALL_TABLES = (
     "weekly_summaries, activity_analyses, strava_connections, "
-    "workout_sessions, training_plans, user_goals, runners"
+    "workout_sessions, training_plans, user_goals, runner_profiles, runners"
 )
 
 

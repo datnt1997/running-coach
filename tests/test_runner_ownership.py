@@ -171,3 +171,12 @@ async def test_a_foreign_plan_id_leaks_nothing_through_any_repository(
         assert await summaries.get_by_week(plan_id, 1) is None
         with pytest.raises(LookupError):
             await summaries.upsert(plan_id, 1, "intruder")
+
+
+async def test_profiles_are_private_to_their_runner(client, friend_client):
+    await client.put("/profile", json={"maxHr": 190, "lactateThresholdHr": 170, "cadence": 176})
+
+    assert (await friend_client.get("/profile")).json()["maxHr"] is None
+    await friend_client.put("/profile", json={"maxHr": 180})
+    assert (await client.get("/profile")).json()["maxHr"] == 190
+    assert (await friend_client.get("/profile")).json()["maxHr"] == 180

@@ -18,6 +18,7 @@ async def analyze_activity(
     planned: PlannedWorkout,
     actual: ActivityDetail,
     client: AIClient | None = None,
+    profile: dict | None = None,
 ) -> dict:
     """Analyze an activity against its planned workout via Claude.
 
@@ -28,7 +29,7 @@ async def analyze_activity(
     if client is None:
         client = get_ai_client()
 
-    messages = build_activity_analysis_messages(planned, actual)
+    messages = build_activity_analysis_messages(planned, actual, profile)
     response = await client.generate(messages, tools=[ANALYZE_ACTIVITY_TOOL])
 
     if not response.tool_calls:

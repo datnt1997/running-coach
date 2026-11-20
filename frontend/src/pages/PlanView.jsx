@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { t } from '../i18n/index.js'
 import { dayLabel, phaseLabel, typeLabel } from '../lib/labels.js'
+import { targetZoneText } from '../lib/zones.js'
+import ZoneHint from '../components/ZoneHint.jsx'
 
 const POLL_MS = 3000
 
@@ -79,6 +81,8 @@ export default function PlanView() {
         ))}
       </div>
 
+      <ZoneHint plan={plan} />
+
       {plan.weeks.map(week => (
         <details key={week.weekNumber} open={week.weekNumber <= 2}>
           <summary>
@@ -94,6 +98,7 @@ export default function PlanView() {
                 <th>{t('table.type')}</th>
                 <th>{t('table.distance')}</th>
                 <th>{t('table.zone')}</th>
+                <th>{t('table.hrZone')}</th>
                 <th>{t('table.notes')}</th>
               </tr>
             </thead>
@@ -104,6 +109,7 @@ export default function PlanView() {
                   <td>{typeLabel(w.type)}</td>
                   <td>{w.distanceKm} km</td>
                   <td>{w.paceZone}</td>
+                  <td>{targetZoneText(w.targetZone) ?? '—'}</td>
                   <td style={{ color: '#6c757d', fontSize: '.85rem' }}>{w.notes}</td>
                 </tr>
               ))}
