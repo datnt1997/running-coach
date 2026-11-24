@@ -163,3 +163,12 @@ async def test_the_database_is_not_held_in_a_transaction_during_the_ai_call(clie
     chat_ai.generate = spy
     assert (await _say(client, "một")).status_code == 200
     assert seen == [0]
+
+
+async def test_prompt_states_today_so_the_coach_never_asks_the_date(client, chat_ai):
+    from datetime import date
+
+    await _say(client, "Bài tập hôm nay?")
+    system = _prompt_text(chat_ai.calls[-1], role="system")
+    assert date.today().isoformat() in system
+    assert "never ask the runner what day it is" in system

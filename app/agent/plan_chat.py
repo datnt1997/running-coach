@@ -4,6 +4,8 @@ The fixed system prompt holds tone and method only. Personal numbers (heart
 rates, zones) and the Plan are passed in per turn from the database.
 """
 
+from datetime import date, timedelta
+
 from app.hr_zones import missing_for_zones, profile_zones, target_zone, zone_range_text
 from app.i18n import language_instruction
 
@@ -53,6 +55,20 @@ def _profile_block(profile: dict | None) -> str:
     return "\n".join(lines)
 
 
+_DAY_OFFSET = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+
+
+def _today_block(today: date) -> str:
+    return f"TODAY\n- {today.strftime('%A')} {today.isoformat()}. Use this date for \"today\", \"tomorrow\" and \"this week\"; never ask the runner what day it is."
+
+
+def _workout_date(plan: dict, w: dict) -> date | None:
+    start = plan.get("start_date")
+    if not isinstance(start, date):
+        return None
+    return start + timedelta(days=(w["week_number"] - 1) * 7 + _DAY_OFFSET.get(w["day_of_week"], 0))
+
+
 def _plan_block(goal: dict | None, plan: dict | None, zones: list[dict] | None) -> str:
     if plan is None or goal is None:
         return "PLAN\n- The runner has no Plan yet."
@@ -76,15 +92,21 @@ def _plan_block(goal: dict | None, plan: dict | None, zones: list[dict] | None) 
             zone = w["pace_zone"] or "no HR target"
         km = float(w["distance_km"]) if w["distance_km"] is not None else 0.0
         note = f" - {w['notes']}" if w.get("notes") else ""
-        lines.append(f"  {w['day_of_week']}: {w['workout_type']} {km:.1f} km, {zone}{note}")
+        d = _workout_date(plan, w)
+        when = f"{w['day_of_week']} {d.isoformat()}" if d else w["day_of_week"]
+        lines.append(f"  {when}: {w['workout_type']} {km:.1f} km, {zone}{note}")
     return "\n".join(lines)
 
 
 def build_messages(
-    profile: dict | None, goal: dict | None, plan: dict | None, history: list[dict]
+    profile: dict | None,
+    goal: dict | None,
+    plan: dict | None,
+    history: list[dict],
+    today: date | None = None,
 ) -> list[dict]:
     """System prompt + this turn's profile and Plan + the last messages verbatim."""
-    context = "\n\n".join([_profile_block(profile), _plan_block(goal, plan, profile_zones(profile))])
+    context = "\n\n".join([_today_block(today or date.today()), _profile_block(profile), _plan_block(goal, plan, profile_zones(profile))])
     system = f"{SYSTEM_PROMPT}\n{language_instruction()}\n\n{context}"
     # The window can start mid-exchange; providers require the first message to be the runner's.
     start = next((i for i, m in enumerate(history) if m["role"] == "user"), len(history))
