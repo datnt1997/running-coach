@@ -173,6 +173,21 @@ async def test_a_foreign_plan_id_leaks_nothing_through_any_repository(
             await summaries.upsert(plan_id, 1, "intruder")
 
 
+async def test_plan_chat_is_private_to_its_runner(client, friend_client):
+    from app.ai.factory import get_chat_ai_client_dep
+    from tests.conftest import FakePlanChatAIClient
+
+    fake = FakePlanChatAIClient()
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
+    await client.post("/plan-chat/messages", json={"message": "bí mật của tôi"})
+
+    assert (await friend_client.get("/plan-chat/messages")).json() == {"messages": []}
+    await friend_client.post("/plan-chat/messages", json={"message": "tin của bạn"})
+    assert "bí mật của tôi" not in "".join(m["content"] for m in fake.calls[-1])
+    mine = (await client.get("/plan-chat/messages")).json()["messages"]
+    assert [m["content"] for m in mine] == ["bí mật của tôi", "reply 1"]
+
+
 async def test_profiles_are_private_to_their_runner(client, friend_client):
     await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
 

@@ -4,6 +4,7 @@ import SignIn from './components/SignIn.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import GoalForm from './pages/GoalForm.jsx'
 import GoalHistory from './pages/GoalHistory.jsx'
+import PlanChat from './pages/PlanChat.jsx'
 import PlanView from './pages/PlanView.jsx'
 import Profile from './pages/Profile.jsx'
 import Strava from './pages/Strava.jsx'
@@ -33,6 +34,7 @@ export default function App() {
         <div className="nav-links">
           <NavLink to="/new">{t('nav.newGoal')}</NavLink>
           <NavLink to="/history">{t('nav.history')}</NavLink>
+          <NavLink to="/chat">{t('nav.chat')}</NavLink>
           <NavLink to="/profile">{t('nav.profile')}</NavLink>
           <NavLink to="/strava">{t('nav.strava')}</NavLink>
           <NavLink to="/" end>{t('nav.thisWeek')}</NavLink>
@@ -52,6 +54,7 @@ export default function App() {
           <Route path="/new" element={<GoalForm />} />
           <Route path="/goals/:goalId" element={<PlanView />} />
           <Route path="/history" element={<GoalHistory />} />
+          <Route path="/chat" element={<PlanChat />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/strava" element={<Strava />} />
         </Routes>

@@ -50,6 +50,11 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - `frontend/src/lib/vdot.js` mirrors the formula for manual entry (VDOT shown to one decimal, as in the chat); `npm run check:vdot` keeps it in step.
 - Source notes and page references: `specs/2026-11-03-vdot-level-assessment/research.md`. How to search `references/daniels.txt` (Vietnamese, page-number rule): `specs/2026-11-13-weekly-availability-and-missed-workouts/research.md`. The book PDF is git-ignored and copyrighted.
 
+### Plan chat (`app/api/plan_chat.py` + `app/agent/plan_chat.py`)
+
+- `GET /plan-chat/messages`, `POST /plan-chat/messages` (stores the runner's message, then asks the model, then stores the reply), `POST /plan-chat/retry` (re-answers a stored unanswered message after a 502). Messages live in `chat_messages` (owned by `runner_id`, `ChatMessageRepository`). Uses `get_chat_ai_client_dep` (CHAT_AI_PROVIDER).
+- Each turn's prompt = fixed system prompt (Gem tone, method, pain and medical rule; no personal numbers) + profile and zones + the latest Plan, all read fresh, + the last 20 messages. `FakePlanChatAIClient` in `conftest.py` records prompts.
+
 ### Sign-in (`app/auth.py` + `app/api/auth.py`)
 
 - `POST /auth/google` takes a Google ID token (`credential`), checks it through `GoogleVerifier` (tokeninfo endpoint; tests inject a fake through `get_google_verifier`), checks the email against `ALLOWED_EMAILS`, and sets a signed session cookie. `GET /auth/me` says who is signed in; `POST /auth/logout` clears it. The session is stateless (no table); the allowlist is re-checked on every request.

@@ -58,7 +58,7 @@ _FOUR_DAY_AVAILABILITY = [
 ]
 
 _ALL_TABLES = (
-    "weekly_summaries, activity_analyses, strava_connections, "
+    "chat_messages, weekly_summaries, activity_analyses, strava_connections, "
     "workout_sessions, training_plans, user_goals, runner_profiles, runners"
 )
 
@@ -152,6 +152,20 @@ class FakeFitnessChatAIClient:
         else:
             content = "What's your most recent race time, and what distance was it?"
         return AIResponse(content=content, usage=TokenUsage(input_tokens=50, output_tokens=30))
+
+
+class FakePlanChatAIClient:
+    """Records every prompt it receives; replies "reply N". `fail` makes calls raise."""
+
+    def __init__(self):
+        self.calls: list[list[dict]] = []
+        self.fail = False
+
+    async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
+        self.calls.append(messages)
+        if self.fail:
+            raise RuntimeError("model unavailable")
+        return AIResponse(content=f"reply {len(self.calls)}")
 
 
 class FakeAnalysisAIClient:

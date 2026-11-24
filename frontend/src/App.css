@@ -757,6 +757,23 @@ tr:hover td { background: #f8f9fa; }
   white-space: nowrap;
 }
 
+.plan-chat-thread {
+  max-height: 60vh;
+  min-height: 240px;
+}
+
+.plan-chat-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem .75rem;
+  font-size: .9rem;
+  color: #842029;
+  background: #f8d7da;
+  border-top: 1px solid #f1aeb5;
+}
+
 /* ── Spinner / generating state ── */
 .generating {
   text-align: center;
