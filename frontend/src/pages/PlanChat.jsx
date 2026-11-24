@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { t } from '../i18n/index.js'
 
 async function post(path, body) {
@@ -83,7 +85,11 @@ export default function PlanChat() {
         <div className="fc-thread plan-chat-thread" ref={threadRef}>
           {messages.length === 0 && !error && <p className="muted">{t('planChat.empty')}</p>}
           {messages.map(m => (
-            <div key={m.id} className={`fc-bubble fc-bubble--${m.role}`}>{m.content}</div>
+            <div key={m.id} className={`fc-bubble fc-bubble--${m.role}${m.role === 'assistant' ? ' fc-bubble--md' : ''}`}>
+              {m.role === 'assistant'
+                ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                : m.content}
+            </div>
           ))}
           {loading && (
             <div className="fc-bubble fc-bubble--assistant fc-bubble--loading">
