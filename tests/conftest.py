@@ -59,7 +59,7 @@ _FOUR_DAY_AVAILABILITY = [
 ]
 
 _ALL_TABLES = (
-    "profile_facts, chat_messages, weekly_summaries, activity_analyses, strava_connections, "
+    "chat_summaries, profile_facts, chat_messages, weekly_summaries, activity_analyses, strava_connections, "
     "workout_sessions, training_plans, user_goals, runner_profiles, runners"
 )
 
@@ -161,18 +161,33 @@ class FakePlanChatAIClient:
     def __init__(self):
         self.calls: list[list[dict]] = []
         self.fail = False
+        self.fail_summary = False
         self.delay = 0.0
         self.scripted: list[str] = []  # replies to give next, before "reply N"
 
+    @staticmethod
+    def is_summary_call(messages) -> bool:
+        return "ROLLING SUMMARY TASK" in messages[0]["content"]
+
+    @property
+    def chat_calls(self) -> list[list[dict]]:
+        return [c for c in self.calls if not self.is_summary_call(c)]
+
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
         self.calls.append(messages)
+        if self.is_summary_call(messages):
+            # A deterministic stand-in for a model: keeps the start of what it was given
+            # (the previous summary comes first), capped like a real summary would be.
+            if self.fail_summary:
+                raise RuntimeError("summary unavailable")
+            return AIResponse(content="SUMMARY: " + messages[1]["content"][:1500])
         if self.delay:
             await asyncio.sleep(self.delay)
         if self.fail:
             raise RuntimeError("model unavailable")
         if self.scripted:
             return AIResponse(content=self.scripted.pop(0))
-        return AIResponse(content=f"reply {len(self.calls)}")
+        return AIResponse(content=f"reply {len(self.chat_calls)}")
 
 
 class FakeAnalysisAIClient:
