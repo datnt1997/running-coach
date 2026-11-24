@@ -1,4 +1,6 @@
 """Plan chat: one persistent conversation per Runner, through the HTTP API."""
+import asyncio
+
 import pytest_asyncio
 
 from app.ai.factory import get_chat_ai_client_dep
@@ -58,7 +60,7 @@ async def test_each_turn_prompt_has_profile_plan_and_the_last_20_messages(client
     assert "easy" in system and "8.0" in system         # a Planned workout
 
     history = [m for m in prompt if m["role"] != "system"]
-    assert len(history) == 20 and history[-1] == {"role": "user", "content": "câu hỏi cuối"}
+    assert len(history) == 19 and history[0]["role"] == "user" and history[-1] == {"role": "user", "content": "câu hỏi cuối"}
     assert "tin nhắn số 13" in _prompt_text(history)
     assert "tin nhắn số 0" not in _prompt_text(history)
     # Raw messages stay stored even when they leave the prompt.
@@ -112,3 +114,52 @@ async def test_retry_with_nothing_to_answer_is_refused(client, chat_ai):
     assert (await client.post("/plan-chat/retry")).status_code == 409
     await _say(client, "xin chào")
     assert (await client.post("/plan-chat/retry")).status_code == 409
+
+
+async def test_history_sent_to_the_model_never_starts_with_an_assistant_message(client, chat_ai):
+    for i in range(11):  # 21 stored messages: the last 20 would start with a reply
+        await _say(client, f"tin {i}")
+    history = [m for m in chat_ai.calls[-1] if m["role"] != "system"]
+    assert history[0]["role"] == "user"
+    assert history[-1] == {"role": "user", "content": "tin 10"}
+
+
+async def test_plan_block_gives_bpm_ranges_for_each_target_zone(client, chat_ai, seeded_plan):
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
+    await _say(client, "xin chào")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    plan_part = system[system.index("PLAN (current"):]
+    assert "bpm" in plan_part
+    assert "Z2" in plan_part and "-" in plan_part.split("Z2", 1)[1].split("\n", 1)[0]
+
+
+async def test_concurrent_retries_store_a_single_reply(client, chat_ai):
+    chat_ai.fail = True
+    await _say(client, "mệt quá")
+    chat_ai.fail = False
+    chat_ai.delay = 0.2
+    first, second = await asyncio.gather(client.post("/plan-chat/retry"), client.post("/plan-chat/retry"))
+    assert sorted([first.status_code, second.status_code]) == [200, 409]
+    stored = (await client.get("/plan-chat/messages")).json()["messages"]
+    assert [m["role"] for m in stored] == ["user", "assistant"]
+    assert len(chat_ai.calls) == 2  # the failed send and one retry
+
+
+async def test_the_database_is_not_held_in_a_transaction_during_the_ai_call(client, chat_ai):
+    from app.db.connection import get_pool
+
+    seen = []
+    original = chat_ai.generate
+
+    async def spy(messages, tools=None, response_format=None):
+        async with get_pool().connection() as other:
+            cur = await other.execute(
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
+                " AND state = 'idle in transaction'"
+            )
+            seen.append((await cur.fetchone())[0])
+        return await original(messages, tools, response_format)
+
+    chat_ai.generate = spy
+    assert (await _say(client, "một")).status_code == 200
+    assert seen == [0]

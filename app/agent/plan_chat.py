@@ -67,9 +67,13 @@ def _plan_block(goal: dict | None, plan: dict | None, zones: list[dict] | None) 
             week = w["week_number"]
             lines.append(f"Week {week} ({w['phase']}):")
         target = target_zone(w["workout_type"], zones)
-        zone = f"Z{target['minZone']}" if target and target["minZone"] == target["maxZone"] else (
-            f"Z{target['minZone']}-Z{target['maxZone']}" if target else (w["pace_zone"] or "no HR target")
-        )
+        if target:
+            label = f"Z{target['minZone']}" if target["minZone"] == target["maxZone"] else (
+                f"Z{target['minZone']}-Z{target['maxZone']}"
+            )
+            zone = f"{label} ({target['min']}-{target['max']} bpm)"
+        else:
+            zone = w["pace_zone"] or "no HR target"
         km = float(w["distance_km"]) if w["distance_km"] is not None else 0.0
         note = f" - {w['notes']}" if w.get("notes") else ""
         lines.append(f"  {w['day_of_week']}: {w['workout_type']} {km:.1f} km, {zone}{note}")
@@ -82,6 +86,8 @@ def build_messages(
     """System prompt + this turn's profile and Plan + the last messages verbatim."""
     context = "\n\n".join([_profile_block(profile), _plan_block(goal, plan, profile_zones(profile))])
     system = f"{SYSTEM_PROMPT}\n{language_instruction()}\n\n{context}"
+    # The window can start mid-exchange; providers require the first message to be the runner's.
+    start = next((i for i, m in enumerate(history) if m["role"] == "user"), len(history))
     return [{"role": "system", "content": system}] + [
-        {"role": m["role"], "content": m["content"]} for m in history
+        {"role": m["role"], "content": m["content"]} for m in history[start:]
     ]

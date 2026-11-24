@@ -49,6 +49,11 @@ export default function PlanChat() {
       setMessages(prev => [...prev.filter(m => m.id !== pending.id), ...added])
     } catch {
       setError(t('planChat.sendError'))
+      // Replace the temporary copy with what is stored, so the thread matches storage.
+      try {
+        const res = await fetch('/plan-chat/messages')
+        if (res.ok) setMessages((await res.json()).messages)
+      } catch { /* keep the optimistic copy; the error banner is already shown */ }
     } finally {
       setLoading(false)
     }
@@ -100,7 +105,10 @@ export default function PlanChat() {
             placeholder={t('planChat.placeholder')}
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+            onKeyDown={e => {
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return // IME (Telex/VNI) is still composing
+              if (e.key === 'Enter') { e.preventDefault(); send() }
+            }}
             disabled={loading}
           />
           <button type="button" onClick={send} disabled={loading || !input.trim()}>{t('chat.send')}</button>

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -160,9 +161,12 @@ class FakePlanChatAIClient:
     def __init__(self):
         self.calls: list[list[dict]] = []
         self.fail = False
+        self.delay = 0.0
 
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
         self.calls.append(messages)
+        if self.delay:
+            await asyncio.sleep(self.delay)
         if self.fail:
             raise RuntimeError("model unavailable")
         return AIResponse(content=f"reply {len(self.calls)}")
