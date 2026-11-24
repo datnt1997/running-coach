@@ -328,3 +328,42 @@ async def test_no_taper_guidance_far_from_the_race(client, chat_ai, seeded_plan)
     system = _prompt_text(chat_ai.calls[-1], "system")
     assert "112 days" in system
     assert "TAPER" not in system
+
+
+# ---- review fixes for #37 (pure prompt tests) ----
+
+def _goal(days):
+    from datetime import date, timedelta
+    return {"race_date": date.today() + timedelta(days=days), "distance": "10k", "target_time": "50:00"}
+
+
+def _system(goal, plan=None, activities=None):
+    from app.agent.plan_chat import build_messages
+    return build_messages(None, goal, plan, [{"role": "user", "content": "hi"}], activities=activities)[0]["content"]
+
+
+def test_past_race_says_it_has_passed_with_no_negative_days_or_taper():
+    system = _system(_goal(-3))
+    assert "has passed" in system
+    assert "-3" not in system and "TAPER" not in system
+
+
+def test_race_day_today_says_so():
+    system = _system(_goal(0))
+    assert "race day is today" in system.lower()
+    assert "0 days" not in system
+
+
+def test_race_countdown_appears_without_a_plan():
+    system = _system(_goal(10))
+    assert "RACE COUNTDOWN" in system and "10 days" in system
+
+
+def test_matched_workout_without_distance_omits_zero_km():
+    from datetime import date
+    act = {"activity_date": date.today(), "distance_km": 5.0, "workout_type": "easy", "planned_distance_km": None,
+           "mismatch": True, "avg_hr_bpm": None, "pace_adherence": None, "hr_adherence": None,
+           "load_adherence": None}
+    system = _system(None, activities=[act])
+    assert "matched to easy" in system
+    assert "0.0 km" not in system and "mismatched" not in system
