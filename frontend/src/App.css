@@ -813,7 +813,7 @@ tr:hover td { background: #f8f9fa; }
 
 /* ── Strava tab ── */
 .strava-page { max-width: 580px; margin: 0 auto; }
-.strava-page__intro { color: #6b7280; }
+.strava-page__intro { color: #6b7280; margin-bottom: 1.25rem; }
 .strava-card {
   display: flex;
   flex-direction: column;
@@ -970,3 +970,17 @@ tr:hover td { background: #f8f9fa; }
 .fc-bubble--md th, .fc-bubble--md td { border: 1px solid #c9d3ee; padding: .25rem .5rem; text-align: left; }
 .fc-bubble--md th { background: #e3eaff; }
 .fc-bubble--md code { background: #e3eaff; padding: 0 .25rem; border-radius: .2rem; }
+
+.strava-athlete { display: flex; align-items: center; gap: .75rem; }
+.strava-athlete__avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
+.strava-runs { margin-top: 1.5rem; }
+.strava-runs__scroll { overflow-x: auto; border-radius: .75rem; }
+.strava-runs__table { width: 100%; border-collapse: collapse; background: #fff; border-radius: .75rem; }
+.strava-runs__table th, .strava-runs__table td { padding: .5rem .75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.strava-runs__table td:nth-child(-n+2) { white-space: nowrap; }
+.strava-runs__table th { color: #6b7280; font-weight: 600; font-size: .875rem; }
+.strava-runs__hint { margin: 0 0 .5rem; color: #6b7280; font-size: .875rem; }
+.strava-runs__msg { margin: .5rem 0; color: #15803d; }
+.strava-runs > button { margin-bottom: .75rem; border: 0; cursor: pointer; }
+.strava-runs__table a { color: #fc4c02; text-decoration: none; font-weight: 500; }
+.strava-runs__table a:hover { text-decoration: underline; }

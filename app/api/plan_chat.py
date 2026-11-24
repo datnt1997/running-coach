@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from contextlib import asynccontextmanager
 from uuid import UUID
 
@@ -12,17 +13,20 @@ from app.agent.plan_chat import (
 from app.ai.client import AIClient
 from app.ai.factory import get_chat_ai_client_dep
 from app.api.profile_facts import fact_out
+from app.api.strava import RUN_TYPES, get_strava_client
 from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import (
-    ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
-    RollingSummaryRepository,
+    ActivityAnalysisRepository, ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
+    RollingSummaryRepository, StravaConnectionRepository,
 )
+from app.strava.client import StravaClient, get_valid_access_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plan-chat")
 
 MAX_MESSAGE_CHARS = 4000
+RECENT_ACTIVITIES = 10  # latest Activities listed in each turn's prompt
 
 
 class SendMessageRequest(BaseModel):
@@ -111,7 +115,45 @@ async def _roll_summary(db: AsyncConnection, runner_id: UUID, ai_client: AIClien
     return summary, pending[-MAX_VERBATIM:]
 
 
-async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID) -> dict:
+async def _recent_activities(db: AsyncConnection, runner_id: UUID, strava_client: StravaClient) -> list[dict]:
+    """The latest runs, read live from Strava so runs from before the webhook count too.
+
+    Each carries our stored analysis (Match, Adherence) when there is one. Without a Strava
+    connection, or when Strava cannot be reached, fall back to the stored analyses.
+    """
+    stored = await ActivityAnalysisRepository(db, runner_id).list_recent(RECENT_ACTIVITIES)
+    if await StravaConnectionRepository(db, runner_id).get() is None:
+        return stored
+    try:
+        token = await get_valid_access_token(db, runner_id, strava_client)
+        recent = await strava_client.list_activities(token, limit=RECENT_ACTIVITIES * 2)
+    except Exception:
+        logger.warning("Could not read live Strava activities; using stored analyses", exc_info=True)
+        return stored
+    runs = [a for a in recent if a.type in RUN_TYPES][:RECENT_ACTIVITIES]
+    analyses = await ActivityAnalysisRepository(db, runner_id).by_strava_ids([a.id for a in runs])
+    out = []
+    for a in runs:
+        analysis = analyses.get(a.id) or {}
+        km = a.distance / 1000
+        out.append({
+            "activity_date": date.fromisoformat(a.start_date_local[:10]),
+            "distance_km": km,
+            "pace_sec_per_km": round(a.moving_time / km) if km > 0 else None,
+            "avg_hr_bpm": a.average_heartrate,
+            "workout_type": analysis.get("workout_type"),
+            "planned_distance_km": analysis.get("planned_distance_km"),
+            "mismatch": analysis.get("mismatch", False),
+            "pace_adherence": analysis.get("pace_adherence"),
+            "hr_adherence": analysis.get("hr_adherence"),
+            "load_adherence": analysis.get("load_adherence"),
+        })
+    return out
+
+
+async def _reply(
+    db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID, strava_client: StravaClient
+) -> dict:
     """Ask the model to answer the stored conversation and store its reply.
 
     Profile and Plan are read fresh; the last HISTORY_LIMIT messages go verbatim and older ones as a Rolling summary.
@@ -126,10 +168,13 @@ async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answ
     summary, history = await _roll_summary(db, runner_id, ai_client)
     facts = await ProfileFactRepository(db, runner_id).list_all()
     declined = await ChatMessageRepository(db, runner_id).recent_declined_facts(DECLINED_LIMIT)
+    activities = await _recent_activities(db, runner_id, strava_client)
     await db.commit()
 
     try:
-        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary))
+        response = await ai_client.generate(
+            build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary, activities=activities)
+        )
         content, proposed_fact = split_proposal(response.content)
         if not content:
             raise ValueError("empty reply")
@@ -160,12 +205,13 @@ async def send_message(
     db: AsyncConnection = Depends(get_db),
     runner_id: UUID = Depends(require_runner),
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
+    strava_client: StravaClient = Depends(get_strava_client),
 ) -> dict:
     # The runner's message is stored before the model is called, so a failure loses nothing.
     async with _turn_lock(db, runner_id):
         stored = await ChatMessageRepository(db, runner_id).add("user", req.message)
         await db.commit()
-        reply = await _reply(db, runner_id, ai_client, stored["id"])
+        reply = await _reply(db, runner_id, ai_client, stored["id"], strava_client)
     return {"messages": [_out(stored), _out(reply)]}
 
 
@@ -174,6 +220,7 @@ async def retry(
     db: AsyncConnection = Depends(get_db),
     runner_id: UUID = Depends(require_runner),
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
+    strava_client: StravaClient = Depends(get_strava_client),
 ) -> dict:
     """Answer the last message again after a failed call (it is still stored, unanswered)."""
     async with _turn_lock(db, runner_id):
@@ -181,7 +228,7 @@ async def retry(
         await db.commit()
         if last is None or last["role"] != "user":
             raise HTTPException(status_code=409, detail="Nothing to answer")
-        reply = await _reply(db, runner_id, ai_client, last["id"])
+        reply = await _reply(db, runner_id, ai_client, last["id"], strava_client)
     return {"messages": [_out(reply)]}
 
 

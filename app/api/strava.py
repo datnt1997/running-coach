@@ -29,10 +29,13 @@ from app.db.repositories import (
 )
 from app.hr_zones import profile_zones, zone_for_bpm
 from app.strava.client import StravaClient, get_valid_access_token
+from app.strava.models import ActivityDetail
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+RUN_TYPES = ("Run", "TrailRun", "VirtualRun")
 
 _CSRF_COOKIE = "strava_oauth_state"
 _CSRF_MAX_AGE = 600  # seconds
@@ -108,6 +111,52 @@ async def strava_status(
     return {"connected": True, "athlete_id": row["strava_athlete_id"]}
 
 
+@router.get("/strava/overview", dependencies=[Depends(require_session)])
+async def strava_overview(
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
+    strava_client: StravaClient = Depends(get_strava_client),
+) -> dict:
+    """The athlete and their latest runs, fetched live from Strava, with our analysis where one exists."""
+    row = await StravaConnectionRepository(db, runner_id).get()
+    if row is None:
+        return {"connected": False, "athlete": None, "activities": []}
+    athlete = {"id": row["strava_athlete_id"], "name": None, "profile_url": None}
+    try:
+        token = await get_valid_access_token(db, runner_id, strava_client)
+        await db.commit()  # a refreshed token is stored
+        try:
+            profile = await strava_client.get_athlete(token)
+            athlete.update(name=profile.name, profile_url=profile.profile_url)
+        except Exception:
+            logger.warning("Could not read the Strava athlete profile", exc_info=True)
+        recent = await strava_client.list_activities(token, limit=20)
+    except Exception:
+        logger.exception("Strava overview failed")
+        raise HTTPException(status_code=502, detail="Could not reach Strava.")
+    runs = [a for a in recent if a.type in RUN_TYPES][:10]
+    analyses = await ActivityAnalysisRepository(db, runner_id).by_strava_ids([a.id for a in runs])
+    activities = []
+    for a in runs:
+        analysis = analyses.get(a.id)
+        km = a.distance / 1000
+        activities.append({
+            "id": a.id,
+            "name": a.name,
+            "date": a.start_date_local[:10],
+            "distance_km": round(km, 2),
+            "pace_sec_per_km": round(a.moving_time / km) if km > 0 else None,
+            "avg_hr_bpm": a.average_heartrate,
+            "match": None if analysis is None or analysis["matched_workout_id"] is None else {
+                "workout_type": analysis["workout_type"],
+                "pace_adherence": analysis["pace_adherence"],
+                "hr_adherence": analysis["hr_adherence"],
+                "load_adherence": analysis["load_adherence"],
+            },
+        })
+    return {"connected": True, "athlete": athlete, "activities": activities}
+
+
 @router.post("/strava/disconnect", dependencies=[Depends(require_session)])
 async def strava_disconnect(
     db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
@@ -157,6 +206,100 @@ async def strava_webhook_event(
     return Response(status_code=200)
 
 
+async def _store_analysis(
+    conn: AsyncConnection, runner_id: UUID, plan_id: UUID, activity: ActivityDetail, ai_client: AIClient
+):
+    """Match an activity to a planned workout, analyse it when matched, and store the result.
+
+    Shared by the webhook and the manual sync. Does not commit. Returns the Match."""
+    activity_date = date.fromisoformat(activity.start_date_local[:10])
+    candidates = await PlanRepository(conn, runner_id).get_workouts_for_date(plan_id, activity_date)
+    match = match_activity_to_workout(activity, candidates)
+
+    avg_pace: timedelta | None = None
+    if activity.distance > 0:
+        avg_pace = timedelta(seconds=int(activity.moving_time / (activity.distance / 1000)))
+
+    profile = await ProfileRepository(conn, runner_id).get()
+    zones = profile_zones(profile)
+    avg_hr_zone = zone_for_bpm(activity.average_heartrate, zones)
+    pace_adh = hr_adh = load_adh = None
+
+    if match.matched and match.workout is not None:
+        try:
+            result = await analyze_activity(match.workout, activity, ai_client, profile)
+            pace_adh = result.get("pace_adherence")
+            hr_adh = result.get("hr_adherence")
+            if zones is None or activity.average_heartrate is None or hr_adh == "unavailable":
+                hr_adh = None  # no honest comparison: never store a placeholder
+            load_adh = result.get("load_adherence")
+        except AnalysisGenerationError as exc:
+            logger.error("Analysis failed for activity %s: %s", activity.id, exc)
+
+    await ActivityAnalysisRepository(conn, runner_id).insert(
+        strava_activity_id=activity.id,
+        matched_workout_id=match.workout.id if match.workout else None,
+        activity_date=activity_date,
+        distance_km=activity.distance / 1000,
+        avg_pace_per_km=avg_pace,
+        avg_hr_zone=avg_hr_zone,
+        avg_hr_bpm=activity.average_heartrate,
+        pace_adherence=pace_adh,
+        hr_adherence=hr_adh,
+        load_adherence=load_adh,
+        mismatch=match.mismatch,
+    )
+    return match
+
+
+SYNC_MAX_NEW = 10  # runs analysed per sync call; run it again for more
+
+
+@router.post("/strava/sync", dependencies=[Depends(require_session)])
+async def strava_sync(
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
+    strava_client: StravaClient = Depends(get_strava_client),
+    ai_client: AIClient = Depends(get_ai_client_dep),
+) -> dict:
+    """Match and analyse the latest runs that are not stored yet (the webhook only sees new ones)."""
+    if await StravaConnectionRepository(db, runner_id).get() is None:
+        raise HTTPException(status_code=409, detail="Strava is not connected.")
+    plan_id = await PlanRepository(db, runner_id).get_latest_plan_id()
+    if plan_id is None:
+        raise HTTPException(status_code=409, detail="There is no Plan to match runs against.")
+    try:
+        token = await get_valid_access_token(db, runner_id, strava_client)
+        await db.commit()
+        recent = await strava_client.list_activities(token, limit=50)
+    except Exception:
+        logger.exception("Strava sync failed to read activities")
+        raise HTTPException(status_code=502, detail="Could not reach Strava.")
+    runs = [a for a in recent if a.type in RUN_TYPES]
+    repo = ActivityAnalysisRepository(db, runner_id)
+    known = await repo.by_strava_ids([a.id for a in runs])
+    todo = [a for a in runs if a.id not in known]
+    synced = matched = 0
+    for a in todo[:SYNC_MAX_NEW]:
+        activity = ActivityDetail(
+            id=a.id, start_date_local=a.start_date_local, distance=a.distance, moving_time=a.moving_time,
+            average_heartrate=a.average_heartrate, type=a.type,
+        )
+        try:
+            match = await _store_analysis(db, runner_id, plan_id, activity, ai_client)
+            await db.commit()
+        except UniqueViolation:
+            await db.rollback()  # the webhook stored it first
+            continue
+        except Exception:
+            logger.exception("Sync could not store activity %s", a.id)
+            await db.rollback()
+            continue
+        synced += 1
+        matched += 1 if match.matched else 0
+    return {"synced": synced, "matched": matched, "remaining": max(len(todo) - SYNC_MAX_NEW, 0)}
+
+
 async def _process_activity(
     activity_id: int,
     athlete_id: int,
@@ -175,51 +318,12 @@ async def _process_activity(
                 return
             access_token = await get_valid_access_token(conn, runner_id, strava_client)
             activity = await strava_client.get_activity(activity_id, access_token)
-            activity_date = date.fromisoformat(activity.start_date_local[:10])
-
-            plan_repo = PlanRepository(conn, runner_id)
-            plan_id = await plan_repo.get_latest_plan_id()
+            plan_id = await PlanRepository(conn, runner_id).get_latest_plan_id()
             if plan_id is None:
                 logger.warning("No training plan found; skipping activity %s", activity_id)
                 return
 
-            candidates = await plan_repo.get_workouts_for_date(plan_id, activity_date)
-            match = match_activity_to_workout(activity, candidates)
-
-            avg_pace: timedelta | None = None
-            if activity.distance > 0:
-                avg_pace = timedelta(seconds=int(activity.moving_time / (activity.distance / 1000)))
-
-            profile = await ProfileRepository(conn, runner_id).get()
-            zones = profile_zones(profile)
-            avg_hr_zone = zone_for_bpm(activity.average_heartrate, zones)
-            pace_adh = hr_adh = load_adh = None
-
-            if match.matched and match.workout is not None:
-                try:
-                    result = await analyze_activity(match.workout, activity, ai_client, profile)
-                    pace_adh = result.get("pace_adherence")
-                    hr_adh = result.get("hr_adherence")
-                    if zones is None or activity.average_heartrate is None or hr_adh == "unavailable":
-                        hr_adh = None  # no honest comparison: never store a placeholder
-                    load_adh = result.get("load_adherence")
-                except AnalysisGenerationError as exc:
-                    logger.error("Analysis failed for activity %s: %s", activity_id, exc)
-
-            analysis_repo = ActivityAnalysisRepository(conn, runner_id)
-            await analysis_repo.insert(
-                strava_activity_id=activity_id,
-                matched_workout_id=match.workout.id if match.workout else None,
-                activity_date=activity_date,
-                distance_km=activity.distance / 1000,
-                avg_pace_per_km=avg_pace,
-                avg_hr_zone=avg_hr_zone,
-                avg_hr_bpm=activity.average_heartrate,
-                pace_adherence=pace_adh,
-                hr_adherence=hr_adh,
-                load_adherence=load_adh,
-                mismatch=match.mismatch,
-            )
+            match = await _store_analysis(conn, runner_id, plan_id, activity, ai_client)
 
             if match.matched and match.workout is not None:
                 try:

@@ -46,7 +46,7 @@ from app.auth import GoogleIdentity, InvalidGoogleToken, get_google_verifier
 from app.config import DATABASE_URL
 from app.db import connection as db_connection
 from app.main import app
-from app.strava.models import ActivityDetail, TokenSet
+from app.strava.models import ActivityDetail, AthleteProfile, RecentActivity, TokenSet
 
 # Every migration, applied in filename order. Adding a file here is automatic.
 MIGRATIONS = sorted(
@@ -246,6 +246,19 @@ class FakeStravaClient:
             refresh_token="fake_refresh_new",
             expires_at=9999999999,
         )
+
+    async def get_athlete(self, access_token: str) -> AthleteProfile:
+        return AthleteProfile(name="An Nguyen", profile_url="https://example.com/a.jpg")
+
+    async def list_activities(self, access_token: str, limit: int = 10) -> list[RecentActivity]:
+        return [
+            RecentActivity(id=777, name="Morning Run", start_date_local="2026-11-20T06:00:00Z",
+                           distance=10000.0, moving_time=3000, average_heartrate=150.0, type="Run"),
+            RecentActivity(id=778, name="Lunch Ride", start_date_local="2026-11-19T12:00:00Z",
+                           distance=20000.0, moving_time=3600, average_heartrate=None, type="Ride"),
+            RecentActivity(id=779, name="Easy jog", start_date_local="2026-11-18T06:00:00Z",
+                           distance=5000.0, moving_time=1800, average_heartrate=None, type="Run"),
+        ][:limit]
 
     async def get_activity(self, activity_id: int, access_token: str) -> ActivityDetail:
         today = date.today()

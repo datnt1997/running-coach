@@ -5,7 +5,7 @@ import httpx
 from psycopg import AsyncConnection
 
 from app.config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REDIRECT_URI
-from app.strava.models import ActivityDetail, TokenSet
+from app.strava.models import ActivityDetail, AthleteProfile, RecentActivity, TokenSet
 
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_API_BASE = "https://www.strava.com/api/v3"
@@ -68,6 +68,39 @@ class StravaClient:
                 average_heartrate=data.get("average_heartrate"),
                 type=data["type"],
             )
+
+    async def get_athlete(self, access_token: str) -> AthleteProfile:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                f"{STRAVA_API_BASE}/athlete",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            name = " ".join(p for p in (data.get("firstname"), data.get("lastname")) if p) or None
+            profile = data.get("profile")
+            return AthleteProfile(name=name, profile_url=profile if profile and profile.startswith("http") else None)
+
+    async def list_activities(self, access_token: str, limit: int = 10) -> list[RecentActivity]:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                f"{STRAVA_API_BASE}/athlete/activities",
+                params={"per_page": limit},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            resp.raise_for_status()
+            return [
+                RecentActivity(
+                    id=a["id"],
+                    name=a.get("name", ""),
+                    start_date_local=a["start_date_local"],
+                    distance=a["distance"],
+                    moving_time=a["moving_time"],
+                    average_heartrate=a.get("average_heartrate"),
+                    type=a["type"],
+                )
+                for a in resp.json()
+            ]
 
 
 async def get_valid_access_token(conn: AsyncConnection, runner_id: UUID, strava_client: "StravaClient | None" = None) -> str:
