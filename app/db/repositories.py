@@ -534,6 +534,9 @@ class ProfileRepository:
             )
 
 
+_CHAT_COLUMNS = "id, role, content, created_at, proposed_fact, proposal_status"
+
+
 class ChatMessageRepository:
     """The Runner's one Plan chat conversation, oldest first."""
 
@@ -541,19 +544,39 @@ class ChatMessageRepository:
         self.conn = conn
         self.runner_id = runner_id
 
-    async def add(self, role: str, content: str) -> dict:
+    async def add(self, role: str, content: str, proposed_fact: str | None = None) -> dict:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "INSERT INTO chat_messages (runner_id, role, content) VALUES (%s, %s, %s)"
-                " RETURNING id, role, content, created_at",
-                (self.runner_id, role, content),
+                "INSERT INTO chat_messages (runner_id, role, content, proposed_fact, proposal_status)"
+                " VALUES (%s, %s, %s, %s, %s)"
+                f" RETURNING {_CHAT_COLUMNS}",
+                (self.runner_id, role, content, proposed_fact, "pending" if proposed_fact else None),
+            )
+            return await cur.fetchone()
+
+    async def decide_proposal(self, message_id: UUID, status: str) -> dict | None:
+        """Move a pending proposal to `status`; None when there is no such pending proposal."""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "UPDATE chat_messages SET proposal_status = %s"
+                " WHERE id = %s AND runner_id = %s AND proposal_status = 'pending'"
+                f" RETURNING {_CHAT_COLUMNS}",
+                (status, message_id, self.runner_id),
+            )
+            return await cur.fetchone()
+
+    async def get(self, message_id: UUID) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_CHAT_COLUMNS} FROM chat_messages WHERE id = %s AND runner_id = %s",
+                (message_id, self.runner_id),
             )
             return await cur.fetchone()
 
     async def list_all(self) -> list[dict]:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT id, role, content, created_at FROM chat_messages"
+                f"SELECT {_CHAT_COLUMNS} FROM chat_messages"
                 " WHERE runner_id = %s ORDER BY seq",
                 (self.runner_id,),
             )
@@ -563,7 +586,7 @@ class ChatMessageRepository:
         """The last `limit` messages, oldest first."""
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT id, role, content, created_at FROM ("
+                f"SELECT {_CHAT_COLUMNS} FROM ("
                 "  SELECT * FROM chat_messages WHERE runner_id = %s ORDER BY seq DESC LIMIT %s"
                 ") recent ORDER BY seq",
                 (self.runner_id, limit),
@@ -573,11 +596,54 @@ class ChatMessageRepository:
     async def last(self) -> dict | None:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT id, role, content, created_at FROM chat_messages"
+                f"SELECT {_CHAT_COLUMNS} FROM chat_messages"
                 " WHERE runner_id = %s ORDER BY seq DESC LIMIT 1",
                 (self.runner_id,),
             )
             return await cur.fetchone()
+
+
+class ProfileFactRepository:
+    """What the coach remembers about the Runner, oldest first."""
+
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def add(self, text: str) -> dict:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "INSERT INTO profile_facts (runner_id, text) VALUES (%s, %s)"
+                " RETURNING id, text, created_at, updated_at",
+                (self.runner_id, text),
+            )
+            return await cur.fetchone()
+
+    async def list_all(self) -> list[dict]:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id, text, created_at, updated_at FROM profile_facts"
+                " WHERE runner_id = %s ORDER BY seq",
+                (self.runner_id,),
+            )
+            return await cur.fetchall()
+
+    async def update(self, fact_id: UUID, text: str) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "UPDATE profile_facts SET text = %s, updated_at = now()"
+                " WHERE id = %s AND runner_id = %s RETURNING id, text, created_at, updated_at",
+                (text, fact_id, self.runner_id),
+            )
+            return await cur.fetchone()
+
+    async def delete(self, fact_id: UUID) -> bool:
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM profile_facts WHERE id = %s AND runner_id = %s",
+                (fact_id, self.runner_id),
+            )
+            return cur.rowcount > 0
 
 
 class RunnerRepository:

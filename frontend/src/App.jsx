@@ -7,6 +7,7 @@ import GoalHistory from './pages/GoalHistory.jsx'
 import PlanChat from './pages/PlanChat.jsx'
 import PlanView from './pages/PlanView.jsx'
 import Profile from './pages/Profile.jsx'
+import ProfileFacts from './pages/ProfileFacts.jsx'
 import Strava from './pages/Strava.jsx'
 import { AUTH_EXPIRED_EVENT, fetchMe, installUnauthorizedHandler, signOut } from './lib/auth.js'
 import { t } from './i18n/index.js'
@@ -35,6 +36,7 @@ export default function App() {
           <NavLink to="/new">{t('nav.newGoal')}</NavLink>
           <NavLink to="/history">{t('nav.history')}</NavLink>
           <NavLink to="/chat">{t('nav.chat')}</NavLink>
+          <NavLink to="/facts">{t('nav.facts')}</NavLink>
           <NavLink to="/profile">{t('nav.profile')}</NavLink>
           <NavLink to="/strava">{t('nav.strava')}</NavLink>
           <NavLink to="/" end>{t('nav.thisWeek')}</NavLink>
@@ -55,6 +57,7 @@ export default function App() {
           <Route path="/goals/:goalId" element={<PlanView />} />
           <Route path="/history" element={<GoalHistory />} />
           <Route path="/chat" element={<PlanChat />} />
+          <Route path="/facts" element={<ProfileFacts />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/strava" element={<Strava />} />
         </Routes>
