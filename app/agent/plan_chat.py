@@ -12,7 +12,10 @@ from app.i18n import language_instruction
 
 HISTORY_LIMIT = 20  # messages sent verbatim each turn
 SUMMARY_BATCH = 10  # older messages wait until this many can be folded into the Rolling summary at once
+MAX_FOLD_BATCH = 20  # most messages sent to one summary call, oldest first
+MAX_FOLDS_PER_TURN = 3  # summary calls in one turn, so a backlog catches up in bounded steps
 MAX_SUMMARY_CHARS = 4000
+MAX_VERBATIM = HISTORY_LIMIT + SUMMARY_BATCH  # most messages ever sent verbatim in one prompt
 
 SUMMARY_SYSTEM_PROMPT = """\
 ROLLING SUMMARY TASK. You compress a running coach's conversation with a runner. \
