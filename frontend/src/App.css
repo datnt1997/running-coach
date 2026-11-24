@@ -757,6 +757,23 @@ tr:hover td { background: #f8f9fa; }
   white-space: nowrap;
 }
 
+.plan-chat-thread {
+  max-height: 60vh;
+  min-height: 240px;
+}
+
+.plan-chat-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem .75rem;
+  font-size: .9rem;
+  color: #842029;
+  background: #f8d7da;
+  border-top: 1px solid #f1aeb5;
+}
+
 /* ── Spinner / generating state ── */
 .generating {
   text-align: center;
@@ -928,3 +945,22 @@ tr:hover td { background: #f8f9fa; }
 .zone-chip--5 { background: #f8d7da; color: #842029; }
 
 .profile-field__error { color: #b02a37; font-size: .85rem; font-weight: 500; }
+
+/* Assistant replies are rendered markdown (headings, tables, lists). */
+.fc-bubble--md { white-space: normal; max-width: 95%; flex-shrink: 0; overflow: visible; }
+.fc-bubble--md > :first-child { margin-top: 0; }
+.fc-bubble--md > :last-child { margin-bottom: 0; }
+.fc-bubble--md p, .fc-bubble--md ul, .fc-bubble--md ol { margin: .4rem 0; }
+.fc-bubble--md ul, .fc-bubble--md ol { padding-left: 1.25rem; }
+.fc-bubble--md h1, .fc-bubble--md h2, .fc-bubble--md h3, .fc-bubble--md h4 {
+  margin: .75rem 0 .3rem;
+  line-height: 1.3;
+}
+.fc-bubble--md h1 { font-size: 1.1rem; }
+.fc-bubble--md h2 { font-size: 1.05rem; }
+.fc-bubble--md h3, .fc-bubble--md h4 { font-size: .95rem; }
+.fc-bubble--md hr { border: 0; border-top: 1px solid #c9d3ee; margin: .6rem 0; }
+.fc-bubble--md table { border-collapse: collapse; margin: .5rem 0; font-size: .85rem; display: block; max-width: 100%; overflow-x: auto; }
+.fc-bubble--md th, .fc-bubble--md td { border: 1px solid #c9d3ee; padding: .25rem .5rem; text-align: left; }
+.fc-bubble--md th { background: #e3eaff; }
+.fc-bubble--md code { background: #e3eaff; padding: 0 .25rem; border-radius: .2rem; }

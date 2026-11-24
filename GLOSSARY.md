@@ -87,7 +87,7 @@ The conversation before a Goal exists, in which the coach collects a race result
 _Avoid_: Level chat, assessment chat, chat
 
 **Plan chat**:
-The conversation after a Plan exists, in which the runner asks the coach to change the Plan's current and future weeks. It never changes the Goal's race, time or date; those start a new Goal.
+The one continuous conversation between a Runner and the coach after a Plan exists. Every message is stored per Runner and reloads on the chat page; each turn the model gets the coach's tone and method, the Runner's profile and Plan read fresh, and the last 20 messages. The coach never diagnoses: for sharp pain, chest symptoms or dizziness it says to rest and see a doctor. It never changes the Goal's race, time or date; those start a new Goal. (Changing the Plan's current and future weeks by chat is a later ticket.)
 _Avoid_: Coach chat, chat
 
 ### Sign-in

@@ -534,6 +534,52 @@ class ProfileRepository:
             )
 
 
+class ChatMessageRepository:
+    """The Runner's one Plan chat conversation, oldest first."""
+
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def add(self, role: str, content: str) -> dict:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "INSERT INTO chat_messages (runner_id, role, content) VALUES (%s, %s, %s)"
+                " RETURNING id, role, content, created_at",
+                (self.runner_id, role, content),
+            )
+            return await cur.fetchone()
+
+    async def list_all(self) -> list[dict]:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id, role, content, created_at FROM chat_messages"
+                " WHERE runner_id = %s ORDER BY seq",
+                (self.runner_id,),
+            )
+            return await cur.fetchall()
+
+    async def list_recent(self, limit: int) -> list[dict]:
+        """The last `limit` messages, oldest first."""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id, role, content, created_at FROM ("
+                "  SELECT * FROM chat_messages WHERE runner_id = %s ORDER BY seq DESC LIMIT %s"
+                ") recent ORDER BY seq",
+                (self.runner_id, limit),
+            )
+            return await cur.fetchall()
+
+    async def last(self) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id, role, content, created_at FROM chat_messages"
+                " WHERE runner_id = %s ORDER BY seq DESC LIMIT 1",
+                (self.runner_id,),
+            )
+            return await cur.fetchone()
+
+
 class RunnerRepository:
     """Runners themselves are not owned, so this one is not scoped."""
 

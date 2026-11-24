@@ -8,6 +8,7 @@ export default {
   'nav.thisWeek': 'Tuần Này',
   'nav.strava': 'Strava',
   'nav.profile': 'Hồ Sơ',
+  'nav.chat': 'Trò Chuyện',
 
   'profile.title': 'Hồ Sơ Của Bạn',
   'profile.intro': 'Nhập các chỉ số nhịp tim của bạn. Ứng dụng tính các vùng nhịp tim (theo nhịp tim dự trữ, như Garmin) từ nhịp tim tối đa và nhịp tim nghỉ; không bao giờ tự ước lượng.',
@@ -97,6 +98,14 @@ export default {
   'chat.error': 'Đã xảy ra lỗi — vui lòng thử lại.',
   'chat.placeholder': 'Nhập câu trả lời…',
   'chat.send': 'Gửi',
+
+  'planChat.title': 'Trò Chuyện Với Huấn Luyện Viên',
+  'planChat.intro': 'Một cuộc trò chuyện liên tục: huấn luyện viên luôn xem hồ sơ và kế hoạch mới nhất của bạn.',
+  'planChat.empty': 'Chưa có tin nhắn nào. Hãy hỏi huấn luyện viên về kế hoạch của bạn.',
+  'planChat.placeholder': 'Nhập tin nhắn…',
+  'planChat.loadError': 'Không thể tải cuộc trò chuyện.',
+  'planChat.sendError': 'Huấn luyện viên chưa trả lời được. Tin nhắn của bạn đã được lưu.',
+  'planChat.resend': 'Gửi lại',
 
   'dashboard.loadError': 'Không thể tải trang tổng quan của bạn.',
   'dashboard.empty': 'Chưa có kế hoạch tập luyện nào.',
