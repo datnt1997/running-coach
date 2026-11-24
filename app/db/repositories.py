@@ -593,6 +593,17 @@ class ChatMessageRepository:
             )
             return await cur.fetchall()
 
+    async def recent_declined_facts(self, limit: int) -> list[str]:
+        """Texts of the last `limit` declined proposals, newest first."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                "SELECT proposed_fact FROM chat_messages"
+                " WHERE runner_id = %s AND proposal_status = 'declined'"
+                " ORDER BY seq DESC LIMIT %s",
+                (self.runner_id, limit),
+            )
+            return [row[0] for row in await cur.fetchall()]
+
     async def last(self) -> dict | None:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
@@ -601,6 +612,9 @@ class ChatMessageRepository:
                 (self.runner_id,),
             )
             return await cur.fetchone()
+
+
+_FACT_COLUMNS = "id, text, created_at, updated_at"
 
 
 class ProfileFactRepository:
@@ -614,7 +628,7 @@ class ProfileFactRepository:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 "INSERT INTO profile_facts (runner_id, text) VALUES (%s, %s)"
-                " RETURNING id, text, created_at, updated_at",
+                f" RETURNING {_FACT_COLUMNS}",
                 (self.runner_id, text),
             )
             return await cur.fetchone()
@@ -622,7 +636,7 @@ class ProfileFactRepository:
     async def list_all(self) -> list[dict]:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT id, text, created_at, updated_at FROM profile_facts"
+                f"SELECT {_FACT_COLUMNS} FROM profile_facts"
                 " WHERE runner_id = %s ORDER BY seq",
                 (self.runner_id,),
             )
@@ -632,7 +646,7 @@ class ProfileFactRepository:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 "UPDATE profile_facts SET text = %s, updated_at = now()"
-                " WHERE id = %s AND runner_id = %s RETURNING id, text, created_at, updated_at",
+                f" WHERE id = %s AND runner_id = %s RETURNING {_FACT_COLUMNS}",
                 (text, fact_id, self.runner_id),
             )
             return await cur.fetchone()

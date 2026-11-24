@@ -112,3 +112,32 @@ async def test_the_prompt_tells_the_coach_how_to_propose_a_fact(client, chat_ai)
     await _say(client)
     system = _system(chat_ai)
     assert "[[REMEMBER:" in system and "I'll remember" in system
+
+
+async def test_an_unclosed_marker_is_hidden_and_proposes_nothing(client, chat_ai):
+    reply = await _propose(client, chat_ai, "Mình sẽ ghi nhớ nhé?\n[[REMEMBER: đầu gối trái hay đa")
+
+    assert reply["content"] == "Mình sẽ ghi nhớ nhé?"
+    assert reply["proposal"] is None
+
+
+async def test_confirming_a_fact_that_already_exists_does_not_duplicate_it(client, chat_ai):
+    first = await _propose(client, chat_ai)
+    await client.post(f"/plan-chat/messages/{first['id']}/proposal/confirm")
+    second = await _propose(client, chat_ai, "Ghi nhớ nhé?\n[[REMEMBER: Đầu gối  trái hay đau]]")
+
+    resp = await client.post(f"/plan-chat/messages/{second['id']}/proposal/confirm")
+
+    assert resp.status_code == 200
+    assert resp.json()["message"]["proposal"]["status"] == "saved"
+    assert len(await _facts(client)) == 1
+
+
+async def test_recently_declined_facts_are_listed_in_the_prompt(client, chat_ai):
+    reply = await _propose(client, chat_ai)
+    await _say(client, "hi")
+    assert "đầu gối trái hay đau" not in _system(chat_ai)
+    await client.post(f"/plan-chat/messages/{reply['id']}/proposal/decline")
+
+    await _say(client, "tuần này chạy gì?")
+    assert "đầu gối trái hay đau" in _system(chat_ai)

@@ -18,7 +18,7 @@ class FactRequest(BaseModel):
 
     @field_validator("text")
     @classmethod
-    def _valid(cls, value: str) -> str:
+    def _clean_text(cls, value: str) -> str:
         value = " ".join(value.split())
         if not value:
             raise ValueError("text cannot be blank")

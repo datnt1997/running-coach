@@ -86,10 +86,11 @@ async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answ
     profile = await ProfileRepository(db, runner_id).get()
     history = await ChatMessageRepository(db, runner_id).list_recent(HISTORY_LIMIT)
     facts = await ProfileFactRepository(db, runner_id).list_all()
+    declined = await ChatMessageRepository(db, runner_id).recent_declined_facts(DECLINED_LIMIT)
     await db.commit()
 
     try:
-        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts))
+        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts, declined=declined))
         content, proposed_fact = split_proposal(response.content)
         if not content:
             raise ValueError("empty reply")
@@ -145,6 +146,13 @@ async def retry(
     return {"messages": [_out(reply)]}
 
 
+DECLINED_LIMIT = 5
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
 async def _decide(db: AsyncConnection, runner_id: UUID, message_id: UUID, status: str) -> dict:
     """Settle a pending proposal; saving the fact and closing the proposal commit together."""
     messages = ChatMessageRepository(db, runner_id)
@@ -155,7 +163,12 @@ async def _decide(db: AsyncConnection, runner_id: UUID, message_id: UUID, status
         if found is None:
             raise HTTPException(status_code=404, detail="No such message")
         raise HTTPException(status_code=409, detail="No pending proposal")
-    fact = await ProfileFactRepository(db, runner_id).add(message["proposed_fact"]) if status == "saved" else None
+    fact = None
+    if status == "saved":
+        facts = ProfileFactRepository(db, runner_id)
+        wanted = _normalized(message["proposed_fact"])
+        fact = next((f for f in await facts.list_all() if _normalized(f["text"]) == wanted), None)
+        fact = fact or await facts.add(message["proposed_fact"])
     await db.commit()
     return {"message": _out(message), "fact": fact_out(fact) if fact else None}
 

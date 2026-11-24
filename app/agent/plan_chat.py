@@ -70,14 +70,20 @@ def _facts_block(facts: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _declined_block(declined: list[str]) -> str:
+    lines = ["RECENTLY DECLINED (the runner said no; do not propose these again)"]
+    return "\n".join(lines + [f"- {t}" for t in declined])
+
+
 _MARKER = re.compile(r"\[\[REMEMBER:\s*(.*?)\s*\]\]", re.DOTALL)
+_UNCLOSED_MARKER = re.compile(r"\[\[REMEMBER:.*", re.DOTALL)
 MAX_FACT_CHARS = 300
 
 
 def split_proposal(reply: str) -> tuple[str, str | None]:
     """The reply without its [[REMEMBER: ...]] marker, and the proposed fact if there is a usable one."""
     found = _MARKER.findall(reply)
-    visible = _MARKER.sub("", reply).strip()
+    visible = _UNCLOSED_MARKER.sub("", _MARKER.sub("", reply)).strip()
     fact = " ".join(found[0].split()) if found else ""
     return visible, (fact[:MAX_FACT_CHARS] or None)
 
@@ -132,9 +138,14 @@ def build_messages(
     history: list[dict],
     today: date | None = None,
     facts: list[dict] | None = None,
+    declined: list[str] | None = None,
 ) -> list[dict]:
     """System prompt + this turn's profile and Plan + the last messages verbatim."""
-    context = "\n\n".join([_today_block(today or date.today()), _profile_block(profile), _facts_block(facts or []), _plan_block(goal, plan, profile_zones(profile))])
+    blocks = [_today_block(today or date.today()), _profile_block(profile), _facts_block(facts or [])]
+    if declined:
+        blocks.append(_declined_block(declined))
+    blocks.append(_plan_block(goal, plan, profile_zones(profile)))
+    context = "\n\n".join(blocks)
     system = f"{SYSTEM_PROMPT}\n{language_instruction()}\n\n{context}"
     # The window can start mid-exchange; providers require the first message to be the runner's.
     start = next((i for i, m in enumerate(history) if m["role"] == "user"), len(history))

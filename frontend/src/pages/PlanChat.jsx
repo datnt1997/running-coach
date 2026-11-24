@@ -102,6 +102,7 @@ export default function PlanChat() {
                 : m.content}
               {m.proposal?.status === 'pending' && (
                 <div className="proposal-actions">
+                  <div className="proposal-text">{m.proposal.text}</div>
                   <button type="button" onClick={() => decide(m.id, 'confirm')}>{t('planChat.proposalSave')}</button>
                   <button type="button" onClick={() => decide(m.id, 'decline')}>{t('planChat.proposalDecline')}</button>
                 </div>
