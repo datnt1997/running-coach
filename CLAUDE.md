@@ -53,7 +53,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 ### Plan chat (`app/api/plan_chat.py` + `app/agent/plan_chat.py`)
 
 - `GET /plan-chat/messages`, `POST /plan-chat/messages` (stores the runner's message, then asks the model, then stores the reply), `POST /plan-chat/retry` (re-answers a stored unanswered message after a 502). Messages live in `chat_messages` (owned by `runner_id`, `ChatMessageRepository`). Uses `get_chat_ai_client_dep` (CHAT_AI_PROVIDER).
-- Each turn's prompt = fixed system prompt (Gem tone, method, pain and medical rule; no personal numbers) + profile and zones + the latest Plan, all read fresh, + the Rolling summary + the last 20 messages. `FakePlanChatAIClient` in `conftest.py` records prompts.
+- Each turn's prompt = fixed system prompt (Gem tone, method, pain and medical rule; no personal numbers) + profile and zones + the latest Plan + the 10 most recent Activities (`ActivityAnalysisRepository.list_recent`: Match, Adherence, average heart rate against the target zone, "unavailable" when missing) + a race countdown, with taper and race-week guidance within 21 days of the race (race date fixed; reported fatigue or pain cuts the taper), all read fresh, + the Rolling summary + the last 20 messages. `FakePlanChatAIClient` in `conftest.py` records prompts.
 
 ### Rolling summary (`_roll_summary` in `app/api/plan_chat.py`, `RollingSummaryRepository`, table `chat_summaries`)
 

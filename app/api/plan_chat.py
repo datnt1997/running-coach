@@ -15,7 +15,7 @@ from app.api.profile_facts import fact_out
 from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import (
-    ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
+    ActivityAnalysisRepository, ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
     RollingSummaryRepository,
 )
 
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plan-chat")
 
 MAX_MESSAGE_CHARS = 4000
+RECENT_ACTIVITIES = 10  # latest Activities listed in each turn's prompt
 
 
 class SendMessageRequest(BaseModel):
@@ -126,10 +127,13 @@ async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answ
     summary, history = await _roll_summary(db, runner_id, ai_client)
     facts = await ProfileFactRepository(db, runner_id).list_all()
     declined = await ChatMessageRepository(db, runner_id).recent_declined_facts(DECLINED_LIMIT)
+    activities = await ActivityAnalysisRepository(db, runner_id).list_recent(RECENT_ACTIVITIES)
     await db.commit()
 
     try:
-        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary))
+        response = await ai_client.generate(
+            build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary, activities=activities)
+        )
         content, proposed_fact = split_proposal(response.content)
         if not content:
             raise ValueError("empty reply")
