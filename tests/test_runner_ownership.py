@@ -220,3 +220,19 @@ async def test_profile_facts_are_private_to_their_runner(client, friend_client):
 
     await friend_client.post("/plan-chat/messages", json={"message": "chào"})
     assert "gối trái đau" not in "".join(m["content"] for m in fake.calls[-1])
+
+
+async def test_the_rolling_summary_is_private_to_its_runner(client, friend_client):
+    from app.ai.factory import get_chat_ai_client_dep
+    from tests.conftest import FakePlanChatAIClient
+
+    fake = FakePlanChatAIClient()
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
+    await client.post("/plan-chat/messages", json={"message": "bí mật cũ của tôi"})
+    for i in range(35):
+        await client.post("/plan-chat/messages", json={"message": f"tin {i}"})
+    assert "bí mật cũ của tôi" in "".join(m["content"] for m in fake.chat_calls[-1])
+
+    await friend_client.post("/plan-chat/messages", json={"message": "chào"})
+    assert "bí mật cũ của tôi" not in "".join(m["content"] for m in fake.chat_calls[-1])
+    assert "SUMMARY" not in "".join(m["content"] for m in fake.chat_calls[-1])

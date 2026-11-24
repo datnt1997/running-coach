@@ -593,6 +593,16 @@ class ChatMessageRepository:
             )
             return await cur.fetchall()
 
+    async def list_after(self, seq: int) -> list[dict]:
+        """Messages with a sequence number above `seq`, oldest first (each carries its `seq`)."""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_CHAT_COLUMNS}, seq FROM chat_messages"
+                " WHERE runner_id = %s AND seq > %s ORDER BY seq",
+                (self.runner_id, seq),
+            )
+            return await cur.fetchall()
+
     async def recent_declined_facts(self, limit: int) -> list[str]:
         """Texts of the last `limit` declined proposals, newest first."""
         async with self.conn.cursor() as cur:
@@ -612,6 +622,30 @@ class ChatMessageRepository:
                 (self.runner_id,),
             )
             return await cur.fetchone()
+
+
+class RollingSummaryRepository:
+    """The Runner's Rolling summary of Plan chat messages older than the verbatim window."""
+
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def get(self) -> dict | None:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT content, covered_seq FROM chat_summaries WHERE runner_id = %s",
+                (self.runner_id,),
+            )
+            return await cur.fetchone()
+
+    async def save(self, content: str, covered_seq: int) -> None:
+        await self.conn.execute(
+            "INSERT INTO chat_summaries (runner_id, content, covered_seq) VALUES (%s, %s, %s)"
+            " ON CONFLICT (runner_id) DO UPDATE"
+            " SET content = EXCLUDED.content, covered_seq = EXCLUDED.covered_seq, updated_at = now()",
+            (self.runner_id, content, covered_seq),
+        )
 
 
 _FACT_COLUMNS = "id, text, created_at, updated_at"
