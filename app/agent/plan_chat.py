@@ -11,6 +11,26 @@ from app.hr_zones import missing_for_zones, profile_zones, target_zone, zone_ran
 from app.i18n import language_instruction
 
 HISTORY_LIMIT = 20  # messages sent verbatim each turn
+SUMMARY_BATCH = 10  # older messages wait until this many can be folded into the Rolling summary at once
+MAX_FOLD_BATCH = 20  # most messages sent to one summary call, oldest first
+MAX_FOLDS_PER_TURN = 3  # summary calls in one turn, so a backlog catches up in bounded steps
+MAX_SUMMARY_CHARS = 4000
+MAX_VERBATIM = HISTORY_LIMIT + SUMMARY_BATCH  # most messages ever sent verbatim in one prompt
+
+SUMMARY_SYSTEM_PROMPT = """\
+ROLLING SUMMARY TASK. You compress a running coach's conversation with a runner. \
+You get the previous summary (may be empty) and the older messages not yet in it. \
+Write one updated summary that keeps everything that should shape future coaching: injuries, pain, \
+health, schedule limits, preferences, decisions, agreed changes, race news, how training has felt. \
+Drop greetings and small talk. Never invent anything. Keep the runner's language. \
+Plain text, at most 300 words; reply with the summary only."""
+
+
+def build_summary_messages(previous: str | None, messages: list[dict]) -> list[dict]:
+    """Prompt asking the model to fold `messages` into the previous Rolling summary."""
+    transcript = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
+    user = f"PREVIOUS SUMMARY:\n{previous or '(none)'}\n\nOLDER MESSAGES:\n{transcript}"
+    return [{"role": "system", "content": SUMMARY_SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
 SYSTEM_PROMPT = """\
 You are the runner's personal running coach, continuing one long conversation with them. \
@@ -68,6 +88,10 @@ def _facts_block(facts: list[dict]) -> str:
     lines = ["WHAT YOU REMEMBER ABOUT THE RUNNER (confirmed facts; re-read each turn)"]
     lines += [f"- {f['text']}" for f in facts] or ["- Nothing yet."]
     return "\n".join(lines)
+
+
+def _summary_block(summary: str) -> str:
+    return f"EARLIER CONVERSATION (summary of older messages, kept for context)\n{summary}"
 
 
 def _declined_block(declined: list[str]) -> str:
@@ -139,12 +163,15 @@ def build_messages(
     today: date | None = None,
     facts: list[dict] | None = None,
     declined: list[str] | None = None,
+    summary: str | None = None,
 ) -> list[dict]:
-    """System prompt + this turn's profile and Plan + the last messages verbatim."""
+    """System prompt + this turn's profile, Plan and Rolling summary + the last messages verbatim."""
     blocks = [_today_block(today or date.today()), _profile_block(profile), _facts_block(facts or [])]
     if declined:
         blocks.append(_declined_block(declined))
     blocks.append(_plan_block(goal, plan, profile_zones(profile)))
+    if summary:
+        blocks.append(_summary_block(summary))
     context = "\n\n".join(blocks)
     system = f"{SYSTEM_PROMPT}\n{language_instruction()}\n\n{context}"
     # The window can start mid-exchange; providers require the first message to be the runner's.

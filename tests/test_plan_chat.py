@@ -3,6 +3,7 @@ import asyncio
 
 import pytest_asyncio
 
+from app.agent.plan_chat import MAX_FOLD_BATCH, MAX_VERBATIM
 from app.ai.factory import get_chat_ai_client_dep
 from app.main import app
 from tests.conftest import FakePlanChatAIClient
@@ -49,7 +50,7 @@ async def test_a_blank_message_is_rejected(client, chat_ai):
 
 async def test_each_turn_prompt_has_profile_plan_and_the_last_20_messages(client, chat_ai, seeded_plan):
     await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
-    for i in range(14):  # 28 stored messages after the loop
+    for i in range(17):  # 34 stored messages after the loop, enough to fold the older ones
         await _say(client, f"tin nhắn số {i}")
     await _say(client, "câu hỏi cuối")
 
@@ -60,11 +61,11 @@ async def test_each_turn_prompt_has_profile_plan_and_the_last_20_messages(client
     assert "easy" in system and "8.0" in system         # a Planned workout
 
     history = [m for m in prompt if m["role"] != "system"]
-    assert len(history) == 19 and history[0]["role"] == "user" and history[-1] == {"role": "user", "content": "câu hỏi cuối"}
-    assert "tin nhắn số 13" in _prompt_text(history)
+    assert 19 <= len(history) <= MAX_VERBATIM and history[0]["role"] == "user" and history[-1] == {"role": "user", "content": "câu hỏi cuối"}
+    assert "tin nhắn số 16" in _prompt_text(history)
     assert "tin nhắn số 0" not in _prompt_text(history)
     # Raw messages stay stored even when they leave the prompt.
-    assert len((await client.get("/plan-chat/messages")).json()["messages"]) == 30
+    assert len((await client.get("/plan-chat/messages")).json()["messages"]) == 36
 
 
 async def test_profile_is_reread_every_turn(client, chat_ai):
@@ -172,3 +173,76 @@ async def test_prompt_states_today_so_the_coach_never_asks_the_date(client, chat
     system = _prompt_text(chat_ai.calls[-1], role="system")
     assert date.today().isoformat() in system
     assert "never ask the runner what day it is" in system
+
+
+# ---- Rolling summary: older messages are compressed, never dropped ----
+
+async def test_a_fact_from_50_turns_ago_is_still_in_the_prompt(client, chat_ai):
+    await _say(client, "Gối trái của tôi từng bị chấn thương dây chằng")
+    for i in range(1, 56):
+        await _say(client, f"tin nhắn số {i:03d}")
+
+    final = chat_ai.chat_calls[-1]
+    assert "dây chằng" in _prompt_text(final)
+    # The early message is no longer verbatim: it reached the model through the Rolling summary.
+    assert "dây chằng" not in _prompt_text(final, "user")
+    assert "dây chằng" in _prompt_text(final, "system")
+
+
+async def test_raw_messages_stay_stored_after_they_are_summarized(client, chat_ai):
+    for i in range(40):
+        await _say(client, f"tin nhắn số {i:03d}")
+
+    stored = (await client.get("/plan-chat/messages")).json()["messages"]
+    assert len(stored) == 80
+    assert stored[0]["content"] == "tin nhắn số 000"
+    assert any(chat_ai.is_summary_call(c) for c in chat_ai.calls)
+
+
+async def test_the_prompt_stays_bounded_as_the_conversation_grows(client, chat_ai):
+    sizes = {}
+    for i in range(1, 81):
+        await _say(client, f"tin nhắn số {i:03d} " + "x" * 200)
+        sizes[i] = len(_prompt_text(chat_ai.chat_calls[-1]))
+
+    # 30 verbatim messages of ~220 chars, one summary (<= 4000 chars) and the fixed system prompt
+    assert max(sizes.values()) <= 30_000
+    assert len([m for m in chat_ai.chat_calls[-1] if m["role"] != "system"]) <= MAX_VERBATIM + 1
+
+
+async def test_a_failed_summary_does_not_fail_the_turn_and_is_retried(client, chat_ai):
+    chat_ai.fail_summary = True
+    for i in range(35):
+        assert (await _say(client, f"tin nhắn số {i:03d}")).status_code == 200
+    assert len([m for m in chat_ai.chat_calls[-1] if m["role"] != "system"]) <= MAX_VERBATIM + 1
+
+    chat_ai.fail_summary = False
+    await _say(client, "một tin nữa")
+    assert "SUMMARY" in _prompt_text(chat_ai.chat_calls[-1], "system")
+
+
+async def test_the_summary_call_stays_bounded_after_many_failed_summaries(client, chat_ai):
+    chat_ai.fail_summary = True
+    for i in range(60):
+        await _say(client, f"tin nhắn số {i:03d}")
+    chat_ai.fail_summary = False
+    await _say(client, "một tin nữa")
+    await _say(client, "và một tin nữa")
+
+    summary_calls = [c for c in chat_ai.calls if chat_ai.is_summary_call(c)]
+    assert summary_calls
+    for call in summary_calls:
+        transcript = call[1]["content"].split("OLDER MESSAGES:\n")[1]
+        assert len([l for l in transcript.splitlines() if l]) <= MAX_FOLD_BATCH
+
+
+async def test_a_backlog_after_failed_summaries_is_folded_oldest_first(client, chat_ai):
+    await _say(client, "Tôi bị đau gót chân phải từ tháng trước")
+    chat_ai.fail_summary = True
+    for i in range(40):
+        await _say(client, f"tin nhắn số {i:03d}")
+    chat_ai.fail_summary = False
+    for i in range(5):
+        await _say(client, f"tin nhắn sau {i}")
+
+    assert "đau gót chân" in _prompt_text(chat_ai.chat_calls[-1], "system")

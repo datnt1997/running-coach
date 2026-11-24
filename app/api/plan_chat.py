@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg import AsyncConnection
 from pydantic import BaseModel, field_validator
 
-from app.agent.plan_chat import HISTORY_LIMIT, build_messages, split_proposal
+from app.agent.plan_chat import (
+    HISTORY_LIMIT, MAX_FOLD_BATCH, MAX_FOLDS_PER_TURN, MAX_SUMMARY_CHARS, MAX_VERBATIM, SUMMARY_BATCH, build_messages, build_summary_messages, split_proposal,
+)
 from app.ai.client import AIClient
 from app.ai.factory import get_chat_ai_client_dep
 from app.api.profile_facts import fact_out
@@ -14,6 +16,7 @@ from app.auth import require_runner
 from app.db.connection import get_db
 from app.db.repositories import (
     ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
+    RollingSummaryRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,10 +75,46 @@ async def _turn_lock(db: AsyncConnection, runner_id: UUID):
             logger.exception("Could not release the Plan chat lock")  # closing the connection releases it
 
 
+async def _roll_summary(db: AsyncConnection, runner_id: UUID, ai_client: AIClient) -> tuple[str | None, list[dict]]:
+    """The Rolling summary and the messages still sent verbatim.
+
+    Messages beyond the last HISTORY_LIMIT are folded into the summary once SUMMARY_BATCH
+    of them wait, at most MAX_FOLD_BATCH per call and MAX_FOLDS_PER_TURN calls per turn
+    (oldest first, so a backlog catches up over later turns); raw messages stay stored. If the model cannot summarize, the turn goes
+    on without it and the fold is retried next turn; the prompt stays bounded either way.
+    """
+    summaries = RollingSummaryRepository(db, runner_id)
+    current = await summaries.get()
+    covered = current["covered_seq"] if current else 0
+    summary = current["content"] if current else None
+    pending = await ChatMessageRepository(db, runner_id).list_after(covered)
+    folds = 0
+    while folds < MAX_FOLDS_PER_TURN:
+        older = pending[:-HISTORY_LIMIT]
+        if len(older) < SUMMARY_BATCH:
+            break
+        batch = older[:MAX_FOLD_BATCH]  # oldest first, so a backlog never skips messages
+        folds += 1
+        await db.commit()
+        try:
+            response = await ai_client.generate(build_summary_messages(summary, batch))
+            text = response.content.strip()[:MAX_SUMMARY_CHARS]
+            if not text:
+                raise ValueError("empty summary")
+            await summaries.save(text, batch[-1]["seq"])
+            await db.commit()
+            summary, pending = text, pending[len(batch):]
+        except Exception:
+            logger.exception("Rolling summary failed; continuing without folding")
+            await db.rollback()
+            break
+    return summary, pending[-MAX_VERBATIM:]
+
+
 async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID) -> dict:
     """Ask the model to answer the stored conversation and store its reply.
 
-    Profile and Plan are read fresh; only the last HISTORY_LIMIT messages go verbatim.
+    Profile and Plan are read fresh; the last HISTORY_LIMIT messages go verbatim and older ones as a Rolling summary.
     Call with the turn lock held. The reads are committed before the model call so
     no transaction stays open while it runs.
     """
@@ -84,13 +123,13 @@ async def _reply(db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answ
     plan = await plans.get_plan(plan_id) if plan_id else None
     goal = await GoalRepository(db, runner_id).get(plan["goal_id"]) if plan else None
     profile = await ProfileRepository(db, runner_id).get()
-    history = await ChatMessageRepository(db, runner_id).list_recent(HISTORY_LIMIT)
+    summary, history = await _roll_summary(db, runner_id, ai_client)
     facts = await ProfileFactRepository(db, runner_id).list_all()
     declined = await ChatMessageRepository(db, runner_id).recent_declined_facts(DECLINED_LIMIT)
     await db.commit()
 
     try:
-        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts, declined=declined))
+        response = await ai_client.generate(build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary))
         content, proposed_fact = split_proposal(response.content)
         if not content:
             raise ValueError("empty reply")

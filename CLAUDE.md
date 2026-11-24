@@ -53,7 +53,12 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 ### Plan chat (`app/api/plan_chat.py` + `app/agent/plan_chat.py`)
 
 - `GET /plan-chat/messages`, `POST /plan-chat/messages` (stores the runner's message, then asks the model, then stores the reply), `POST /plan-chat/retry` (re-answers a stored unanswered message after a 502). Messages live in `chat_messages` (owned by `runner_id`, `ChatMessageRepository`). Uses `get_chat_ai_client_dep` (CHAT_AI_PROVIDER).
-- Each turn's prompt = fixed system prompt (Gem tone, method, pain and medical rule; no personal numbers) + profile and zones + the latest Plan, all read fresh, + the last 20 messages. `FakePlanChatAIClient` in `conftest.py` records prompts.
+- Each turn's prompt = fixed system prompt (Gem tone, method, pain and medical rule; no personal numbers) + profile and zones + the latest Plan, all read fresh, + the Rolling summary + the last 20 messages. `FakePlanChatAIClient` in `conftest.py` records prompts.
+
+### Rolling summary (`_roll_summary` in `app/api/plan_chat.py`, `RollingSummaryRepository`, table `chat_summaries`)
+
+- Messages older than the last 20 are folded into one per-Runner summary through the chat AI client (`build_summary_messages`), once 10 older messages are waiting. `covered_seq` marks what is folded; raw `chat_messages` are never deleted. The prompt gets the summary plus at most 30 verbatim messages, so its size is bounded. A failed summary call is logged and retried next turn, the turn still answers.
+- Regression test: `tests/test_plan_chat.py::test_a_fact_from_50_turns_ago_is_still_in_the_prompt`. `FakePlanChatAIClient` answers summary calls itself (`chat_calls` excludes them).
 
 ### Profile facts (`app/api/profile_facts.py`, `ProfileFactRepository`, table `profile_facts`)
 
