@@ -90,6 +90,10 @@ _Avoid_: Level chat, assessment chat, chat
 The one continuous conversation between a Runner and the coach after a Plan exists. Every message is stored per Runner and reloads on the chat page; each turn the model gets the coach's tone and method, the Runner's profile and Plan read fresh, and the last 20 messages. The coach never diagnoses: for sharp pain, chest symptoms or dizziness it says to rest and see a doctor. It never changes the Goal's race, time or date; those start a new Goal. (Changing the Plan's current and future weeks by chat is a later ticket.)
 _Avoid_: Coach chat, chat
 
+**Profile fact**:
+A lasting thing the coach knows about a Runner (an old injury, a schedule limit), kept as one short text. The coach proposes it in the Plan chat ("I'll remember: ..., OK?") and it is saved only after the Runner confirms. The facts page lists, edits and deletes them; every Plan chat turn reads them fresh.
+_Avoid_: Memory item, note
+
 ### Sign-in
 
 **Sign-in session**:

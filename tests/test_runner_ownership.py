@@ -195,3 +195,28 @@ async def test_profiles_are_private_to_their_runner(client, friend_client):
     await friend_client.put("/profile", json={"maxHr": 180})
     assert (await client.get("/profile")).json()["maxHr"] == 190
     assert (await friend_client.get("/profile")).json()["maxHr"] == 180
+
+
+async def test_profile_facts_are_private_to_their_runner(client, friend_client):
+    from app.ai.factory import get_chat_ai_client_dep
+    from tests.conftest import FakePlanChatAIClient
+
+    fake = FakePlanChatAIClient()
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
+    fake.scripted.append("Ghi nhớ nhé?\n[[REMEMBER: gối trái đau]]")
+    reply = (await client.post("/plan-chat/messages", json={"message": "gối đau"})).json()["messages"][1]
+    url = f"/plan-chat/messages/{reply['id']}/proposal"
+
+    # Another Runner cannot confirm or decline a proposal that is not theirs.
+    assert (await friend_client.post(f"{url}/confirm")).status_code == 404
+    assert (await friend_client.post(f"{url}/decline")).status_code == 404
+    assert (await client.post(f"{url}/confirm")).status_code == 200
+    fact_id = (await client.get("/profile-facts")).json()["facts"][0]["id"]
+
+    assert (await friend_client.get("/profile-facts")).json() == {"facts": []}
+    assert (await friend_client.put(f"/profile-facts/{fact_id}", json={"text": "hack"})).status_code == 404
+    assert (await friend_client.delete(f"/profile-facts/{fact_id}")).status_code == 404
+    assert [f["text"] for f in (await client.get("/profile-facts")).json()["facts"]] == ["gối trái đau"]
+
+    await friend_client.post("/plan-chat/messages", json={"message": "chào"})
+    assert "gối trái đau" not in "".join(m["content"] for m in fake.calls[-1])

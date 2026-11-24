@@ -774,6 +774,12 @@ tr:hover td { background: #f8f9fa; }
   border-top: 1px solid #f1aeb5;
 }
 
+.facts-list { list-style: none; padding: 0; }
+.facts-list li { display: flex; align-items: center; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid #ddd; }
+.facts-list .fact-text, .facts-list input { flex: 1; }
+.proposal-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+.proposal-result { margin-top: .5rem; font-size: .85rem; opacity: .8; }
+
 /* ── Spinner / generating state ── */
 .generating {
   text-align: center;
