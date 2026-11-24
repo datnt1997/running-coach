@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n/index.js'
-import { typeLabel } from '../lib/labels.js'
+import { adherenceLabel, dayLabel, typeLabel } from '../lib/labels.js'
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// "2026-11-24" -> "Thứ 3". Built from the parts, so the runner's timezone cannot shift the day.
+const weekday = iso => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return dayLabel(WEEKDAYS[new Date(y, m - 1, d).getDay()])
+}
 
 const pace = sec => (sec == null ? '–' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}/km`)
 
@@ -10,18 +17,47 @@ export default function Strava() {
   const [busy, setBusy] = useState(false)
   const justConnected = new URLSearchParams(window.location.search).get('connected') === '1'
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/strava/overview')
-        if (!res.ok) throw new Error()
-        setStatus(await res.json())
-      } catch {
-        setError(t('strava.loadError'))
-      }
+  const [syncMsg, setSyncMsg] = useState(null)
+
+  async function load() {
+    try {
+      const res = await fetch('/strava/overview')
+      if (!res.ok) throw new Error()
+      setStatus(await res.json())
+    } catch {
+      setError(t('strava.loadError'))
     }
+  }
+
+  useEffect(() => {
     load()
   }, [])
+
+  async function sync() {
+    setBusy(true)
+    setError(null)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/strava/sync', { method: 'POST' })
+      if (res.status === 409) {
+        setSyncMsg(t('strava.syncNoPlan'))
+        return
+      }
+      if (!res.ok) throw new Error()
+      const r = await res.json()
+      setSyncMsg(
+        r.synced === 0
+          ? t('strava.syncNothing')
+          : t('strava.syncDone', { synced: r.synced, matched: r.matched }) +
+              (r.remaining > 0 ? ' ' + t('strava.syncMore', { remaining: r.remaining }) : ''),
+      )
+      await load()
+    } catch {
+      setError(t('strava.syncFailed'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function disconnect() {
     setBusy(true)
@@ -77,12 +113,19 @@ export default function Strava() {
       {status?.connected && (
         <section className="strava-runs">
           <h2>{t('strava.recentRuns')}</h2>
+          <button className="strava-connect" disabled={busy} onClick={sync}>
+            {busy ? t('common.loading') : t('strava.sync')}
+          </button>
+          <p className="strava-runs__hint">{t('strava.syncHint')}</p>
+          {syncMsg && <p className="strava-runs__msg">{syncMsg}</p>}
           {status.activities.length === 0 ? (
             <p>{t('strava.noRuns')}</p>
           ) : (
+            <div className="strava-runs__scroll">
             <table className="strava-runs__table">
               <thead>
                 <tr>
+                  <th>{t('strava.col.weekday')}</th>
                   <th>{t('strava.col.date')}</th>
                   <th>{t('strava.col.run')}</th>
                   <th>{t('strava.col.distance')}</th>
@@ -94,20 +137,26 @@ export default function Strava() {
               <tbody>
                 {status.activities.map(a => (
                   <tr key={a.id}>
+                    <td>{weekday(a.date)}</td>
                     <td>{a.date}</td>
-                    <td>{a.name}</td>
+                    <td>
+                      <a href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noopener noreferrer">
+                        {a.name}
+                      </a>
+                    </td>
                     <td>{a.distance_km} km</td>
                     <td>{pace(a.pace_sec_per_km)}</td>
                     <td>{a.avg_hr_bpm == null ? t('strava.hrUnavailable') : Math.round(a.avg_hr_bpm)}</td>
                     <td>
                       {a.match
-                        ? [typeLabel(a.match.workout_type), a.match.load_adherence].filter(Boolean).join(' · ')
+                        ? [typeLabel(a.match.workout_type), a.match.load_adherence && adherenceLabel(a.match.load_adherence)].filter(Boolean).join(' · ')
                         : t('strava.unmatched')}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       )}
