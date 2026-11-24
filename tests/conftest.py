@@ -39,6 +39,7 @@ from httpx import ASGITransport
 from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 
+from app.agent.plan_chat import SUMMARY_SYSTEM_PROMPT
 from app.ai.client import AIResponse, TokenUsage, ToolCall
 from app.ai.factory import get_ai_client_dep
 from app.auth import GoogleIdentity, InvalidGoogleToken, get_google_verifier
@@ -167,7 +168,7 @@ class FakePlanChatAIClient:
 
     @staticmethod
     def is_summary_call(messages) -> bool:
-        return "ROLLING SUMMARY TASK" in messages[0]["content"]
+        return messages[0]["content"] == SUMMARY_SYSTEM_PROMPT
 
     @property
     def chat_calls(self) -> list[list[dict]]:
