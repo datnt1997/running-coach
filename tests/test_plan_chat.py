@@ -246,3 +246,85 @@ async def test_a_backlog_after_failed_summaries_is_folded_oldest_first(client, c
         await _say(client, f"tin nhắn sau {i}")
 
     assert "đau gót chân" in _prompt_text(chat_ai.chat_calls[-1], "system")
+
+
+# ---- Strava log and taper (#37) ----
+
+async def _log_activity(runner_id, strava_id, day, km, matched_workout_id=None, avg_hr=None,
+                        hr_adherence=None, pace_adherence=None, load_adherence=None):
+    from app.db.connection import get_pool
+
+    async with get_pool().connection() as conn:
+        await conn.execute(
+            "INSERT INTO activity_analyses (strava_activity_id, matched_workout_id, activity_date, distance_km,"
+            " pace_adherence, hr_adherence, load_adherence, runner_id, avg_hr_bpm)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (strava_id, matched_workout_id, day, km, pace_adherence, hr_adherence, load_adherence, runner_id, avg_hr),
+        )
+        await conn.commit()
+
+
+async def _set_race_in(days):
+    from datetime import date, timedelta
+    from app.db.connection import get_pool
+
+    async with get_pool().connection() as conn:
+        await conn.execute("UPDATE user_goals SET race_date = %s", (date.today() + timedelta(days=days),))
+        await conn.commit()
+
+
+async def test_prompt_lists_recent_activities_with_match_adherence_and_hr_vs_target_zone(
+    client, chat_ai, seeded_plan, runner_id
+):
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
+    await _log_activity(runner_id, 1, seeded_plan["date"], 8.2, seeded_plan["workout_id"], avg_hr=151,
+                        hr_adherence="too high", pace_adherence="on target", load_adherence="on target")
+    await _say(client, "Tuần này sao?")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "RECENT ACTIVITIES" in system
+    assert "8.2 km" in system and "matched to easy 8.0 km" in system
+    assert "too high" in system and "on target" in system
+    assert "average heart rate 151 bpm" in system and "target Z2" in system and "bpm)" in system
+
+
+async def test_missing_heart_rate_and_unmatched_activity_are_stated(client, chat_ai, seeded_plan, runner_id):
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
+    await _log_activity(runner_id, 2, seeded_plan["date"], 5.0, seeded_plan["workout_id"], avg_hr=None)
+    await _log_activity(runner_id, 3, seeded_plan["date"], 3.0, None, avg_hr=140)
+    await _say(client, "Hi")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "average heart rate unavailable" in system
+    assert "unmatched" in system
+
+
+async def test_activities_of_another_runner_never_reach_the_prompt(client, chat_ai, seeded_plan):
+    from tests.conftest import make_runner
+
+    other = await make_runner("stranger@example.com")
+    await _log_activity(other, 99, seeded_plan["date"], 41.7, None, avg_hr=111)
+    await _say(client, "Hi")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "41.7" not in system
+    assert "no Activities" in system
+
+
+async def test_taper_guidance_counts_down_to_the_fixed_race_date_and_uses_the_plan(
+    client, chat_ai, seeded_plan
+):
+    from datetime import date, timedelta
+
+    await _set_race_in(17)
+    await _say(client, "Taper thế nào?")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    race = (date.today() + timedelta(days=17)).isoformat()
+    assert "17 days" in system and race in system
+    assert "TAPER" in system and "race date is fixed" in system
+    assert "imported Plan" in system
+    assert "fatigue or pain" in system
+
+
+async def test_no_taper_guidance_far_from_the_race(client, chat_ai, seeded_plan):
+    await _say(client, "Hi")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "112 days" in system
+    assert "TAPER" not in system

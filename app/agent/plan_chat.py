@@ -155,6 +155,62 @@ def _plan_block(goal: dict | None, plan: dict | None, zones: list[dict] | None) 
     return "\n".join(lines)
 
 
+def _zone_label(target: dict) -> str:
+    z = f"Z{target['minZone']}" if target["minZone"] == target["maxZone"] else f"Z{target['minZone']}-Z{target['maxZone']}"
+    return f"{z} ({target['min']}-{target['max']} bpm)"
+
+
+def _activities_block(activities: list[dict], zones: list[dict] | None) -> str:
+    header = "RECENT ACTIVITIES (Strava, newest first; each with its Match and Adherence; re-read each turn)"
+    if not activities:
+        return f"{header}\n- The runner has no Activities logged yet."
+    lines = [header]
+    for a in activities:
+        km = float(a["distance_km"])
+        if a.get("workout_type"):
+            planned = float(a["planned_distance_km"]) if a["planned_distance_km"] is not None else 0.0
+            match = f"matched to {a['workout_type']} {planned:.1f} km" + (" (mismatched distance)" if a["mismatch"] else "")
+            target = target_zone(a["workout_type"], zones)
+            goal = f"target {_zone_label(target)}" if target else "target zone unavailable"
+            adherence = (
+                f"Adherence: pace {a['pace_adherence'] or 'unavailable'}, "
+                f"heart rate {a['hr_adherence'] or 'unavailable'}, load {a['load_adherence'] or 'unavailable'}"
+            )
+        else:
+            match, goal, adherence = "unmatched (no Planned workout)", None, None
+        hr = f"average heart rate {round(a['avg_hr_bpm'])} bpm" if a.get("avg_hr_bpm") else "average heart rate unavailable"
+        parts = [f"{a['activity_date'].isoformat()}: {km:.1f} km, {match}", hr]
+        if goal:
+            parts.append(goal)
+        if adherence:
+            parts.append(adherence)
+        lines.append("- " + "; ".join(parts))
+    return "\n".join(lines)
+
+
+TAPER_WINDOW_DAYS = 21  # taper guidance appears this close to the race
+
+
+def _race_block(goal: dict | None, today: date) -> str | None:
+    if goal is None:
+        return None
+    race = goal["race_date"]
+    days = (race - today).days
+    lines = ["RACE COUNTDOWN", f"- {days} days to the race on {race.isoformat()}."]
+    if 0 <= days <= TAPER_WINDOW_DAYS:
+        lines += [
+            "TAPER AND RACE-WEEK GUIDANCE",
+            "- The race date is fixed; never move it or suggest postponing. Taper inside it.",
+            "- Ground advice in the imported Plan above (its remaining workouts and distances up to the race) "
+            "and in the RECENT ACTIVITIES; do not invent sessions or numbers.",
+            "- Taper principle: keep intensity, cut volume progressively over the final weeks, keep the "
+            "last days easy, no new things in race week.",
+            "- If the runner reports fatigue or pain, change the suggestion: cut volume and intensity more, "
+            "swap quality for easy or rest, and apply the PAIN AND MEDICAL RULE. Never add work to compensate.",
+        ]
+    return "\n".join(lines)
+
+
 def build_messages(
     profile: dict | None,
     goal: dict | None,
@@ -164,12 +220,19 @@ def build_messages(
     facts: list[dict] | None = None,
     declined: list[str] | None = None,
     summary: str | None = None,
+    activities: list[dict] | None = None,
 ) -> list[dict]:
-    """System prompt + this turn's profile, Plan and Rolling summary + the last messages verbatim."""
-    blocks = [_today_block(today or date.today()), _profile_block(profile), _facts_block(facts or [])]
+    """System prompt + this turn's profile, Plan, Activities, race countdown and Rolling summary + the last messages verbatim."""
+    today = today or date.today()
+    blocks = [_today_block(today), _profile_block(profile), _facts_block(facts or [])]
     if declined:
         blocks.append(_declined_block(declined))
-    blocks.append(_plan_block(goal, plan, profile_zones(profile)))
+    zones = profile_zones(profile)
+    blocks.append(_plan_block(goal, plan, zones))
+    blocks.append(_activities_block(activities or [], zones))
+    race = _race_block(goal if plan else None, today)
+    if race:
+        blocks.append(race)
     if summary:
         blocks.append(_summary_block(summary))
     context = "\n\n".join(blocks)
