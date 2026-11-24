@@ -168,8 +168,12 @@ def _activities_block(activities: list[dict], zones: list[dict] | None) -> str:
     for a in activities:
         km = float(a["distance_km"])
         if a.get("workout_type"):
-            planned = float(a["planned_distance_km"]) if a["planned_distance_km"] is not None else 0.0
-            match = f"matched to {a['workout_type']} {planned:.1f} km" + (" (mismatched distance)" if a["mismatch"] else "")
+            if a["planned_distance_km"] is not None:
+                match = f"matched to {a['workout_type']} {float(a['planned_distance_km']):.1f} km" + (
+                    " (mismatched distance)" if a["mismatch"] else ""
+                )
+            else:
+                match = f"matched to {a['workout_type']}"
             target = target_zone(a["workout_type"], zones)
             goal = f"target {_zone_label(target)}" if target else "target zone unavailable"
             adherence = (
@@ -196,8 +200,11 @@ def _race_block(goal: dict | None, today: date) -> str | None:
         return None
     race = goal["race_date"]
     days = (race - today).days
-    lines = ["RACE COUNTDOWN", f"- {days} days to the race on {race.isoformat()}."]
-    if 0 <= days <= TAPER_WINDOW_DAYS:
+    if days < 0:
+        return f"RACE COUNTDOWN\n- The race on {race.isoformat()} has passed."
+    when = "race day is today" if days == 0 else f"{days} days to the race"
+    lines = ["RACE COUNTDOWN", f"- {when} ({race.isoformat()})."]
+    if days <= TAPER_WINDOW_DAYS:
         lines += [
             "TAPER AND RACE-WEEK GUIDANCE",
             "- The race date is fixed; never move it or suggest postponing. Taper inside it.",
@@ -230,7 +237,7 @@ def build_messages(
     zones = profile_zones(profile)
     blocks.append(_plan_block(goal, plan, zones))
     blocks.append(_activities_block(activities or [], zones))
-    race = _race_block(goal if plan else None, today)
+    race = _race_block(goal, today)
     if race:
         blocks.append(race)
     if summary:
