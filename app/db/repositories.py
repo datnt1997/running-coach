@@ -417,6 +417,24 @@ class ActivityAnalysisRepository:
             )
             return await cur.fetchone()
 
+    async def by_strava_ids(self, strava_activity_ids: list[int]) -> dict[int, dict]:
+        """Analyses for these Strava activities, keyed by Strava id, with the matched workout's type."""
+        if not strava_activity_ids:
+            return {}
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT aa.strava_activity_id, aa.pace_adherence, aa.hr_adherence, aa.load_adherence,
+                       aa.mismatch, aa.matched_workout_id, ws.workout_type,
+                       ws.distance_km AS planned_distance_km
+                FROM activity_analyses aa
+                LEFT JOIN workout_sessions ws ON aa.matched_workout_id = ws.id
+                WHERE aa.runner_id = %s AND aa.strava_activity_id = ANY(%s)
+                """,
+                (self.runner_id, strava_activity_ids),
+            )
+            return {r["strava_activity_id"]: r for r in await cur.fetchall()}
+
     async def list_recent(self, limit: int) -> list[dict]:
         """The Runner's latest Activities, newest first, with their Match (if any)."""
         async with self.conn.cursor(row_factory=dict_row) as cur:

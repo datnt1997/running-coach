@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+RUN_TYPES = ("Run", "TrailRun", "VirtualRun")
+
 _CSRF_COOKIE = "strava_oauth_state"
 _CSRF_MAX_AGE = 600  # seconds
 
@@ -106,6 +108,52 @@ async def strava_status(
     if row is None:
         return {"connected": False, "athlete_id": None}
     return {"connected": True, "athlete_id": row["strava_athlete_id"]}
+
+
+@router.get("/strava/overview", dependencies=[Depends(require_session)])
+async def strava_overview(
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
+    strava_client: StravaClient = Depends(get_strava_client),
+) -> dict:
+    """The athlete and their latest runs, fetched live from Strava, with our analysis where one exists."""
+    row = await StravaConnectionRepository(db, runner_id).get()
+    if row is None:
+        return {"connected": False, "athlete": None, "activities": []}
+    athlete = {"id": row["strava_athlete_id"], "name": None, "profile_url": None}
+    try:
+        token = await get_valid_access_token(db, runner_id, strava_client)
+        await db.commit()  # a refreshed token is stored
+        try:
+            profile = await strava_client.get_athlete(token)
+            athlete.update(name=profile.name, profile_url=profile.profile_url)
+        except Exception:
+            logger.warning("Could not read the Strava athlete profile", exc_info=True)
+        recent = await strava_client.list_activities(token, limit=20)
+    except Exception:
+        logger.exception("Strava overview failed")
+        raise HTTPException(status_code=502, detail="Could not reach Strava.")
+    runs = [a for a in recent if a.type in RUN_TYPES][:10]
+    analyses = await ActivityAnalysisRepository(db, runner_id).by_strava_ids([a.id for a in runs])
+    activities = []
+    for a in runs:
+        analysis = analyses.get(a.id)
+        km = a.distance / 1000
+        activities.append({
+            "id": a.id,
+            "name": a.name,
+            "date": a.start_date_local[:10],
+            "distance_km": round(km, 2),
+            "pace_sec_per_km": round(a.moving_time / km) if km > 0 else None,
+            "avg_hr_bpm": a.average_heartrate,
+            "match": None if analysis is None or analysis["matched_workout_id"] is None else {
+                "workout_type": analysis["workout_type"],
+                "pace_adherence": analysis["pace_adherence"],
+                "hr_adherence": analysis["hr_adherence"],
+                "load_adherence": analysis["load_adherence"],
+            },
+        })
+    return {"connected": True, "athlete": athlete, "activities": activities}
 
 
 @router.post("/strava/disconnect", dependencies=[Depends(require_session)])

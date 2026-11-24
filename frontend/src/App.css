@@ -970,3 +970,10 @@ tr:hover td { background: #f8f9fa; }
 .fc-bubble--md th, .fc-bubble--md td { border: 1px solid #c9d3ee; padding: .25rem .5rem; text-align: left; }
 .fc-bubble--md th { background: #e3eaff; }
 .fc-bubble--md code { background: #e3eaff; padding: 0 .25rem; border-radius: .2rem; }
+
+.strava-athlete { display: flex; align-items: center; gap: .75rem; }
+.strava-athlete__avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
+.strava-runs { margin-top: 1.5rem; overflow-x: auto; }
+.strava-runs__table { width: 100%; border-collapse: collapse; background: #fff; border-radius: .75rem; }
+.strava-runs__table th, .strava-runs__table td { padding: .5rem .75rem; text-align: left; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.strava-runs__table th { color: #6b7280; font-weight: 600; font-size: .875rem; }

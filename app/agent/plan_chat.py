@@ -7,7 +7,7 @@ rates, zones) and the Plan are passed in per turn from the database.
 import re
 from datetime import date, timedelta
 
-from app.hr_zones import missing_for_zones, profile_zones, target_zone, zone_range_text
+from app.hr_zones import missing_for_zones, profile_zones, target_zone, zone_for_bpm, zone_range_text
 from app.i18n import language_instruction
 
 HISTORY_LIMIT = 20  # messages sent verbatim each turn
@@ -160,8 +160,19 @@ def _zone_label(target: dict) -> str:
     return f"{z} ({target['min']}-{target['max']} bpm)"
 
 
-def _activities_block(activities: list[dict], zones: list[dict] | None) -> str:
-    header = "RECENT ACTIVITIES (Strava, newest first; each with its Match and Adherence; re-read each turn)"
+def _plan_workouts_on(plan: dict | None, day: date) -> list[dict]:
+    if not plan:
+        return []
+    return [w for w in plan["workouts"] if w["workout_type"] != "rest" and _workout_date(plan, w) == day]
+
+
+def _activities_block(activities: list[dict], zones: list[dict] | None, plan: dict | None = None) -> str:
+    header = (
+        "RECENT ACTIVITIES (Strava, newest first; each with its Match and Adherence; re-read each turn)\n"
+        "Analyse any run the runner asks about, matched or not: an unmatched run still has its distance, pace and "
+        "heart rate, so compare it with the Plan's workout for that date and the heart-rate zones. "
+        "Never say you cannot access the tracklog when it is listed here."
+    )
     if not activities:
         return f"{header}\n- The runner has no Activities logged yet."
     lines = [header]
@@ -181,9 +192,22 @@ def _activities_block(activities: list[dict], zones: list[dict] | None) -> str:
                 f"heart rate {a['hr_adherence'] or 'unavailable'}, load {a['load_adherence'] or 'unavailable'}"
             )
         else:
-            match, goal, adherence = "unmatched (no Planned workout)", None, None
+            match, goal, adherence = "unmatched (no stored Match)", None, None
+            planned = _plan_workouts_on(plan, a["activity_date"])
+            if planned:
+                w = planned[0]
+                target = target_zone(w["workout_type"], zones)
+                km_plan = f" {float(w['distance_km']):.1f} km" if w.get("distance_km") is not None else ""
+                goal = f"Plan that day: {w['workout_type']}{km_plan}" + (f", target {_zone_label(target)}" if target else "")
+            else:
+                goal = "no Planned workout on that date"
+            if a.get("avg_hr_bpm") and zone_for_bpm(a["avg_hr_bpm"], zones):
+                goal += f"; average heart rate falls in {zone_for_bpm(a['avg_hr_bpm'], zones)}"
         hr = f"average heart rate {round(a['avg_hr_bpm'])} bpm" if a.get("avg_hr_bpm") else "average heart rate unavailable"
-        parts = [f"{a['activity_date'].isoformat()}: {km:.1f} km, {match}", hr]
+        parts = [f"{a['activity_date'].isoformat()}: {km:.1f} km, {match}"]
+        if a.get("pace_sec_per_km"):
+            parts.append(f"pace {a['pace_sec_per_km'] // 60}:{a['pace_sec_per_km'] % 60:02d}/km")
+        parts.append(hr)
         if goal:
             parts.append(goal)
         if adherence:
@@ -236,7 +260,7 @@ def build_messages(
         blocks.append(_declined_block(declined))
     zones = profile_zones(profile)
     blocks.append(_plan_block(goal, plan, zones))
-    blocks.append(_activities_block(activities or [], zones))
+    blocks.append(_activities_block(activities or [], zones, plan))
     race = _race_block(goal, today)
     if race:
         blocks.append(race)

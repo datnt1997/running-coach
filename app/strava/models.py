@@ -15,3 +15,18 @@ class ActivityDetail(BaseModel):
     moving_time: int        # seconds
     average_heartrate: float | None = None
     type: str               # "Run", "Ride", etc.
+
+
+class AthleteProfile(BaseModel):
+    name: str | None = None
+    profile_url: str | None = None
+
+
+class RecentActivity(BaseModel):
+    id: int
+    name: str = ""
+    start_date_local: str
+    distance: float         # meters
+    moving_time: int        # seconds
+    average_heartrate: float | None = None
+    type: str

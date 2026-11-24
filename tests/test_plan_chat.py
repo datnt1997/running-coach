@@ -367,3 +367,42 @@ def test_matched_workout_without_distance_omits_zero_km():
     system = _system(None, activities=[act])
     assert "matched to easy" in system
     assert "0.0 km" not in system and "mismatched" not in system
+
+
+async def test_live_strava_runs_reach_the_prompt_without_a_stored_analysis(
+    client, chat_ai, fake_strava_client, seeded_strava_connection, seeded_plan
+):
+    from app.api.strava import get_strava_client
+    app.dependency_overrides[get_strava_client] = lambda: fake_strava_client
+    await _say(client, "Lấy tracklog ngày 20/11")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "2026-11-20: 10.0 km" in system and "pace 5:00/km" in system
+    assert "average heart rate 150 bpm" in system
+    assert "2026-11-18: 5.0 km" in system  # the second run; the ride is left out
+    assert "20.0 km" not in system
+
+
+async def test_a_strava_outage_falls_back_to_stored_analyses(
+    client, chat_ai, fake_strava_client, seeded_strava_connection, seeded_plan, runner_id
+):
+    from app.api.strava import get_strava_client
+
+    async def boom(access_token, limit=10):
+        raise RuntimeError("down")
+    fake_strava_client.list_activities = boom
+    app.dependency_overrides[get_strava_client] = lambda: fake_strava_client
+    await _log_activity(runner_id, 9, seeded_plan["date"], 7.7, seeded_plan["workout_id"], avg_hr=140)
+    resp = await client.post("/plan-chat/messages", json={"message": "Hi"})
+    assert resp.status_code == 200
+    assert "7.7 km" in _prompt_text(chat_ai.calls[-1], "system")
+
+
+async def test_an_unmatched_run_carries_the_plan_workout_and_zone_for_analysis(client, chat_ai, seeded_plan, runner_id):
+    await client.put("/profile", json={"maxHr": 190, "restingHr": 50})
+    await _log_activity(runner_id, 4, seeded_plan["date"], 9.0, None, avg_hr=150)
+    await _say(client, "Phân tích buổi chạy hôm nay")
+    system = _prompt_text(chat_ai.calls[-1], "system")
+    assert "unmatched" in system
+    assert "Plan that day: easy" in system and "target Z2" in system
+    assert "average heart rate falls in Z" in system
+    assert "Analyse any run the runner asks about, matched or not" in system
