@@ -59,7 +59,7 @@ _FOUR_DAY_AVAILABILITY = [
 ]
 
 _ALL_TABLES = (
-    "chat_messages, weekly_summaries, activity_analyses, strava_connections, "
+    "profile_facts, chat_messages, weekly_summaries, activity_analyses, strava_connections, "
     "workout_sessions, training_plans, user_goals, runner_profiles, runners"
 )
 
@@ -162,6 +162,7 @@ class FakePlanChatAIClient:
         self.calls: list[list[dict]] = []
         self.fail = False
         self.delay = 0.0
+        self.scripted: list[str] = []  # replies to give next, before "reply N"
 
     async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
         self.calls.append(messages)
@@ -169,6 +170,8 @@ class FakePlanChatAIClient:
             await asyncio.sleep(self.delay)
         if self.fail:
             raise RuntimeError("model unavailable")
+        if self.scripted:
+            return AIResponse(content=self.scripted.pop(0))
         return AIResponse(content=f"reply {len(self.calls)}")
 
 

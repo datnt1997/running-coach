@@ -3,14 +3,15 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { t } from '../i18n/index.js'
 
-async function post(path, body) {
+async function post(path, body, key = 'messages') {
   const res = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!res.ok) throw new Error(String(res.status))
-  return (await res.json()).messages
+  const data = await res.json()
+  return key === 'messages' ? data.messages : data
 }
 
 export default function PlanChat() {
@@ -61,6 +62,16 @@ export default function PlanChat() {
     }
   }
 
+  async function decide(id, action) {
+    setError(null)
+    try {
+      const { message } = await post(`/plan-chat/messages/${id}/proposal/${action}`, undefined, 'message')
+      setMessages(prev => prev.map(m => (m.id === id ? message : m)))
+    } catch {
+      setError(t('planChat.proposalError'))
+    }
+  }
+
   async function resend() {
     if (loading) return
     setError(null)
@@ -89,6 +100,19 @@ export default function PlanChat() {
               {m.role === 'assistant'
                 ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                 : m.content}
+              {m.proposal?.status === 'pending' && (
+                <div className="proposal-actions">
+                  <div className="proposal-text">{m.proposal.text}</div>
+                  <button type="button" onClick={() => decide(m.id, 'confirm')}>{t('planChat.proposalSave')}</button>
+                  <button type="button" onClick={() => decide(m.id, 'decline')}>{t('planChat.proposalDecline')}</button>
+                </div>
+              )}
+              {m.proposal?.status === 'saved' && (
+                <div className="proposal-result">{t('planChat.proposalSaved', { text: m.proposal.text })}</div>
+              )}
+              {m.proposal?.status === 'declined' && (
+                <div className="proposal-result">{t('planChat.proposalDeclined')}</div>
+              )}
             </div>
           ))}
           {loading && (
