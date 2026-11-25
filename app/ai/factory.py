@@ -20,6 +20,19 @@ def get_chat_ai_client() -> AIClient:
     return get_ai_client(config.CHAT_AI_PROVIDER or config.AI_PROVIDER)
 
 
+def get_plan_edit_ai_client() -> AIClient:
+    """Client for the Plan chat's edit step only, so edits can run on a stronger model than the chat.
+
+    PLAN_EDIT_AI_PROVIDER falls back to CHAT_AI_PROVIDER, then AI_PROVIDER.
+    """
+    return get_ai_client(config.PLAN_EDIT_AI_PROVIDER or config.CHAT_AI_PROVIDER or config.AI_PROVIDER)
+
+
+def get_plan_edit_ai_client_dep() -> AIClient:
+    """FastAPI dependency for the Plan chat's edit step."""
+    return get_plan_edit_ai_client()
+
+
 def get_ai_client_dep() -> AIClient:
     """FastAPI dependency wrapper around get_ai_client().
 

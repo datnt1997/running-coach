@@ -41,7 +41,7 @@ from psycopg.types.json import Jsonb
 
 from app.agent.plan_chat import SUMMARY_SYSTEM_PROMPT
 from app.ai.client import AIResponse, TokenUsage, ToolCall
-from app.ai.factory import get_ai_client_dep
+from app.ai.factory import get_ai_client_dep, get_plan_edit_ai_client_dep
 from app.auth import GoogleIdentity, InvalidGoogleToken, get_google_verifier
 from app.config import DATABASE_URL
 from app.db import connection as db_connection
@@ -60,7 +60,7 @@ _FOUR_DAY_AVAILABILITY = [
 ]
 
 _ALL_TABLES = (
-    "chat_summaries, profile_facts, chat_messages, weekly_summaries, activity_analyses, strava_connections, "
+    "plan_edits, chat_summaries, profile_facts, chat_messages, weekly_summaries, activity_analyses, strava_connections, "
     "workout_sessions, training_plans, user_goals, runner_profiles, runners"
 )
 
@@ -189,6 +189,20 @@ class FakePlanChatAIClient:
         if self.scripted:
             return AIResponse(content=self.scripted.pop(0))
         return AIResponse(content=f"reply {len(self.chat_calls)}")
+
+
+class FakePlanEditAIClient:
+    """The plan-edit model: answers with a scripted propose_plan_edit call, or none."""
+
+    def __init__(self):
+        self.calls: list[tuple[list[dict], list[dict] | None]] = []
+        self.proposal: dict | None = None  # arguments of the next propose_plan_edit call
+
+    async def generate(self, messages, tools=None, response_format=None) -> AIResponse:
+        self.calls.append((messages, tools))
+        if self.proposal is None:
+            return AIResponse(content="I cannot propose that.")
+        return AIResponse(content="", tool_calls=[ToolCall(name="propose_plan_edit", arguments=self.proposal)])
 
 
 class FakeAnalysisAIClient:
@@ -337,9 +351,15 @@ async def sign_in(ac: httpx.AsyncClient, email: str = ALLOWED_EMAIL) -> httpx.Re
 
 
 @pytest_asyncio.fixture
-async def anon_client(db_pool, fake_ai_client):
+async def plan_edit_ai():
+    return FakePlanEditAIClient()
+
+
+@pytest_asyncio.fixture
+async def anon_client(db_pool, fake_ai_client, plan_edit_ai):
     """A client with no session. Google verification is faked."""
     app.dependency_overrides[get_ai_client_dep] = lambda: fake_ai_client
+    app.dependency_overrides[get_plan_edit_ai_client_dep] = lambda: plan_edit_ai
     app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier()
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
@@ -355,9 +375,10 @@ async def client(anon_client):
 
 
 @pytest_asyncio.fixture
-async def anon_webhook_client(db_pool, fake_analysis_ai_client, fake_strava_client):
+async def anon_webhook_client(db_pool, fake_analysis_ai_client, fake_strava_client, plan_edit_ai):
     from app.api.strava import get_strava_client
     app.dependency_overrides[get_ai_client_dep] = lambda: fake_analysis_ai_client
+    app.dependency_overrides[get_plan_edit_ai_client_dep] = lambda: plan_edit_ai
     app.dependency_overrides[get_strava_client] = lambda: fake_strava_client
     app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier()
     transport = ASGITransport(app=app)
