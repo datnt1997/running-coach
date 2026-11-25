@@ -109,3 +109,69 @@ TOOLS = [
         },
     }
 ]
+
+_DAY_ENUM = {"type": "string", "enum": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+
+PROPOSE_PLAN_EDIT_TOOL = {
+    "name": "propose_plan_edit",
+    "description": (
+        "Propose a change to the runner's Plan. For each week you change, give every workout of that "
+        "week (unchanged days included); weeks you leave out stay as they are. The app checks the change "
+        "against the runner's limits and shows it to the runner, who must confirm it."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "summary": {
+                "type": "string",
+                "description": "One or two sentences in the runner's language: what changes and why",
+            },
+            "weeks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "week_number": {"type": "integer"},
+                        "workouts": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "day": _DAY_ENUM,
+                                    "type": {
+                                        "type": "string",
+                                        "description": "easy, long, recovery, tempo, interval, repetition, marathon_pace or rest",
+                                    },
+                                    "distance_km": {"type": "number", "description": "Distance in km (0 for rest)"},
+                                    "pace_zone": {"type": "string", "description": "Heart-rate zone, e.g. Z2"},
+                                    "notes": {"type": "string"},
+                                },
+                                "required": ["day", "type", "distance_km"],
+                            },
+                        },
+                    },
+                    "required": ["week_number", "workouts"],
+                },
+            },
+            "override": {
+                "type": "object",
+                "description": (
+                    "Only when the runner explicitly asked to break a Weekly availability limit once: "
+                    "the one day on which it is broken"
+                ),
+                "properties": {"week_number": {"type": "integer"}, "day": _DAY_ENUM},
+                "required": ["week_number", "day"],
+            },
+            "goal_change": {
+                "type": "object",
+                "description": "Only when the request asks to change the Goal's race distance, target time or race date",
+                "properties": {
+                    "distance": {"type": "string", "enum": ["half_marathon", "full_marathon"]},
+                    "target_time": {"type": "string", "description": "H:MM:SS"},
+                    "race_date": {"type": "string", "description": "YYYY-MM-DD"},
+                },
+            },
+        },
+        "required": ["summary", "weeks"],
+    },
+}

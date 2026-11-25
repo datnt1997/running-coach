@@ -34,6 +34,22 @@ def test_chat_honors_chat_provider(monkeypatch):
     assert isinstance(factory.get_ai_client_dep(), _Anthropic)
 
 
+def test_plan_edits_fall_back_to_the_chat_provider(monkeypatch):
+    monkeypatch.setattr(config, "AI_PROVIDER", "anthropic")
+    monkeypatch.setattr(config, "CHAT_AI_PROVIDER", "gemini")
+    monkeypatch.setattr(config, "PLAN_EDIT_AI_PROVIDER", None)
+    assert isinstance(factory.get_plan_edit_ai_client_dep(), _Gemini)
+
+
+def test_only_plan_edits_can_be_routed_to_another_provider(monkeypatch):
+    monkeypatch.setattr(config, "AI_PROVIDER", "gemini")
+    monkeypatch.setattr(config, "CHAT_AI_PROVIDER", "gemini")
+    monkeypatch.setattr(config, "PLAN_EDIT_AI_PROVIDER", "anthropic")
+    assert isinstance(factory.get_plan_edit_ai_client_dep(), _Anthropic)
+    assert isinstance(factory.get_chat_ai_client_dep(), _Gemini)
+    assert isinstance(factory.get_ai_client_dep(), _Gemini)
+
+
 def test_unknown_provider_raises(monkeypatch):
     monkeypatch.setattr(config, "CHAT_AI_PROVIDER", "nope")
     with pytest.raises(ValueError):
@@ -43,6 +59,7 @@ def test_unknown_provider_raises(monkeypatch):
 def _set(monkeypatch, provider, chat, anthropic_key, gemini_key):
     monkeypatch.setattr(config, "AI_PROVIDER", provider)
     monkeypatch.setattr(config, "CHAT_AI_PROVIDER", chat)
+    monkeypatch.setattr(config, "PLAN_EDIT_AI_PROVIDER", None)
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", anthropic_key)
     monkeypatch.setattr(config, "GEMINI_API_KEY", gemini_key)
     for n in ("DATABASE_URL", "STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET",
@@ -61,6 +78,13 @@ def test_validate_gemini_chat_requires_key(monkeypatch):
         config.validate_config()
     monkeypatch.setattr(config, "GEMINI_API_KEY", "g")
     config.validate_config()
+
+
+def test_validate_plan_edit_provider_requires_its_key(monkeypatch):
+    _set(monkeypatch, "gemini", "gemini", None, "g")
+    monkeypatch.setattr(config, "PLAN_EDIT_AI_PROVIDER", "anthropic")
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        config.validate_config()
 
 
 def test_validate_both_missing_anthropic(monkeypatch):

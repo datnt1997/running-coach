@@ -222,6 +222,29 @@ async def test_profile_facts_are_private_to_their_runner(client, friend_client):
     assert "gối trái đau" not in "".join(m["content"] for m in fake.calls[-1])
 
 
+async def test_plan_edits_are_private_to_their_runner(client, friend_client, plan_edit_ai, seeded_plan, runner_id):
+    from app.ai.factory import get_chat_ai_client_dep
+    from tests.conftest import FakePlanChatAIClient
+
+    fake = FakePlanChatAIClient()
+    app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
+    fake.scripted.append("Để mình xem.\n[[EDIT: bỏ bài chạy hôm nay]]")
+    day = seeded_plan["date"].strftime("%a")
+    plan_edit_ai.proposal = {"summary": "rest today", "weeks": [
+        {"week_number": 1, "workouts": [{"day": day, "type": "easy", "distance_km": 6.0}]},
+    ]}
+    reply = (await client.post("/plan-chat/messages", json={"message": "mệt"})).json()["messages"][1]
+    assert reply["planEdit"]["status"] == "pending", reply["planEdit"]
+    url = f"/plan-chat/messages/{reply['id']}/edit"
+
+    assert (await friend_client.post(f"{url}/confirm")).status_code == 404
+    assert (await friend_client.post(f"{url}/decline")).status_code == 404
+    assert await _count("plan_edits", runner_id) == 1
+    assert (await client.post(f"{url}/confirm")).status_code == 200
+    assert len((await client.get("/plan-edits")).json()["edits"]) == 1
+    assert (await friend_client.get("/plan-edits")).json() == {"edits": []}
+
+
 async def test_the_rolling_summary_is_private_to_its_runner(client, friend_client):
     from app.ai.factory import get_chat_ai_client_dep
     from tests.conftest import FakePlanChatAIClient

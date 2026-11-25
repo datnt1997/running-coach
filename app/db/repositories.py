@@ -306,6 +306,47 @@ class PlanRepository:
         ]
 
 
+    async def matched_days(self, plan_id: UUID) -> set[tuple[int, str]]:
+        """(week, day) of Planned workouts that already have an Activity matched to them."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                "SELECT DISTINCT ws.week_number, ws.day_of_week FROM activity_analyses aa"
+                " JOIN workout_sessions ws ON ws.id = aa.matched_workout_id"
+                " JOIN training_plans tp ON tp.id = ws.plan_id"
+                " WHERE tp.id = %s AND tp.runner_id = %s",
+                (plan_id, self.runner_id),
+            )
+            return {(row[0], row[1]) for row in await cur.fetchall()}
+
+    async def lock_plan(self, plan_id: UUID) -> bool:
+        """Hold the Plan row until commit so two edits never interleave."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                "SELECT 1 FROM training_plans WHERE id = %s AND runner_id = %s FOR UPDATE",
+                (plan_id, self.runner_id),
+            )
+            return await cur.fetchone() is not None
+
+    async def replace_day(self, plan_id: UUID, week: int, day: str, workouts: list[dict]) -> None:
+        """Replace one day's Planned workouts, keeping the week's phase."""
+        async with self.conn.cursor() as cur:
+            await cur.execute(
+                "SELECT ws.phase FROM workout_sessions ws JOIN training_plans tp ON tp.id = ws.plan_id"
+                " WHERE tp.id = %s AND tp.runner_id = %s AND ws.week_number = %s LIMIT 1",
+                (plan_id, self.runner_id, week),
+            )
+            row = await cur.fetchone()
+            phase = row[0] if row else "base"
+            await cur.execute(
+                "DELETE FROM workout_sessions ws USING training_plans tp"
+                " WHERE ws.plan_id = tp.id AND tp.id = %s AND tp.runner_id = %s"
+                " AND ws.week_number = %s AND ws.day_of_week = %s",
+                (plan_id, self.runner_id, week, day),
+            )
+        for w in workouts:
+            await self.insert_workout(plan_id, week, phase, day, w["type"], w["distanceKm"], w["paceZone"], w["notes"])
+
+
 class StravaConnectionRepository:
     def __init__(self, conn: AsyncConnection, runner_id: UUID):
         self.conn = conn
@@ -571,7 +612,7 @@ class ProfileRepository:
             )
 
 
-_CHAT_COLUMNS = "id, role, content, created_at, proposed_fact, proposal_status"
+_CHAT_COLUMNS = "id, role, content, created_at, proposed_fact, proposal_status, plan_edit_id"
 
 
 class ChatMessageRepository:
@@ -581,13 +622,17 @@ class ChatMessageRepository:
         self.conn = conn
         self.runner_id = runner_id
 
-    async def add(self, role: str, content: str, proposed_fact: str | None = None) -> dict:
+    async def add(
+        self, role: str, content: str, proposed_fact: str | None = None, plan_edit_id: UUID | None = None
+    ) -> dict:
         async with self.conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "INSERT INTO chat_messages (runner_id, role, content, proposed_fact, proposal_status)"
-                " VALUES (%s, %s, %s, %s, %s)"
+                "INSERT INTO chat_messages (runner_id, role, content, proposed_fact, proposal_status, plan_edit_id)"
+                " SELECT %s, %s, %s, %s, %s, %s"
+                " WHERE %s::uuid IS NULL OR EXISTS (SELECT 1 FROM plan_edits WHERE id = %s AND runner_id = %s)"
                 f" RETURNING {_CHAT_COLUMNS}",
-                (self.runner_id, role, content, proposed_fact, "pending" if proposed_fact else None),
+                (self.runner_id, role, content, proposed_fact, "pending" if proposed_fact else None, plan_edit_id,
+                 plan_edit_id, plan_edit_id, self.runner_id),
             )
             return await cur.fetchone()
 
@@ -729,6 +774,111 @@ class ProfileFactRepository:
                 (fact_id, self.runner_id),
             )
             return cur.rowcount > 0
+
+
+_EDIT_COLUMNS = (
+    "id, plan_id, request, summary, status, changes, override, reasons, week_totals, created_at, decided_at"
+)
+
+
+class PlanEditRepository:
+    """Plan edits proposed in the Plan chat; the applied ones are the edit log."""
+
+    def __init__(self, conn: AsyncConnection, runner_id: UUID):
+        self.conn = conn
+        self.runner_id = runner_id
+
+    async def add(
+        self,
+        plan_id: UUID,
+        request: str,
+        status: str,
+        summary: str = "",
+        changes: list | None = None,
+        override: dict | None = None,
+        reasons: list | None = None,
+        week_totals: dict | None = None,
+    ) -> dict:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "INSERT INTO plan_edits (runner_id, plan_id, request, summary, status, changes, override, reasons, week_totals)"
+                " SELECT %s, tp.id, %s, %s, %s, %s, %s, %s, %s FROM training_plans tp"
+                " WHERE tp.id = %s AND tp.runner_id = %s"
+                f" RETURNING {_EDIT_COLUMNS}",
+                (self.runner_id, request, summary, status, Jsonb(changes or []),
+                 Jsonb(override) if override else None, Jsonb(reasons) if reasons else None,
+                 Jsonb({str(k): v for k, v in (week_totals or {}).items()}), plan_id, self.runner_id),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise LookupError("Plan not found for this runner")
+            return row
+
+    async def get(self, edit_id: UUID, for_update: bool = False) -> dict | None:
+        lock = " FOR UPDATE" if for_update else ""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_EDIT_COLUMNS} FROM plan_edits WHERE id = %s AND runner_id = %s{lock}",
+                (edit_id, self.runner_id),
+            )
+            return await cur.fetchone()
+
+    async def by_ids(self, edit_ids: list[UUID]) -> dict[UUID, dict]:
+        if not edit_ids:
+            return {}
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_EDIT_COLUMNS} FROM plan_edits WHERE id = ANY(%s) AND runner_id = %s",
+                (edit_ids, self.runner_id),
+            )
+            return {row["id"]: row for row in await cur.fetchall()}
+
+    async def decide(self, edit_id: UUID, status: str, reasons: list | None = None) -> dict | None:
+        """Move a pending edit to `status`; None when it is not pending."""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "UPDATE plan_edits SET status = %s, reasons = COALESCE(%s, reasons), decided_at = now()"
+                " WHERE id = %s AND runner_id = %s AND status = 'pending'"
+                f" RETURNING {_EDIT_COLUMNS}",
+                (status, Jsonb(reasons) if reasons else None, edit_id, self.runner_id),
+            )
+            return await cur.fetchone()
+
+    async def list_applied(self) -> list[dict]:
+        """The edit log, newest first."""
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_EDIT_COLUMNS} FROM plan_edits WHERE runner_id = %s AND status = 'applied'"
+                " ORDER BY decided_at DESC, seq DESC",
+                (self.runner_id,),
+            )
+            return await cur.fetchall()
+
+    async def list_recent(self, limit: int) -> list[dict]:
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                f"SELECT {_EDIT_COLUMNS} FROM plan_edits WHERE runner_id = %s ORDER BY seq DESC LIMIT %s",
+                (self.runner_id, limit),
+            )
+            return await cur.fetchall()
+
+    async def plan_history(self, plan_id: UUID) -> tuple[dict[int, float], set[int]]:
+        """From the applied edits of a Plan: each edited week's original Weekly volume, and the
+        weeks that already used their one-off availability override."""
+        volumes: dict[int, float] = {}
+        overridden: set[int] = set()
+        async with self.conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT week_totals, override FROM plan_edits"
+                " WHERE plan_id = %s AND runner_id = %s AND status = 'applied' ORDER BY decided_at, seq",
+                (plan_id, self.runner_id),
+            )
+            for row in await cur.fetchall():
+                for week, km in row["week_totals"].items():
+                    volumes.setdefault(int(week), float(km))
+                if row["override"]:
+                    overridden.add(int(row["override"]["week"]))
+        return volumes, overridden
 
 
 class RunnerRepository:
