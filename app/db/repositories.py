@@ -122,6 +122,14 @@ class GoalRepository:
             return row is not None
 
 
+class MatchedDayError(Exception):
+    """A Planned day cannot be replaced: a run is matched to it."""
+
+    def __init__(self, week: int, day: str):
+        super().__init__(f"week {week} {day} has a matched run")
+        self.week, self.day = week, day
+
+
 class PlanRepository:
     def __init__(self, conn: AsyncConnection, runner_id: UUID):
         self.conn = conn
@@ -328,8 +336,26 @@ class PlanRepository:
             return await cur.fetchone() is not None
 
     async def replace_day(self, plan_id: UUID, week: int, day: str, workouts: list[dict]) -> None:
-        """Replace one day's Planned workouts, keeping the week's phase."""
+        """Replace one day's Planned workouts, keeping the week's phase.
+
+        The day's rows are locked first, so a run being matched to one of them waits
+        (its foreign key needs the row) or has already landed; then the day is checked
+        for matched runs again. Raises MatchedDayError if one has, changing nothing.
+        """
         async with self.conn.cursor() as cur:
+            await cur.execute(
+                "SELECT ws.id FROM workout_sessions ws JOIN training_plans tp ON tp.id = ws.plan_id"
+                " WHERE tp.id = %s AND tp.runner_id = %s AND ws.week_number = %s AND ws.day_of_week = %s"
+                " FOR UPDATE OF ws",
+                (plan_id, self.runner_id, week, day),
+            )
+            ids = [row[0] for row in await cur.fetchall()]
+            if ids:
+                await cur.execute(
+                    "SELECT 1 FROM activity_analyses WHERE matched_workout_id = ANY(%s) LIMIT 1", (ids,)
+                )
+                if await cur.fetchone() is not None:
+                    raise MatchedDayError(week, day)
             await cur.execute(
                 "SELECT ws.phase FROM workout_sessions ws JOIN training_plans tp ON tp.id = ws.plan_id"
                 " WHERE tp.id = %s AND tp.runner_id = %s AND ws.week_number = %s LIMIT 1",

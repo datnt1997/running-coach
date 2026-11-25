@@ -5,7 +5,7 @@ import { label, t } from '../i18n/index.js'
 
 function runsText(runs) {
   if (!runs.length) return t('planEdit.nothing')
-  return runs.map(r => `${label('type', r.type)} ${r.distanceKm} km`).join(', ')
+  return runs.map(r => `${label('type', r.type)} ${r.distanceKm} km${r.paceZone ? ` (${r.paceZone})` : ''}`).join(', ')
 }
 
 function reasonText(r) {
@@ -146,6 +146,15 @@ export default function PlanChat() {
       // A 409 after a re-check carries the edit, now rejected with its reasons.
       const edit = res.ok ? data.edit : data.detail?.edit
       if (edit) setMessages(prev => prev.map(m => (m.id === id ? { ...m, planEdit: edit } : m)))
+      if (res.status === 409 && !edit) {
+        // Decided elsewhere (another tab, a double click): show the stored status instead.
+        const stored = await fetch('/plan-chat/messages')
+        if (stored.ok) {
+          setMessages((await stored.json()).messages)
+          loadEditLog()
+          return
+        }
+      }
       if (!res.ok && !edit) throw new Error(String(res.status))
       if (res.ok && action === 'confirm') loadEditLog()
     } catch {

@@ -97,9 +97,30 @@ def _is_quality(w: dict) -> bool:
     return w["type"].strip().lower() in QUALITY_TYPES
 
 
-def day_signature(workouts: list[dict]) -> list[tuple[str, float]]:
-    """What a day holds for comparison: its runs' types and distances (rest and notes ignored)."""
-    return sorted((w["type"].strip().lower(), round(w["distanceKm"], 2)) for w in workouts if _is_run(w))
+def day_signature(workouts: list[dict]) -> list[tuple[str, float, str]]:
+    """What a day holds for comparison: its runs' types, distances and pace zones (rest and notes ignored)."""
+    return sorted(
+        (w["type"].strip().lower(), round(w["distanceKm"], 2), (w.get("paceZone") or "").strip())
+        for w in workouts if _is_run(w)
+    )
+
+
+def _with_old_zones(before: list[dict], after: list[dict]) -> list[dict]:
+    """`after`, where a run the model gave without a pace zone keeps the zone of the same run before."""
+    def run(w):
+        return w["type"].strip().lower(), round(w["distanceKm"], 2)
+
+    spare = [w for w in before if _is_run(w) and w.get("paceZone")]
+    out = []
+    for w in after:
+        same = None
+        if _is_run(w) and not w.get("paceZone"):
+            same = next((b for b in spare if run(b) == run(w)), None)
+        if same is not None:
+            spare.remove(same)
+            w = {**w, "paceZone": same["paceZone"]}
+        out.append(w)
+    return out
 
 
 def _total(days: dict[str, list[dict]]) -> float:
@@ -176,7 +197,8 @@ def check_plan_edit(
         if not 1 <= week <= total_weeks:
             reasons.append(_r("unknown_week", week=week))
             continue
-        before_days, after_days = current.get(week, {}), proposed[week]
+        before_days = current.get(week, {})
+        after_days = {d: _with_old_zones(before_days.get(d, []), ws) for d, ws in proposed[week].items()}
         changed_days = [
             d for d in WEEKDAYS
             if day_signature(before_days.get(d, [])) != day_signature(after_days.get(d, []))
@@ -215,7 +237,7 @@ def check_plan_edit(
         if total_after > volume + KM_TOLERANCE:
             reasons.append(_r("load_cap", week=week, km=total_after, volume=volume))
         long_after, long_before = _longest(after_days), _longest(before_days)
-        limit = long_run_limit_km(total_after, easy_slow_sec_per_km)
+        limit = long_run_limit_km(volume, easy_slow_sec_per_km)  # the basis the edit prompt shows
         if long_after > limit + KM_TOLERANCE and long_after > long_before + KM_TOLERANCE:
             reasons.append(_r("long_run", week=week, km=long_after, limit=limit))
 

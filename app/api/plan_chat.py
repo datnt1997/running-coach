@@ -319,6 +319,9 @@ async def confirm_edit(
             applied = await apply_edit(db, runner_id, edit_id)
         except EditConflict as conflict:
             raise HTTPException(status_code=409, detail=conflict.detail)
+        except LookupError:
+            await db.rollback()
+            raise HTTPException(status_code=404, detail="No such edit")
     return {"edit": edit_out(applied)}
 
 

@@ -1,12 +1,15 @@
 """Plan edits by chat: the coach proposes, Python checks, the Runner confirms, the edit is logged."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
 from psycopg.types.json import Jsonb
 
+from app import config
 from app.ai.factory import get_chat_ai_client_dep
+from app.api import plan_chat as plan_chat_api
 from app.db.connection import get_pool
+from app.db.repositories import MatchedDayError, PlanRepository
 from app.main import app
 from tests.conftest import FakePlanChatAIClient
 
@@ -56,7 +59,7 @@ async def chat_ai(client):
 @pytest_asyncio.fixture
 async def plan(client, runner_id):
     """A 4-week Plan: week 1 was last week, week 2 is this week, weeks 3 and 4 are ahead."""
-    today = date.today()
+    today = config.app_today()
     start = today - timedelta(days=today.weekday()) - timedelta(weeks=1)
     async with get_pool().connection() as conn:
         cur = await conn.execute(
@@ -106,8 +109,8 @@ async def test_an_edit_is_shown_as_a_difference_and_not_applied_until_confirmed(
     assert edit["status"] == "pending"
     assert edit["changes"] == [{
         "week": 3, "day": "Thu",
-        "before": [{"type": "easy", "distanceKm": 5.0}],
-        "after": [{"type": "easy", "distanceKm": 3.0}],
+        "before": [{"type": "easy", "distanceKm": 5.0, "paceZone": "Z2"}],
+        "after": [{"type": "easy", "distanceKm": 3.0, "paceZone": "Z2"}],
     }]
     assert "[[EDIT" not in reply["content"]
     assert ("Thu", "easy", 5.0) in await _workouts(client, plan, 3)
@@ -126,7 +129,7 @@ async def test_a_confirmed_edit_is_applied_and_appears_in_the_log(client, chat_a
     log = (await client.get("/plan-edits")).json()["edits"]
     assert len(log) == 1
     assert log[0]["status"] == "applied" and log[0]["summary"] == "Thu 5 km to 3 km"
-    assert log[0]["changes"][0]["after"] == [{"type": "easy", "distanceKm": 3.0}]
+    assert log[0]["changes"][0]["after"] == [{"type": "easy", "distanceKm": 3.0, "paceZone": "Z2"}]
     assert log[0]["decidedAt"]
     # Confirming twice does not apply it again.
     assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 409
@@ -217,7 +220,7 @@ async def test_past_weeks_are_never_altered_even_inside_a_wider_edit(client, cha
 
 
 async def test_a_day_with_a_matched_run_is_never_altered(client, chat_ai, plan_edit_ai, plan, runner_id):
-    today = DAYS[date.today().weekday()]
+    today = DAYS[config.app_today().weekday()]
     async with get_pool().connection() as conn:
         cur = await conn.execute(
             "SELECT id FROM workout_sessions WHERE plan_id = %s AND week_number = 2 AND day_of_week = %s",
@@ -229,7 +232,7 @@ async def test_a_day_with_a_matched_run_is_never_altered(client, chat_ai, plan_e
         await conn.execute(
             "INSERT INTO activity_analyses (strava_activity_id, matched_workout_id, activity_date, distance_km, runner_id)"
             " VALUES (4242, %s, %s, 5.0, %s)",
-            (row[0], date.today(), runner_id),
+            (row[0], config.app_today(), runner_id),
         )
         await conn.commit()
     kind, km = next((k, d) for d_, k, d in WEEK if d_ == today)
@@ -275,3 +278,141 @@ async def test_an_override_never_excuses_the_long_run_or_load_rules(client, chat
     reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, over)
     assert reply["planEdit"]["status"] == "rejected"
     assert "load_cap" in [r["code"] for r in reply["planEdit"]["reasons"]]
+
+
+@pytest.mark.parametrize("proposal", [
+    {"summary": "new race", "weeks": [], "goal_change": {"race_date": "2027-01-01"}},
+    {"summary": "new race", "goal_change": {"target_time": "3:30:00"}},
+])
+async def test_a_goal_only_proposal_is_rejected_as_a_goal_change(client, chat_ai, plan_edit_ai, plan, proposal):
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
+    assert reply["planEdit"]["status"] == "rejected"
+    assert [r["code"] for r in reply["planEdit"]["reasons"]] == ["goal_change"]
+
+
+async def test_the_long_run_limit_is_the_one_shown_to_the_edit_model(client, chat_ai, plan_edit_ai, plan):
+    # Week total drops to 43 km, but the limit stays 30% of the 45 km Weekly volume: 13.5 km.
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, _edit(3, Sun=("long", 13.0), Sat=("easy", 5.0)))
+    assert "Long run limit about 13.5 km" in "\n".join(m["content"] for m in plan_edit_ai.calls[-1][0])
+    assert reply["planEdit"]["status"] == "pending", reply["planEdit"]["reasons"]
+
+
+@pytest.mark.parametrize("proposal", [
+    {**SHORTER_THURSDAY, "override": "Tue"},
+    {**SHORTER_THURSDAY, "goal_change": {"target_time": "25:00:00"}},
+    {**SHORTER_THURSDAY, "goal_change": "a new race"},
+])
+async def test_a_malformed_proposal_is_rejected_and_the_reply_is_kept(client, chat_ai, plan_edit_ai, plan, proposal):
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
+    assert reply["content"] == "Để mình xem."
+    assert reply["planEdit"]["status"] == "rejected"
+    assert [r["code"] for r in reply["planEdit"]["reasons"]] == ["no_proposal"]
+    assert (await client.get("/plan-chat/messages")).json()["messages"][1]["planEdit"]["status"] == "rejected"
+
+
+async def test_replacing_a_day_refuses_one_that_has_a_matched_run(client, plan, runner_id):
+    """The last guard: a run matched after the rules were checked still stops the replacement."""
+    async with get_pool().connection() as conn:
+        cur = await conn.execute(
+            "SELECT id FROM workout_sessions WHERE plan_id = %s AND week_number = 3 AND day_of_week = 'Thu'",
+            (plan["plan_id"],),
+        )
+        workout_id = (await cur.fetchone())[0]
+        await conn.execute(
+            "INSERT INTO activity_analyses (strava_activity_id, matched_workout_id, activity_date, distance_km, runner_id)"
+            " VALUES (4343, %s, %s, 5.0, %s)",
+            (workout_id, config.app_today(), runner_id),
+        )
+        await conn.commit()
+        with pytest.raises(MatchedDayError):
+            await PlanRepository(conn, runner_id).replace_day(
+                plan["plan_id"], 3, "Thu", [{"type": "easy", "distanceKm": 3.0, "paceZone": None, "notes": None}],
+            )
+        await conn.rollback()
+    assert ("Thu", "easy", 5.0) in await _workouts(client, plan, 3)
+
+
+def test_today_is_the_date_in_the_app_timezone(monkeypatch):
+    monkeypatch.setattr(config, "APP_TIMEZONE", "Asia/Ho_Chi_Minh")
+    assert config.app_today(datetime(2026, 11, 25, 18, 30, tzinfo=timezone.utc)) == date(2026, 11, 26)
+    assert config.app_today(datetime(2026, 11, 25, 16, 30, tzinfo=timezone.utc)) == date(2026, 11, 25)
+
+
+EARLY, LATE = "Etc/GMT+12", "Etc/GMT-14"  # UTC-12 and UTC+14: their dates always differ
+
+
+async def test_the_past_day_rule_uses_today_in_the_app_timezone(client, chat_ai, plan_edit_ai, plan, monkeypatch):
+    # Today in UTC-12 is already a past day in UTC+14, whatever the server clock says.
+    monkeypatch.setattr(config, "APP_TIMEZONE", EARLY)
+    day = config.app_today()
+    week, name = (day - plan["start"]).days // 7 + 1, DAYS[day.weekday()]
+    planned = {d: (k, km) for d, k, km in WEEK}
+    if name in planned:
+        changes = {name: (planned[name][0], planned[name][1] - 1)}
+        override = None
+    else:  # Friday is a rest day: add a run there, once, and shorten Saturday to keep the week's volume
+        changes = {name: ("easy", 3.0), "Sat": ("easy", 5.0)}
+        override = {"week_number": week, "day": name}
+    proposal = {**_edit(week, **changes), "override": override}
+
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
+    assert f"TODAY: {day.strftime('%A')} {day.isoformat()}" in plan_edit_ai.calls[-1][0][1]["content"]
+    assert reply["planEdit"]["status"] == "pending", reply["planEdit"]["reasons"]
+
+    monkeypatch.setattr(config, "APP_TIMEZONE", LATE)
+    resp = await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")
+    assert resp.status_code == 409
+    assert {"code": "past_day", "params": {"week": week, "day": name}} in [
+        {"code": r["code"], "params": r["params"]} for r in resp.json()["detail"]["edit"]["reasons"]
+    ]
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
+    assert "past_day" in [r["code"] for r in reply["planEdit"]["reasons"]]
+
+
+async def _zones(client, plan, week):
+    body = (await client.get(f"/plan/{plan['plan_id']}")).json()
+    found = next(w for w in body["weeks"] if w["weekNumber"] == week)
+    return {w["day"]: w["paceZone"] for w in found["workouts"]}
+
+
+async def test_a_pace_zone_change_is_a_change(client, chat_ai, plan_edit_ai, plan):
+    workouts = _week()
+    next(w for w in workouts if w["day"] == "Wed")["pace_zone"] = "T"
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, {"summary": "Wed at T pace", "weeks": [
+        {"week_number": 3, "workouts": workouts},
+    ]})
+
+    edit = reply["planEdit"]
+    assert edit["status"] == "pending", edit["reasons"]
+    assert edit["changes"] == [{
+        "week": 3, "day": "Wed",
+        "before": [{"type": "tempo", "distanceKm": 10.0, "paceZone": "Z2"}],
+        "after": [{"type": "tempo", "distanceKm": 10.0, "paceZone": "T"}],
+    }]
+    assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 200
+    assert (await _zones(client, plan, 3))["Wed"] == "T"
+
+
+async def test_an_omitted_pace_zone_keeps_the_old_one(client, chat_ai, plan_edit_ai, plan):
+    workouts = _week(Thu=("easy", 3.0))
+    for w in workouts:
+        del w["pace_zone"]
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, {"summary": "Thu shorter", "weeks": [
+        {"week_number": 3, "workouts": workouts},
+    ]})
+
+    assert [(c["week"], c["day"]) for c in reply["planEdit"]["changes"]] == [(3, "Thu")]
+    assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 200
+    zones = await _zones(client, plan, 3)
+    assert {day: zone for day, zone in zones.items() if day != "Thu"} == {
+        "Mon": "Z2", "Tue": "Z2", "Wed": "Z2", "Sat": "Z2", "Sun": "Z2",
+    }
+
+
+async def test_confirming_an_edit_that_vanished_is_not_found(client, chat_ai, plan_edit_ai, plan, monkeypatch):
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, SHORTER_THURSDAY)
+
+    async def vanished(*_):  # the edit was deleted between reading the message and locking the edit
+        raise LookupError
+    monkeypatch.setattr(plan_chat_api, "apply_edit", vanished)
+    assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 404
