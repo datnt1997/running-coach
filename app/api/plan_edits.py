@@ -5,7 +5,6 @@ the propose_plan_edit tool; `check_plan_edit` (Python) decides whether it may be
 A shown proposal changes nothing until the Runner confirms it, and it is checked again then.
 """
 import logging
-from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,8 +15,9 @@ from app.agent.validation import check_plan_edit, day_signature, reason_text
 from app.ai.client import AIClient
 from app.ai.tools import PROPOSE_PLAN_EDIT_TOOL
 from app.auth import require_runner
+from app.config import app_today
 from app.db.connection import get_db
-from app.db.repositories import GoalRepository, PlanEditRepository, PlanRepository
+from app.db.repositories import GoalRepository, MatchedDayError, PlanEditRepository, PlanRepository
 from app.vdot import training_paces
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/plan-edits")
 
 def _runs(workouts: list[dict]) -> list[dict]:
     return [
-        {"type": w["type"], "distanceKm": w["distanceKm"]}
+        {"type": w["type"], "distanceKm": w["distanceKm"], "paceZone": w.get("paceZone")}
         for w in workouts if w["type"].strip().lower() != "rest" and w["distanceKm"] > 0
     ]
 
@@ -80,10 +80,10 @@ async def propose_edit(
     Call with the Plan chat turn lock held; nothing stays open during the model call.
     """
     edits = PlanEditRepository(db, runner_id)
-    inputs = await _rule_inputs(db, runner_id, plan, goal)
-    today = date.today()
-    await db.commit()
+    today = app_today()
     try:
+        inputs = await _rule_inputs(db, runner_id, plan, goal)
+        await db.commit()
         response = await edit_ai.generate(
             build_edit_messages(
                 request=request, runner_message=runner_message, goal=goal, plan=plan, days=inputs["current"],
@@ -95,14 +95,15 @@ async def propose_edit(
         call = next(c for c in response.tool_calls if c.name == "propose_plan_edit")
         arguments = plain(call.arguments)
         proposed = parse_proposal(arguments)
+        result = check_plan_edit(
+            **inputs, proposed=proposed, today=today,
+            override=arguments.get("override"), goal_change=arguments.get("goal_change"),
+        )
     except Exception:
         logger.exception("Plan edit step produced no usable proposal")
+        await db.rollback()
         return await edits.add(plan["id"], request, "rejected", reasons=[{"code": "no_proposal", "params": {}}])
 
-    result = check_plan_edit(
-        **inputs, proposed=proposed, today=today,
-        override=arguments.get("override"), goal_change=arguments.get("goal_change"),
-    )
     return await edits.add(
         plan["id"], request, "rejected" if result["reasons"] else "pending",
         summary=str(arguments.get("summary") or "")[:1000],
@@ -144,12 +145,16 @@ async def apply_edit(db: AsyncConnection, runner_id: UUID, edit_id: UUID) -> dic
     for c in edit["changes"]:
         proposed[c["week"]][c["day"]] = c["after"]
     override = {"week_number": edit["override"]["week"], "day": edit["override"]["day"]} if edit["override"] else None
-    result = check_plan_edit(**inputs, proposed=proposed, today=date.today(), override=override)
+    result = check_plan_edit(**inputs, proposed=proposed, today=app_today(), override=override)
     if result["reasons"]:
         return await _reject(db, edits, edit_id, result["reasons"])
 
-    for c in edit["changes"]:
-        await plans.replace_day(plan["id"], c["week"], c["day"], c["after"])
+    try:
+        for c in edit["changes"]:
+            await plans.replace_day(plan["id"], c["week"], c["day"], c["after"])
+    except MatchedDayError as matched:  # a run was matched after the check above
+        await db.rollback()
+        return await _reject(db, edits, edit_id, [{"code": "matched_day", "params": {"week": matched.week, "day": matched.day}}])
     applied = await edits.decide(edit_id, "applied")
     await db.commit()
     return applied
@@ -158,6 +163,8 @@ async def apply_edit(db: AsyncConnection, runner_id: UUID, edit_id: UUID) -> dic
 async def _reject(db: AsyncConnection, edits: PlanEditRepository, edit_id: UUID, reasons: list[dict]):
     row = await edits.decide(edit_id, "rejected", reasons)
     await db.commit()
+    if row is None:  # decided elsewhere after a rollback released its lock
+        raise EditConflict("No pending edit")
     raise EditConflict({"message": "The edit can no longer be applied", "edit": edit_out(row)})
 
 

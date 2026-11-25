@@ -57,9 +57,14 @@ def plain(value):
 
 
 def parse_proposal(arguments: dict) -> dict[int, dict[str, list[dict]]]:
-    """The tool call's weeks as week -> day -> workouts. Raises ValueError on malformed input."""
+    """The tool call's weeks as week -> day -> workouts. Raises ValueError on malformed input.
+
+    A proposal that only asks for a Goal change may give no weeks; the rules reject it as such.
+    """
     weeks = arguments.get("weeks")
-    if not isinstance(weeks, list) or not weeks:
+    if weeks is None and arguments.get("goal_change"):
+        weeks = []
+    if not isinstance(weeks, list) or not (weeks or arguments.get("goal_change")):
         raise ValueError("no weeks")
     out: dict[int, dict[str, list[dict]]] = {}
     for week in weeks:
