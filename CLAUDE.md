@@ -67,6 +67,18 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 - `GET /profile-facts`, `PUT /profile-facts/{id}`, `DELETE /profile-facts/{id}` back the facts page (`frontend/src/pages/ProfileFacts.jsx`). There is no create endpoint.
 - Every Plan chat turn reads the facts fresh into the prompt (`WHAT YOU REMEMBER`).
 
+### Plan edits (`app/api/plan_edits.py`, `app/agent/plan_edits.py`, `check_plan_edit` in `app/agent/validation.py`, table `plan_edits`)
+
+- The chat model never edits the Plan. It ends a reply with `[[EDIT: <request>]]`; `split_edit_request()` strips it, then the edit model (`get_plan_edit_ai_client_dep`, `PLAN_EDIT_AI_PROVIDER`) answers with one `propose_plan_edit` tool call (`app/ai/tools.py`) giving whole replacement weeks.
+- `check_plan_edit()` (pure Python) decides: no day in a week before the runner's current week (`runner_today`, see Timezone below; earlier days of the current week may change) or with a matched Activity changes, Weekly availability per changed day (slots, km cap, Quality), no added Quality workout, week total within its Weekly volume (the total before the first applied edit, from `plan_edits.week_totals`), Long run limit (30%/25% of that Weekly volume, the figure the edit prompt shows; 150 min at easy pace), no Goal race/time/date change. A day changes when a run's type, distance or pace zone does; a run given without a pace zone keeps the zone of the same run before. A proposal that fails to parse or check is stored rejected `no_proposal`; the reply is still saved. Rejections are `{code, params}`; the UI translates `planEdit.reason.<code>`, the next turn's prompt gets `RECENT PLAN EDITS` in English.
+- A passing edit is stored `pending` on the reply (`chat_messages.plan_edit_id`), nothing applied. `POST /plan-chat/messages/{id}/edit/confirm` re-checks it against the Plan as it is now (409 `stale` or the new reasons, status `rejected`) and replaces only the changed days (`replace_day` locks the day's rows and refuses one matched meanwhile: `MatchedDayError`, 409 `matched_day`); `.../decline`. Non-pending gives 409, another Runner's message 404. `GET /plan-edits` is the log (applied, newest first).
+- One-off override: `override` names one day whose availability limits may be broken; it is shown with the limits it breaks, logged on the edit, and allowed once per Plan week. It never excuses the other rules and never changes Weekly availability.
+- Tests: `tests/test_plan_edits.py`; `FakePlanEditAIClient` (conftest, fixture `plan_edit_ai`) returns the scripted proposal.
+
+### Timezone (`app/timezone.py`)
+
+- The server runs on UTC. The SPA's fetch wrapper (`frontend/src/lib/auth.js`) sends the browser's IANA timezone as `X-Timezone` on every same-origin call; the `runner_today` dependency turns it into the runner's today (UTC when missing or unknown). The Plan chat prompt's TODAY, the race countdown and the Plan edit past-week rule use it. Other `date.today()` calls (plan start date, summaries, Goal lead time) still use the server's UTC date.
+
 ### Sign-in (`app/auth.py` + `app/api/auth.py`)
 
 - `POST /auth/google` takes a Google ID token (`credential`), checks it through `GoogleVerifier` (tokeninfo endpoint; tests inject a fake through `get_google_verifier`), checks the email against `ALLOWED_EMAILS`, and sets a signed session cookie. `GET /auth/me` says who is signed in; `POST /auth/logout` clears it. The session is stateless (no table); the allowlist is re-checked on every request.
@@ -116,6 +128,7 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 |---|---|
 | `ANTHROPIC_API_KEY` | Required when `AI_PROVIDER=anthropic` (default) |
 | `CHAT_AI_PROVIDER` | Provider for `POST /fitness-chat` only; falls back to `AI_PROVIDER` |
+| `PLAN_EDIT_AI_PROVIDER` | Provider for the Plan chat's edit step (`propose_plan_edit`) only, e.g. `anthropic` when Gemini's tool calls prove unreliable; falls back to `CHAT_AI_PROVIDER`, then `AI_PROVIDER` |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | Required when a selected provider is `gemini`; model defaults to `gemini-2.0-flash` |
 | `DATABASE_URL` | `postgresql://user:pass@host:port/db` |
 | `AI_PROVIDER` | `anthropic` (default) or `gemini` |

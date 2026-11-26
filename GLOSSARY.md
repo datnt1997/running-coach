@@ -87,8 +87,12 @@ The conversation before a Goal exists, in which the coach collects a race result
 _Avoid_: Level chat, assessment chat, chat
 
 **Plan chat**:
-The one continuous conversation between a Runner and the coach after a Plan exists. Every message is stored per Runner and reloads on the chat page; each turn the model gets the coach's tone and method, the Runner's profile, Profile facts and Plan read fresh, and the last 20 messages. The coach may propose a Profile fact, saved only when the Runner confirms. The coach never diagnoses: for sharp pain, chest symptoms or dizziness it says to rest and see a doctor. It never changes the Goal's race, time or date; those start a new Goal. (Changing the Plan's current and future weeks by chat is a later ticket.)
+The one continuous conversation between a Runner and the coach after a Plan exists. Every message is stored per Runner and reloads on the chat page; each turn the model gets the coach's tone and method, the Runner's profile, Profile facts and Plan read fresh, and the last 20 messages. The coach may propose a Profile fact, saved only when the Runner confirms. The coach never diagnoses: for sharp pain, chest symptoms or dizziness it says to rest and see a doctor. It never changes the Goal's race, time or date; those start a new Goal. It may propose a Plan edit.
 _Avoid_: Coach chat, chat
+
+**Plan edit**:
+A change to the Plan's days from today onward, proposed in the Plan chat and shown as a difference. Python checks it against Weekly availability, the Long run limit, each week's Weekly volume and the Missed workout rule, and refuses it with a reason if it breaks one; days already past, or with a matched Activity, never change. It is applied only after the Runner confirms, and every applied edit is logged. A one-off override may break a Weekly availability limit on one day, at most once per Plan week, only when the Runner explicitly asks; it is shown and logged, and the availability itself stays as it was.
+_Avoid_: Plan change, adjustment
 
 **Rolling summary**:
 A short text per Runner that compresses Plan chat messages older than the last 20, so a fact from long ago still reaches the model. The raw messages stay stored; the summary only replaces them in the prompt.

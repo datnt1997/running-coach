@@ -11,13 +11,17 @@ from app.agent.plan_chat import (
     HISTORY_LIMIT, MAX_FOLD_BATCH, MAX_FOLDS_PER_TURN, MAX_SUMMARY_CHARS, MAX_VERBATIM, SUMMARY_BATCH, build_messages, build_summary_messages, split_proposal,
 )
 from app.ai.client import AIClient
-from app.ai.factory import get_chat_ai_client_dep
+from app.agent.plan_edits import recent_edits_block, split_edit_request
+from app.ai.factory import get_chat_ai_client_dep, get_plan_edit_ai_client_dep
+from app.api.plan_edits import EditConflict, apply_edit, edit_out, propose_edit
 from app.api.profile_facts import fact_out
 from app.api.strava import RUN_TYPES, get_strava_client
 from app.auth import require_runner
+from app.timezone import runner_today
 from app.db.connection import get_db
 from app.db.repositories import (
-    ActivityAnalysisRepository, ChatMessageRepository, GoalRepository, PlanRepository, ProfileFactRepository, ProfileRepository,
+    ActivityAnalysisRepository, ChatMessageRepository, GoalRepository, PlanEditRepository, PlanRepository, ProfileFactRepository,
+    ProfileRepository,
     RollingSummaryRepository, StravaConnectionRepository,
 )
 from app.strava.client import StravaClient, get_valid_access_token
@@ -43,12 +47,14 @@ class SendMessageRequest(BaseModel):
         return value
 
 
-def _out(row: dict) -> dict:
+def _out(row: dict, edits: dict | None = None) -> dict:
     proposal = (
         {"text": row["proposed_fact"], "status": row["proposal_status"]} if row["proposed_fact"] else None
     )
+    edit = (edits or {}).get(row["plan_edit_id"])
     return {
         "proposal": proposal,
+        "planEdit": edit_out(edit) if edit else None,
         "id": str(row["id"]),
         "role": row["role"],
         "content": row["content"],
@@ -151,8 +157,14 @@ async def _recent_activities(db: AsyncConnection, runner_id: UUID, strava_client
     return out
 
 
+async def _outs(db: AsyncConnection, runner_id: UUID, rows: list[dict]) -> list[dict]:
+    edits = await PlanEditRepository(db, runner_id).by_ids([r["plan_edit_id"] for r in rows if r["plan_edit_id"]])
+    return [_out(r, edits) for r in rows]
+
+
 async def _reply(
-    db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID, strava_client: StravaClient
+    db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID, strava_client: StravaClient,
+    edit_ai: AIClient, today: date,
 ) -> dict:
     """Ask the model to answer the stored conversation and store its reply.
 
@@ -169,25 +181,35 @@ async def _reply(
     facts = await ProfileFactRepository(db, runner_id).list_all()
     declined = await ChatMessageRepository(db, runner_id).recent_declined_facts(DECLINED_LIMIT)
     activities = await _recent_activities(db, runner_id, strava_client)
+    edits_block = recent_edits_block(await PlanEditRepository(db, runner_id).list_recent(RECENT_EDITS))
     await db.commit()
 
     try:
         response = await ai_client.generate(
-            build_messages(profile, goal, plan, history, facts=facts, declined=declined, summary=summary, activities=activities)
+            build_messages(
+                profile, goal, plan, history, facts=facts, declined=declined, summary=summary, activities=activities,
+                edits=edits_block, today=today,
+            )
         )
         content, proposed_fact = split_proposal(response.content)
+        content, edit_request = split_edit_request(content)
         if not content:
             raise ValueError("empty reply")
     except Exception:
         logger.exception("Plan chat AI call failed")
         raise HTTPException(status_code=502, detail="The coach could not answer. Try again.")
 
+    edit = None
+    if edit_request and plan and goal:
+        runner_message = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+        edit = await propose_edit(db, runner_id, edit_ai, plan, goal, edit_request, runner_message, today)
+
     messages = ChatMessageRepository(db, runner_id)
     last = await messages.last()
     if last is None or last["id"] != answering or last["role"] != "user":
         await db.rollback()
         raise HTTPException(status_code=409, detail="Nothing to answer")
-    reply = await messages.add("assistant", content, proposed_fact)
+    reply = await messages.add("assistant", content, proposed_fact, edit["id"] if edit else None)
     await db.commit()
     return reply
 
@@ -196,7 +218,7 @@ async def _reply(
 async def list_messages(
     db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
 ) -> dict:
-    return {"messages": [_out(m) for m in await ChatMessageRepository(db, runner_id).list_all()]}
+    return {"messages": await _outs(db, runner_id, await ChatMessageRepository(db, runner_id).list_all())}
 
 
 @router.post("/messages")
@@ -206,13 +228,16 @@ async def send_message(
     runner_id: UUID = Depends(require_runner),
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
     strava_client: StravaClient = Depends(get_strava_client),
+    edit_ai: AIClient = Depends(get_plan_edit_ai_client_dep),
+    today: date = Depends(runner_today),
 ) -> dict:
     # The runner's message is stored before the model is called, so a failure loses nothing.
     async with _turn_lock(db, runner_id):
         stored = await ChatMessageRepository(db, runner_id).add("user", req.message)
         await db.commit()
-        reply = await _reply(db, runner_id, ai_client, stored["id"], strava_client)
-    return {"messages": [_out(stored), _out(reply)]}
+        reply = await _reply(db, runner_id, ai_client, stored["id"], strava_client, edit_ai, today)
+        out = await _outs(db, runner_id, [stored, reply])
+    return {"messages": out}
 
 
 @router.post("/retry")
@@ -221,6 +246,8 @@ async def retry(
     runner_id: UUID = Depends(require_runner),
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
     strava_client: StravaClient = Depends(get_strava_client),
+    edit_ai: AIClient = Depends(get_plan_edit_ai_client_dep),
+    today: date = Depends(runner_today),
 ) -> dict:
     """Answer the last message again after a failed call (it is still stored, unanswered)."""
     async with _turn_lock(db, runner_id):
@@ -228,11 +255,13 @@ async def retry(
         await db.commit()
         if last is None or last["role"] != "user":
             raise HTTPException(status_code=409, detail="Nothing to answer")
-        reply = await _reply(db, runner_id, ai_client, last["id"], strava_client)
-    return {"messages": [_out(reply)]}
+        reply = await _reply(db, runner_id, ai_client, last["id"], strava_client, edit_ai, today)
+        out = await _outs(db, runner_id, [reply])
+    return {"messages": out}
 
 
 DECLINED_LIMIT = 5
+RECENT_EDITS = 5  # latest Plan edit proposals shown to the coach
 
 
 def _normalized(text: str) -> str:
@@ -256,7 +285,7 @@ async def _decide(db: AsyncConnection, runner_id: UUID, message_id: UUID, status
         fact = next((f for f in await facts.list_all() if _normalized(f["text"]) == wanted), None)
         fact = fact or await facts.add(message["proposed_fact"])
     await db.commit()
-    return {"message": _out(message), "fact": fact_out(fact) if fact else None}
+    return {"message": (await _outs(db, runner_id, [message]))[0], "fact": fact_out(fact) if fact else None}
 
 
 @router.post("/messages/{message_id}/proposal/confirm")
@@ -271,3 +300,45 @@ async def decline_proposal(
     message_id: UUID, db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
 ) -> dict:
     return await _decide(db, runner_id, message_id, "declined")
+
+
+async def _message_edit_id(db: AsyncConnection, runner_id: UUID, message_id: UUID) -> UUID:
+    message = await ChatMessageRepository(db, runner_id).get(message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="No such message")
+    if message["plan_edit_id"] is None:
+        raise HTTPException(status_code=409, detail="No pending edit")
+    return message["plan_edit_id"]
+
+
+@router.post("/messages/{message_id}/edit/confirm")
+async def confirm_edit(
+    message_id: UUID,
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
+    today: date = Depends(runner_today),
+) -> dict:
+    """Apply the proposed Plan edit, checked again against the Plan as it is now, and log it."""
+    async with _turn_lock(db, runner_id):
+        edit_id = await _message_edit_id(db, runner_id, message_id)
+        try:
+            applied = await apply_edit(db, runner_id, edit_id, today)
+        except EditConflict as conflict:
+            raise HTTPException(status_code=409, detail=conflict.detail)
+        except LookupError:
+            await db.rollback()
+            raise HTTPException(status_code=404, detail="No such edit")
+    return {"edit": edit_out(applied)}
+
+
+@router.post("/messages/{message_id}/edit/decline")
+async def decline_edit(
+    message_id: UUID, db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
+) -> dict:
+    edit_id = await _message_edit_id(db, runner_id, message_id)
+    row = await PlanEditRepository(db, runner_id).decide(edit_id, "declined")
+    if row is None:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="No pending edit")
+    await db.commit()
+    return {"edit": edit_out(row)}

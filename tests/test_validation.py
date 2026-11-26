@@ -2,8 +2,17 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.agent.validation import GoalOutOfScopeError, validate_goal
+from app.agent.validation import GoalOutOfScopeError, long_run_limit_km, validate_goal
 from app.models.goal import GoalRequest
+
+
+@pytest.mark.parametrize("week_km,easy_pace,limit", [
+    (45, None, 13.5),   # under 64 km: 30%
+    (66, None, 16.5),   # 64 km or more: 25% (research R2 worked case)
+    (100, 400, 22.5),   # 150 minutes at 6:40/km comes before 25 km
+])
+def test_long_run_limit(week_km, easy_pace, limit):
+    assert long_run_limit_km(week_km, easy_pace) == limit
 from tests.availability import week_with_days
 
 

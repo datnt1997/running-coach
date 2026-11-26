@@ -1,7 +1,63 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { t } from '../i18n/index.js'
+import { label, t } from '../i18n/index.js'
+
+function runsText(runs) {
+  if (!runs.length) return t('planEdit.nothing')
+  return runs.map(r => `${label('type', r.type)} ${r.distanceKm} km${r.paceZone ? ` (${r.paceZone})` : ''}`).join(', ')
+}
+
+function reasonText(r) {
+  const params = { ...r.params, day: r.params.day ? label('day', r.params.day) : undefined, type: r.params.type ? label('type', r.params.type) : undefined }
+  const text = t(`planEdit.reason.${r.code}`, params)
+  return text === `planEdit.reason.${r.code}` ? r.text : text
+}
+
+function Changes({ edit }) {
+  return (
+    <ul>
+      {edit.changes.map(c => (
+        <li key={`${c.week}-${c.day}`}>
+          {t('planEdit.dayLabel', { week: c.week, day: label('day', c.day) })}:{' '}
+          <del>{runsText(c.before)}</del> → <strong>{runsText(c.after)}</strong>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function PlanEditCard({ edit, onDecide }) {
+  return (
+    <div className="plan-edit">
+      {edit.status === 'rejected' ? (
+        <>
+          <div>{t('planEdit.rejected')}</div>
+          <ul>{edit.reasons.map((r, i) => <li key={i}>{reasonText(r)}</li>)}</ul>
+        </>
+      ) : (
+        <>
+          <div><strong>{t('planEdit.title')}</strong>{edit.summary ? `: ${edit.summary}` : ''}</div>
+          <Changes edit={edit} />
+          {edit.override && (
+            <div>
+              {t('planEdit.override', { week: edit.override.week, day: label('day', edit.override.day) })}
+              <ul>{edit.override.limits.map((r, i) => <li key={i}>{reasonText(r)}</li>)}</ul>
+            </div>
+          )}
+          {edit.status === 'pending' && (
+            <div className="proposal-actions">
+              <button type="button" onClick={() => onDecide('confirm')}>{t('planEdit.apply')}</button>
+              <button type="button" onClick={() => onDecide('decline')}>{t('planEdit.decline')}</button>
+            </div>
+          )}
+          {edit.status === 'applied' && <div className="proposal-result">{t('planEdit.applied')}</div>}
+          {edit.status === 'declined' && <div className="proposal-result">{t('planEdit.declined')}</div>}
+        </>
+      )}
+    </div>
+  )
+}
 
 async function post(path, body, key = 'messages') {
   const res = await fetch(path, {
@@ -22,12 +78,22 @@ export default function PlanChat() {
   const [error, setError] = useState(null)
   const threadRef = useRef(null)
 
+  const [editLog, setEditLog] = useState([])
+
+  function loadEditLog() {
+    fetch('/plan-edits')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(data => setEditLog(data.edits))
+      .catch(() => { /* the log is secondary; the chat still works */ })
+  }
+
   useEffect(() => {
     fetch('/plan-chat/messages')
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(data => setMessages(data.messages))
       .catch(() => setError(t('planChat.loadError')))
       .finally(() => setLoaded(true))
+    loadEditLog()
   }, [])
 
   useEffect(() => {
@@ -72,6 +138,30 @@ export default function PlanChat() {
     }
   }
 
+  async function decideEdit(id, action) {
+    setError(null)
+    try {
+      const res = await fetch(`/plan-chat/messages/${id}/edit/${action}`, { method: 'POST' })
+      const data = await res.json()
+      // A 409 after a re-check carries the edit, now rejected with its reasons.
+      const edit = res.ok ? data.edit : data.detail?.edit
+      if (edit) setMessages(prev => prev.map(m => (m.id === id ? { ...m, planEdit: edit } : m)))
+      if (res.status === 409 && !edit) {
+        // Decided elsewhere (another tab, a double click): show the stored status instead.
+        const stored = await fetch('/plan-chat/messages')
+        if (stored.ok) {
+          setMessages((await stored.json()).messages)
+          loadEditLog()
+          return
+        }
+      }
+      if (!res.ok && !edit) throw new Error(String(res.status))
+      if (res.ok && action === 'confirm') loadEditLog()
+    } catch {
+      setError(t('planEdit.error'))
+    }
+  }
+
   async function resend() {
     if (loading) return
     setError(null)
@@ -113,6 +203,7 @@ export default function PlanChat() {
               {m.proposal?.status === 'declined' && (
                 <div className="proposal-result">{t('planChat.proposalDeclined')}</div>
               )}
+              {m.planEdit && <PlanEditCard edit={m.planEdit} onDecide={action => decideEdit(m.id, action)} />}
             </div>
           ))}
           {loading && (
@@ -144,6 +235,21 @@ export default function PlanChat() {
           <button type="button" onClick={send} disabled={loading || !input.trim()}>{t('chat.send')}</button>
         </div>
       </div>
+      <details className="plan-edit-log">
+        <summary>{t('planEdit.log')}</summary>
+        {editLog.length === 0 && <p className="muted">{t('planEdit.logEmpty')}</p>}
+        {editLog.map(e => (
+          <div key={e.id} className="plan-edit">
+            <div className="muted">{new Date(e.decidedAt).toLocaleString()}</div>
+            <div>{e.summary || e.request}</div>
+            <Changes edit={e} />
+            {e.override && (
+              <div>{t('planEdit.override', { week: e.override.week, day: label('day', e.override.day) })}{' '}
+                {e.override.limits.map(reasonText).join(' ')}</div>
+            )}
+          </div>
+        ))}
+      </details>
     </div>
   )
 }

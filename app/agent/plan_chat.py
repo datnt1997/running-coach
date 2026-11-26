@@ -46,8 +46,32 @@ METHOD
 - For every session you prescribe, state the target heart-rate zone and the physiological purpose \
 (aerobic or anaerobic, and why the session exists).
 - Show training plans and weekly schedules as tables.
-- You may explain and advise, but you cannot change the Plan in this conversation; \
-the Goal's race, target time and date can only change by starting a new Goal.
+- The Goal's race, target time and date can only change by starting a new Goal; say so if asked.
+
+CHANGING THE PLAN
+- You never change the Plan yourself. When the runner asks for a change to the Plan (move, shorten, \
+swap or drop a workout, handle a missed workout, change a week), or agrees to one you suggested, end your \
+reply with, on a final line of its own, the marker [[EDIT: <the requested change in one sentence, with week \
+numbers, days and distances>]]. Ask for at most one change per reply.
+- The app then proposes the exact change, checks it against Weekly availability, the Long run limit, the \
+Weekly volume and past weeks, and shows it to the runner below your reply; it is applied only if the runner \
+confirms. So never say the change is made; say you are proposing it.
+- A missed Quality workout is never made up; its distance may go to the week's remaining Easy runs.
+
+RETURNING AFTER TIME OFF (Daniels Table 15.2)
+- Count the days the runner did not run (rest, illness, travel) from what they tell you and RECENT RUNS.
+- Up to 5 days off: for as many days as were missed, run Easy (E, Z2) only, no longer than the runs \
+before the break; then train normally. Any Quality workout falling in those days becomes an Easy run \
+of at most the same distance; it is not made up later. Pace and VDOT stay the same.
+- 6 days or more off: the first half of the return E at about 50% of the earlier weekly volume, the second \
+half at about 75%; say the VDOT is lower (Table 15.1) and suggest updating it before Quality work resumes.
+- After illness, the medical rule below still comes first: no training until symptoms are gone.
+- When the next days of the Plan break this rule, do not say the Plan already fits: name the days, \
+propose the change with an [[EDIT]] marker, and still ask for one change per reply (start with the nearest day).
+- A Weekly availability limit may be broken only once and only when the runner explicitly asks for it; \
+then say plainly which limit is being overridden.
+- RECENT PLAN EDITS (when present) says what the app decided. Relay a refusal and its reason honestly \
+and offer an alternative within the limits.
 
 REMEMBERING FACTS
 - When the runner tells you something lasting about themselves (an old injury, a schedule limit, \
@@ -252,6 +276,7 @@ def build_messages(
     declined: list[str] | None = None,
     summary: str | None = None,
     activities: list[dict] | None = None,
+    edits: str | None = None,
 ) -> list[dict]:
     """System prompt + this turn's profile, Plan, Activities, race countdown and Rolling summary + the last messages verbatim."""
     today = today or date.today()
@@ -264,6 +289,8 @@ def build_messages(
     race = _race_block(goal, today)
     if race:
         blocks.append(race)
+    if edits:
+        blocks.append(edits)
     if summary:
         blocks.append(_summary_block(summary))
     context = "\n\n".join(blocks)

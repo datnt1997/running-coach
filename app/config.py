@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 import os
 import pathlib
@@ -10,6 +11,8 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")
 CHAT_AI_PROVIDER = os.getenv("CHAT_AI_PROVIDER") or None
+# The Plan chat's edit step only; falls back to CHAT_AI_PROVIDER, then AI_PROVIDER.
+PLAN_EDIT_AI_PROVIDER = os.getenv("PLAN_EDIT_AI_PROVIDER") or None
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 APP_LANGUAGE = os.getenv("APP_LANGUAGE", "vi")
 
@@ -33,7 +36,9 @@ def validate_config():
             f"Unsupported APP_LANGUAGE '{APP_LANGUAGE}'. Registered: {', '.join(sorted(LANGUAGES))}"
         )
     missing = []
-    providers = {AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER}
+    providers = {
+        AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER, PLAN_EDIT_AI_PROVIDER or CHAT_AI_PROVIDER or AI_PROVIDER,
+    }
     if not ANTHROPIC_API_KEY and "anthropic" in providers:
         missing.append("ANTHROPIC_API_KEY")
     if not GEMINI_API_KEY and "gemini" in providers:
