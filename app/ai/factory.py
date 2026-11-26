@@ -3,15 +3,19 @@ from app.ai.client import AIClient
 
 
 def get_ai_client(provider: str | None = None) -> AIClient:
-    provider = provider or config.AI_PROVIDER
+    """Build a client from a provider setting: ``"gemini"`` or ``"gemini:<model>"``.
+
+    Without a model, the client uses its own default (GEMINI_MODEL / ANTHROPIC_MODEL).
+    """
+    provider, _, model = (provider or config.AI_PROVIDER).partition(":")
     if provider == "anthropic":
         from app.ai.anthropic_client import AnthropicClient
 
-        return AnthropicClient()
+        return AnthropicClient(model=model or None)
     elif provider == "gemini":
         from app.ai.gemini_client import GeminiClient
 
-        return GeminiClient()
+        return GeminiClient(model=model or None)
     raise ValueError(f"Unknown AI provider: {provider}")
 
 
