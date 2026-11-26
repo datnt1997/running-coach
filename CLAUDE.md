@@ -127,11 +127,12 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | Var | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | Required when `AI_PROVIDER=anthropic` (default) |
+| `ANTHROPIC_MODEL` | Claude model for every Anthropic call; defaults to `claude-sonnet-4-6` |
 | `CHAT_AI_PROVIDER` | Provider for `POST /fitness-chat` only; falls back to `AI_PROVIDER` |
 | `PLAN_EDIT_AI_PROVIDER` | Provider for the Plan chat's edit step (`propose_plan_edit`) only, e.g. `anthropic` when Gemini's tool calls prove unreliable; falls back to `CHAT_AI_PROVIDER`, then `AI_PROVIDER` |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | Required when a selected provider is `gemini`; model defaults to `gemini-2.0-flash` |
 | `DATABASE_URL` | `postgresql://user:pass@host:port/db` |
-| `AI_PROVIDER` | `anthropic` (default) or `gemini` |
+| `AI_PROVIDER` | `anthropic` (default) or `gemini`. This and `CHAT_AI_PROVIDER` / `PLAN_EDIT_AI_PROVIDER` may name a model as `provider:model` (e.g. `gemini:gemini-4-neon`), which overrides `GEMINI_MODEL` / `ANTHROPIC_MODEL` for that role and travels with the provider through the fallback chain |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava app credentials |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Secret string for webhook handshake |
 | `STRAVA_REDIRECT_URI` | Must match Strava app's callback domain setting |

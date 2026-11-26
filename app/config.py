@@ -36,8 +36,9 @@ def validate_config():
             f"Unsupported APP_LANGUAGE '{APP_LANGUAGE}'. Registered: {', '.join(sorted(LANGUAGES))}"
         )
     missing = []
-    providers = {
-        AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER, PLAN_EDIT_AI_PROVIDER or CHAT_AI_PROVIDER or AI_PROVIDER,
+    providers = {  # a setting may be "provider:model"; only the provider needs a key
+        p.partition(":")[0]
+        for p in (AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER, PLAN_EDIT_AI_PROVIDER or CHAT_AI_PROVIDER or AI_PROVIDER)
     }
     if not ANTHROPIC_API_KEY and "anthropic" in providers:
         missing.append("ANTHROPIC_API_KEY")
