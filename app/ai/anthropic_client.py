@@ -1,11 +1,12 @@
 import json
+import os
 
 import anthropic
 
 from app.ai.client import AIClient, AIResponse, TokenUsage, ToolCall
 from app.config import ANTHROPIC_API_KEY
 
-MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 16000
 
 
@@ -17,8 +18,8 @@ class AnthropicClient(AIClient):
     is injected into the system prompt and the text response is parsed as JSON.
     """
 
-    def __init__(self, api_key: str | None = None, model: str = MODEL):
-        self.model = model
+    def __init__(self, api_key: str | None = None, model: str | None = None):
+        self.model = model or os.getenv("ANTHROPIC_MODEL") or DEFAULT_MODEL
         self._client = anthropic.AsyncAnthropic(api_key=api_key or ANTHROPIC_API_KEY)
 
     @staticmethod

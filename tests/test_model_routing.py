@@ -5,11 +5,13 @@ from app.ai import factory
 
 
 class _Anthropic:
-    pass
+    def __init__(self, model=None):
+        self.model = model
 
 
 class _Gemini:
-    pass
+    def __init__(self, model=None):
+        self.model = model
 
 
 @pytest.fixture(autouse=True)
@@ -48,6 +50,30 @@ def test_only_plan_edits_can_be_routed_to_another_provider(monkeypatch):
     assert isinstance(factory.get_plan_edit_ai_client_dep(), _Anthropic)
     assert isinstance(factory.get_chat_ai_client_dep(), _Gemini)
     assert isinstance(factory.get_ai_client_dep(), _Gemini)
+
+
+def test_each_role_can_name_its_own_model(monkeypatch):
+    monkeypatch.setattr(config, "AI_PROVIDER", "gemini:gemini-4-neon")
+    monkeypatch.setattr(config, "CHAT_AI_PROVIDER", "gemini:gemini-4-hydrogen")
+    monkeypatch.setattr(config, "PLAN_EDIT_AI_PROVIDER", "anthropic:claude-x")
+    assert factory.get_ai_client_dep().model == "gemini-4-neon"
+    assert factory.get_chat_ai_client_dep().model == "gemini-4-hydrogen"
+    edit = factory.get_plan_edit_ai_client_dep()
+    assert isinstance(edit, _Anthropic) and edit.model == "claude-x"
+
+
+def test_provider_without_model_uses_the_client_default(monkeypatch):
+    monkeypatch.setattr(config, "AI_PROVIDER", "gemini")
+    monkeypatch.setattr(config, "CHAT_AI_PROVIDER", None)
+    assert factory.get_chat_ai_client_dep().model is None
+
+
+def test_validate_accepts_a_model_suffix(monkeypatch):
+    _set(monkeypatch, "gemini:gemini-4-neon", "anthropic:claude-x", None, "g")
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        config.validate_config()
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "k")
+    config.validate_config()
 
 
 def test_unknown_provider_raises(monkeypatch):
@@ -91,6 +117,16 @@ def test_validate_both_missing_anthropic(monkeypatch):
     _set(monkeypatch, "anthropic", "gemini", None, "g")
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         config.validate_config()
+
+
+def test_anthropic_model_env(monkeypatch):
+    monkeypatch.undo()  # drop the autouse fakes: this test needs the real AnthropicClient
+    from app.ai.anthropic_client import AnthropicClient
+
+    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-x")
+    assert AnthropicClient(api_key="k").model == "claude-x"
+    monkeypatch.delenv("ANTHROPIC_MODEL")
+    assert AnthropicClient(api_key="k").model == "claude-sonnet-4-6"
 
 
 def test_gemini_model_env(monkeypatch):
