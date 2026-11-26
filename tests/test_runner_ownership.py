@@ -230,6 +230,15 @@ async def test_plan_edits_are_private_to_their_runner(client, friend_client, pla
     app.dependency_overrides[get_chat_ai_client_dep] = lambda: fake
     fake.scripted.append("Để mình xem.\n[[EDIT: bỏ bài chạy hôm nay]]")
     day = seeded_plan["date"].strftime("%a")
+    # The seeded availability has no slot on Tue, Thu or Sun; open today so the test passes on any weekday.
+    from psycopg.types.json import Jsonb
+    from app.db.connection import get_pool
+    async with get_pool().connection() as conn:
+        await conn.execute(
+            "UPDATE user_goals SET weekly_availability = %s WHERE id = %s",
+            (Jsonb([{"day": d, "slots": 1, "maxKm": None, "qualityAllowed": True}
+                    for d in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")]), seeded_plan["goal_id"]),
+        )
     plan_edit_ai.proposal = {"summary": "rest today", "weeks": [
         {"week_number": 1, "workouts": [{"day": day, "type": "easy", "distance_km": 6.0}]},
     ]}
