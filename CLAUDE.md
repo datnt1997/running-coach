@@ -70,10 +70,14 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 ### Plan edits (`app/api/plan_edits.py`, `app/agent/plan_edits.py`, `check_plan_edit` in `app/agent/validation.py`, table `plan_edits`)
 
 - The chat model never edits the Plan. It ends a reply with `[[EDIT: <request>]]`; `split_edit_request()` strips it, then the edit model (`get_plan_edit_ai_client_dep`, `PLAN_EDIT_AI_PROVIDER`) answers with one `propose_plan_edit` tool call (`app/ai/tools.py`) giving whole replacement weeks.
-- `check_plan_edit()` (pure Python) decides: no day before today (`app_today()`, in `APP_TIMEZONE`) or with a matched Activity changes, Weekly availability per changed day (slots, km cap, Quality), no added Quality workout, week total within its Weekly volume (the total before the first applied edit, from `plan_edits.week_totals`), Long run limit (30%/25% of that Weekly volume, the figure the edit prompt shows; 150 min at easy pace), no Goal race/time/date change. A day changes when a run's type, distance or pace zone does; a run given without a pace zone keeps the zone of the same run before. A proposal that fails to parse or check is stored rejected `no_proposal`; the reply is still saved. Rejections are `{code, params}`; the UI translates `planEdit.reason.<code>`, the next turn's prompt gets `RECENT PLAN EDITS` in English.
+- `check_plan_edit()` (pure Python) decides: no day in a week before the runner's current week (`runner_today`, see Timezone below; earlier days of the current week may change) or with a matched Activity changes, Weekly availability per changed day (slots, km cap, Quality), no added Quality workout, week total within its Weekly volume (the total before the first applied edit, from `plan_edits.week_totals`), Long run limit (30%/25% of that Weekly volume, the figure the edit prompt shows; 150 min at easy pace), no Goal race/time/date change. A day changes when a run's type, distance or pace zone does; a run given without a pace zone keeps the zone of the same run before. A proposal that fails to parse or check is stored rejected `no_proposal`; the reply is still saved. Rejections are `{code, params}`; the UI translates `planEdit.reason.<code>`, the next turn's prompt gets `RECENT PLAN EDITS` in English.
 - A passing edit is stored `pending` on the reply (`chat_messages.plan_edit_id`), nothing applied. `POST /plan-chat/messages/{id}/edit/confirm` re-checks it against the Plan as it is now (409 `stale` or the new reasons, status `rejected`) and replaces only the changed days (`replace_day` locks the day's rows and refuses one matched meanwhile: `MatchedDayError`, 409 `matched_day`); `.../decline`. Non-pending gives 409, another Runner's message 404. `GET /plan-edits` is the log (applied, newest first).
 - One-off override: `override` names one day whose availability limits may be broken; it is shown with the limits it breaks, logged on the edit, and allowed once per Plan week. It never excuses the other rules and never changes Weekly availability.
 - Tests: `tests/test_plan_edits.py`; `FakePlanEditAIClient` (conftest, fixture `plan_edit_ai`) returns the scripted proposal.
+
+### Timezone (`app/timezone.py`)
+
+- The server runs on UTC. The SPA's fetch wrapper (`frontend/src/lib/auth.js`) sends the browser's IANA timezone as `X-Timezone` on every same-origin call; the `runner_today` dependency turns it into the runner's today (UTC when missing or unknown). The Plan chat prompt's TODAY, the race countdown and the Plan edit past-week rule use it. Other `date.today()` calls (plan start date, summaries, Goal lead time) still use the server's UTC date.
 
 ### Sign-in (`app/auth.py` + `app/api/auth.py`)
 
@@ -135,7 +139,6 @@ This is a **Python/FastAPI** backend. The current implementation uses Anthropic 
 | `ALLOWED_EMAILS` | Comma-separated emails allowed to sign in (case-insensitive); others get 403 |
 | `SESSION_SECRET` | Signs the session cookie (HttpOnly, SameSite=Lax, one year); signing refuses an empty value |
 | `COOKIE_SECURE` | Session cookie `Secure` flag; defaults to true. Set `false` for local development over plain http, or the browser drops the cookie |
-| `APP_TIMEZONE` | IANA timezone (default `Asia/Ho_Chi_Minh`) that decides "today" for the Plan edit rules (`app_today()` in `app/config.py`), not the server clock; an unknown name stops startup |
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

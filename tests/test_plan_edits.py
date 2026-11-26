@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from psycopg.types.json import Jsonb
 
-from app import config
+from app.timezone import TZ_HEADER, today_in
 from app.ai.factory import get_chat_ai_client_dep
 from app.api import plan_chat as plan_chat_api
 from app.db.connection import get_pool
@@ -59,7 +59,7 @@ async def chat_ai(client):
 @pytest_asyncio.fixture
 async def plan(client, runner_id):
     """A 4-week Plan: week 1 was last week, week 2 is this week, weeks 3 and 4 are ahead."""
-    today = config.app_today()
+    today = today_in(None)
     start = today - timedelta(days=today.weekday()) - timedelta(weeks=1)
     async with get_pool().connection() as conn:
         cur = await conn.execute(
@@ -176,7 +176,7 @@ def _edit(week, **changes):
     (_edit(3, Sun=("long", 16.0), Sat=("easy", 4.0)), "long_run"),          # limit 13.5 km
     (_edit(3, Sat=("easy", 12.0)), "load_cap"),                             # 49 km > 45 km
     (_edit(3, Sat=("tempo", 8.0)), "quality_added"),                        # a missed Q is never made up
-    (_edit(1, Thu=("easy", 3.0)), "past_day"),                              # last week
+    (_edit(1, Thu=("easy", 3.0)), "past_week"),                             # last week
     (_edit(9, Thu=("easy", 3.0)), "unknown_week"),
     ({**SHORTER_THURSDAY, "goal_change": {"race_date": "2027-01-01"}}, "goal_change"),
     (_edit(3), "no_change"),
@@ -220,7 +220,7 @@ async def test_past_weeks_are_never_altered_even_inside_a_wider_edit(client, cha
 
 
 async def test_a_day_with_a_matched_run_is_never_altered(client, chat_ai, plan_edit_ai, plan, runner_id):
-    today = DAYS[config.app_today().weekday()]
+    today = DAYS[today_in(None).weekday()]
     async with get_pool().connection() as conn:
         cur = await conn.execute(
             "SELECT id FROM workout_sessions WHERE plan_id = %s AND week_number = 2 AND day_of_week = %s",
@@ -232,7 +232,7 @@ async def test_a_day_with_a_matched_run_is_never_altered(client, chat_ai, plan_e
         await conn.execute(
             "INSERT INTO activity_analyses (strava_activity_id, matched_workout_id, activity_date, distance_km, runner_id)"
             " VALUES (4242, %s, %s, 5.0, %s)",
-            (row[0], config.app_today(), runner_id),
+            (row[0], today_in(None), runner_id),
         )
         await conn.commit()
     kind, km = next((k, d) for d_, k, d in WEEK if d_ == today)
@@ -321,7 +321,7 @@ async def test_replacing_a_day_refuses_one_that_has_a_matched_run(client, plan, 
         await conn.execute(
             "INSERT INTO activity_analyses (strava_activity_id, matched_workout_id, activity_date, distance_km, runner_id)"
             " VALUES (4343, %s, %s, 5.0, %s)",
-            (workout_id, config.app_today(), runner_id),
+            (workout_id, today_in(None), runner_id),
         )
         await conn.commit()
         with pytest.raises(MatchedDayError):
@@ -332,41 +332,47 @@ async def test_replacing_a_day_refuses_one_that_has_a_matched_run(client, plan, 
     assert ("Thu", "easy", 5.0) in await _workouts(client, plan, 3)
 
 
-def test_today_is_the_date_in_the_app_timezone(monkeypatch):
-    monkeypatch.setattr(config, "APP_TIMEZONE", "Asia/Ho_Chi_Minh")
-    assert config.app_today(datetime(2026, 11, 25, 18, 30, tzinfo=timezone.utc)) == date(2026, 11, 26)
-    assert config.app_today(datetime(2026, 11, 25, 16, 30, tzinfo=timezone.utc)) == date(2026, 11, 25)
+def test_today_is_the_date_in_the_runners_timezone_and_utc_without_one():
+    evening_utc = datetime(2026, 11, 25, 18, 30, tzinfo=timezone.utc)
+    assert today_in("Asia/Ho_Chi_Minh", evening_utc) == date(2026, 11, 26)
+    assert today_in("Asia/Ho_Chi_Minh", datetime(2026, 11, 25, 16, 30, tzinfo=timezone.utc)) == date(2026, 11, 25)
+    assert today_in(None, evening_utc) == date(2026, 11, 25)
+    assert today_in("Not/AZone", evening_utc) == date(2026, 11, 25)
+    assert today_in("../../etc/passwd", evening_utc) == date(2026, 11, 25)
 
 
 EARLY, LATE = "Etc/GMT+12", "Etc/GMT-14"  # UTC-12 and UTC+14: their dates always differ
 
 
-async def test_the_past_day_rule_uses_today_in_the_app_timezone(client, chat_ai, plan_edit_ai, plan, monkeypatch):
-    # Today in UTC-12 is already a past day in UTC+14, whatever the server clock says.
-    monkeypatch.setattr(config, "APP_TIMEZONE", EARLY)
-    day = config.app_today()
-    week, name = (day - plan["start"]).days // 7 + 1, DAYS[day.weekday()]
-    planned = {d: (k, km) for d, k, km in WEEK}
-    if name in planned:
-        changes = {name: (planned[name][0], planned[name][1] - 1)}
-        override = None
-    else:  # Friday is a rest day: add a run there, once, and shorten Saturday to keep the week's volume
-        changes = {name: ("easy", 3.0), "Sat": ("easy", 5.0)}
-        override = {"week_number": week, "day": name}
-    proposal = {**_edit(week, **changes), "override": override}
+async def test_the_edit_prompt_uses_today_in_the_runners_timezone(client, chat_ai, plan_edit_ai, plan):
+    for tz in (EARLY, LATE):
+        client.headers[TZ_HEADER] = tz
+        await _ask_for_edit(client, chat_ai, plan_edit_ai, SHORTER_THURSDAY)
+        day = today_in(tz)
+        assert f"TODAY: {day.strftime('%A')} {day.isoformat()}" in plan_edit_ai.calls[-1][0][1]["content"]
 
-    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
-    assert f"TODAY: {day.strftime('%A')} {day.isoformat()}" in plan_edit_ai.calls[-1][0][1]["content"]
+
+async def test_an_earlier_day_of_the_current_week_can_still_change(client, chat_ai, plan_edit_ai, plan):
+    # Week 2 is this week, so its Monday is today or already behind us.
+    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, _edit(2, Mon=("easy", 4.0)))
     assert reply["planEdit"]["status"] == "pending", reply["planEdit"]["reasons"]
+    assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 200
+    assert ("Mon", "easy", 4.0) in await _workouts(client, plan, 2)
 
-    monkeypatch.setattr(config, "APP_TIMEZONE", LATE)
-    resp = await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")
-    assert resp.status_code == 409
-    assert {"code": "past_day", "params": {"week": week, "day": name}} in [
-        {"code": r["code"], "params": r["params"]} for r in resp.json()["detail"]["edit"]["reasons"]
-    ]
-    reply = await _ask_for_edit(client, chat_ai, plan_edit_ai, proposal)
-    assert "past_day" in [r["code"] for r in reply["planEdit"]["reasons"]]
+
+def test_the_past_week_rule_follows_the_runners_week():
+    from app.agent.validation import check_plan_edit
+    start = date(2026, 11, 2)  # a Monday: week 2 runs 9 to 15 November
+    run = lambda km: [{"type": "easy", "distanceKm": km, "paceZone": "Z2"}]
+    args = dict(
+        start_date=start, total_weeks=4, current={2: {"Mon": run(5.0)}}, proposed={2: {"Mon": run(4.0)}},
+        goal={"distance": "full_marathon", "target_time": "4:00:00", "race_date": date(2026, 11, 29),
+              "weekly_availability": AVAILABILITY},
+    )
+    on_sunday = check_plan_edit(**args, today=date(2026, 11, 15))
+    assert "past_week" not in [r["code"] for r in on_sunday["reasons"]]
+    next_monday = check_plan_edit(**args, today=date(2026, 11, 16))
+    assert "past_week" in [r["code"] for r in next_monday["reasons"]]
 
 
 async def _zones(client, plan, week):
@@ -416,3 +422,10 @@ async def test_confirming_an_edit_that_vanished_is_not_found(client, chat_ai, pl
         raise LookupError
     monkeypatch.setattr(plan_chat_api, "apply_edit", vanished)
     assert (await client.post(f"/plan-chat/messages/{reply['id']}/edit/confirm")).status_code == 404
+
+
+def test_a_stored_reason_with_an_old_or_unknown_code_still_renders():
+    from app.agent.validation import reason_text
+    assert reason_text({"code": "past_day", "params": {"week": 2, "day": "Tue"}}) == "week 2 Tue was in the past"
+    assert reason_text({"code": "from_the_future", "params": {}}) == "from_the_future"
+    assert reason_text({"code": "past_week", "params": {}})  # missing params never raise

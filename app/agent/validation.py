@@ -193,6 +193,7 @@ def check_plan_edit(
     weekly_volumes = weekly_volumes or {}
     availability = {d["day"]: d for d in goal["weekly_availability"]}
     changes, reasons, availability_breaks = [], [], {}
+    current_week = (today - start_date).days // 7 + 1  # earlier days of this week may still change
     for week in sorted(proposed):
         if not 1 <= week <= total_weeks:
             reasons.append(_r("unknown_week", week=week))
@@ -207,9 +208,8 @@ def check_plan_edit(
             continue
         for day in changed_days:
             changes.append({"week": week, "day": day, "before": before_days.get(day, []), "after": after_days.get(day, [])})
-            when = start_date + timedelta(days=(week - 1) * 7 + WEEKDAYS.index(day))
-            if when < today:
-                reasons.append(_r("past_day", week=week, day=day))
+            if week < current_week:
+                reasons.append(_r("past_week", week=week, day=day))
                 continue
             if (week, day) in locked_days:
                 reasons.append(_r("matched_day", week=week, day=day))
@@ -259,7 +259,7 @@ def check_plan_edit(
 _REASON_TEXT = {
     "goal_change": "the race, target time and race date cannot change in the Plan; that starts a new Goal",
     "unknown_week": "week {week} is not in the Plan",
-    "past_day": "week {week} {day} is in the past, and past days are never changed",
+    "past_week": "week {week} is a past week, and past weeks are never changed",
     "matched_day": "week {week} {day} already has a run matched to it",
     "slots": "week {week} {day} would hold {count} runs; Weekly availability allows {slots}",
     "max_km": "week {week} {day} would be {km} km; Weekly availability allows at most {max} km that day",
@@ -271,9 +271,17 @@ _REASON_TEXT = {
     "no_change": "the proposal changes nothing",
     "no_proposal": "the edit model did not produce a usable proposal",
     "stale": "the Plan changed since this was proposed",
+    # No longer produced (the rule is now per week), but stored rejections still carry it.
+    "past_day": "week {week} {day} was in the past",
 }
 
 
 def reason_text(reason: dict) -> str:
     """English text of a rejection reason, for prompts and logs (the UI translates the code)."""
-    return _REASON_TEXT[reason["code"]].format(**reason["params"])
+    template = _REASON_TEXT.get(reason.get("code"))
+    if template is None:  # a code from an older or newer version: show it, never fail the whole list
+        return str(reason.get("code"))
+    try:
+        return template.format(**(reason.get("params") or {}))
+    except (KeyError, IndexError, ValueError):
+        return template

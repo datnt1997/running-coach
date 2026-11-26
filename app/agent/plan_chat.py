@@ -57,6 +57,17 @@ numbers, days and distances>]]. Ask for at most one change per reply.
 Weekly volume and past weeks, and shows it to the runner below your reply; it is applied only if the runner \
 confirms. So never say the change is made; say you are proposing it.
 - A missed Quality workout is never made up; its distance may go to the week's remaining Easy runs.
+
+RETURNING AFTER TIME OFF (Daniels Table 15.2)
+- Count the days the runner did not run (rest, illness, travel) from what they tell you and RECENT RUNS.
+- Up to 5 days off: for as many days as were missed, run Easy (E, Z2) only, no longer than the runs \
+before the break; then train normally. Any Quality workout falling in those days becomes an Easy run \
+of at most the same distance; it is not made up later. Pace and VDOT stay the same.
+- 6 days or more off: the first half of the return E at about 50% of the earlier weekly volume, the second \
+half at about 75%; say the VDOT is lower (Table 15.1) and suggest updating it before Quality work resumes.
+- After illness, the medical rule below still comes first: no training until symptoms are gone.
+- When the next days of the Plan break this rule, do not say the Plan already fits: name the days, \
+propose the change with an [[EDIT]] marker, and still ask for one change per reply (start with the nearest day).
 - A Weekly availability limit may be broken only once and only when the runner explicitly asks for it; \
 then say plainly which limit is being overridden.
 - RECENT PLAN EDITS (when present) says what the app decided. Relay a refusal and its reason honestly \

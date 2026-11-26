@@ -5,6 +5,7 @@ the propose_plan_edit tool; `check_plan_edit` (Python) decides whether it may be
 A shown proposal changes nothing until the Runner confirms it, and it is checked again then.
 """
 import logging
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,7 +16,6 @@ from app.agent.validation import check_plan_edit, day_signature, reason_text
 from app.ai.client import AIClient
 from app.ai.tools import PROPOSE_PLAN_EDIT_TOOL
 from app.auth import require_runner
-from app.config import app_today
 from app.db.connection import get_db
 from app.db.repositories import GoalRepository, MatchedDayError, PlanEditRepository, PlanRepository
 from app.vdot import training_paces
@@ -73,14 +73,14 @@ def _week_totals(current: dict, changes: list[dict]) -> dict[int, float]:
 
 
 async def propose_edit(
-    db: AsyncConnection, runner_id: UUID, edit_ai: AIClient, plan: dict, goal: dict, request: str, runner_message: str
+    db: AsyncConnection, runner_id: UUID, edit_ai: AIClient, plan: dict, goal: dict, request: str, runner_message: str,
+    today: date,
 ) -> dict:
     """Ask the edit model for the change, check it, and store it as pending or rejected.
 
     Call with the Plan chat turn lock held; nothing stays open during the model call.
     """
     edits = PlanEditRepository(db, runner_id)
-    today = app_today()
     try:
         inputs = await _rule_inputs(db, runner_id, plan, goal)
         await db.commit()
@@ -117,7 +117,7 @@ class EditConflict(Exception):
         self.detail = detail
 
 
-async def apply_edit(db: AsyncConnection, runner_id: UUID, edit_id: UUID) -> dict:
+async def apply_edit(db: AsyncConnection, runner_id: UUID, edit_id: UUID, today: date) -> dict:
     """Apply a pending edit after checking it again against the Plan as it is now.
 
     The Plan row is locked for the transaction. Raises LookupError when there is no
@@ -145,7 +145,7 @@ async def apply_edit(db: AsyncConnection, runner_id: UUID, edit_id: UUID) -> dic
     for c in edit["changes"]:
         proposed[c["week"]][c["day"]] = c["after"]
     override = {"week_number": edit["override"]["week"], "day": edit["override"]["day"]} if edit["override"] else None
-    result = check_plan_edit(**inputs, proposed=proposed, today=app_today(), override=override)
+    result = check_plan_edit(**inputs, proposed=proposed, today=today, override=override)
     if result["reasons"]:
         return await _reject(db, edits, edit_id, result["reasons"])
 

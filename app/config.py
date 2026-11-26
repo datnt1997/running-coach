@@ -1,5 +1,3 @@
-from datetime import date, datetime, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dotenv import load_dotenv
 import os
@@ -17,13 +15,6 @@ CHAT_AI_PROVIDER = os.getenv("CHAT_AI_PROVIDER") or None
 PLAN_EDIT_AI_PROVIDER = os.getenv("PLAN_EDIT_AI_PROVIDER") or None
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 APP_LANGUAGE = os.getenv("APP_LANGUAGE", "vi")
-# The Runner's timezone: what "today" is for the Plan edit rules (a past day never changes).
-APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Ho_Chi_Minh")
-
-
-def app_today(now: datetime | None = None) -> date:
-    """Today's date in APP_TIMEZONE, not the server's."""
-    return (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(APP_TIMEZONE)).date()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "")
@@ -44,10 +35,6 @@ def validate_config():
         raise RuntimeError(
             f"Unsupported APP_LANGUAGE '{APP_LANGUAGE}'. Registered: {', '.join(sorted(LANGUAGES))}"
         )
-    try:
-        ZoneInfo(APP_TIMEZONE)
-    except (ZoneInfoNotFoundError, ValueError) as exc:
-        raise RuntimeError(f"Unknown APP_TIMEZONE '{APP_TIMEZONE}', e.g. Asia/Ho_Chi_Minh") from exc
     missing = []
     providers = {
         AI_PROVIDER, CHAT_AI_PROVIDER or AI_PROVIDER, PLAN_EDIT_AI_PROVIDER or CHAT_AI_PROVIDER or AI_PROVIDER,

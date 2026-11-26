@@ -93,6 +93,8 @@ asked to break it once; then name that one day in `override`.
 - A week never totals more than its Weekly volume (below). The longest run stays within the Long run limit.
 - A missed workout: never make up a missed Quality workout. Spread the lost distance over the week's \
 remaining Easy runs, within the limits above, or let it go.
+- Returning after time off: on the return days the runner asks to ease, a Quality workout becomes an Easy \
+run (type easy, pace zone Z2) of at most the same distance; nothing is moved to later days.
 - Never change the race, target time or race date; if that is asked, fill `goal_change` instead.
 - Give every workout of each week you change, unchanged days included. Keep each week's phase.
 Write the summary in the runner's language."""
@@ -140,8 +142,6 @@ def build_edit_messages(
         for day in WEEKDAYS:
             when = start + timedelta(days=(week - 1) * 7 + WEEKDAYS.index(day))
             tags = []
-            if when < today:
-                tags.append("past, cannot change")
             if (week, day) in locked_days:
                 tags.append("run matched, cannot change")
             runs = ", ".join(

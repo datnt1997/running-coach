@@ -1,4 +1,4 @@
-// Session handling for the SPA. The session itself is an HttpOnly cookie set by
+// Session handling for the SPA, plus the timezone header every API call carries. The session itself is an HttpOnly cookie set by
 // the backend; the SPA only asks "who am I" and reacts to 401s.
 
 export const AUTH_EXPIRED_EVENT = 'auth:expired'
@@ -7,9 +7,20 @@ export const AUTH_EXPIRED_EVENT = 'auth:expired'
 // is gone: tell the app so it returns to the sign-in screen.
 let unauthorizedHandlerInstalled = false
 
-function requestPath(input) {
+function requestUrl(input) {
   const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input)
-  return new URL(url, window.location.href).pathname
+  return new URL(url, window.location.href)
+}
+
+// The server runs on UTC; it works out the runner's "today" from this header.
+export const TZ_HEADER = 'X-Timezone'
+
+function browserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null
+  } catch {
+    return null
+  }
 }
 
 export function installUnauthorizedHandler() {
@@ -17,8 +28,15 @@ export function installUnauthorizedHandler() {
   unauthorizedHandlerInstalled = true
   const original = window.fetch.bind(window)
   window.fetch = async (input, init) => {
+    const url = requestUrl(input)
+    const tz = browserTimeZone()
+    if (tz && url.origin === window.location.origin) {
+      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
+      if (!headers.has(TZ_HEADER)) headers.set(TZ_HEADER, tz)
+      init = { ...init, headers }
+    }
     const res = await original(input, init)
-    if (res.status === 401 && !requestPath(input).startsWith('/auth/')) {
+    if (res.status === 401 && !url.pathname.startsWith('/auth/')) {
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
     }
     return res

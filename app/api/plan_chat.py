@@ -17,6 +17,7 @@ from app.api.plan_edits import EditConflict, apply_edit, edit_out, propose_edit
 from app.api.profile_facts import fact_out
 from app.api.strava import RUN_TYPES, get_strava_client
 from app.auth import require_runner
+from app.timezone import runner_today
 from app.db.connection import get_db
 from app.db.repositories import (
     ActivityAnalysisRepository, ChatMessageRepository, GoalRepository, PlanEditRepository, PlanRepository, ProfileFactRepository,
@@ -163,7 +164,7 @@ async def _outs(db: AsyncConnection, runner_id: UUID, rows: list[dict]) -> list[
 
 async def _reply(
     db: AsyncConnection, runner_id: UUID, ai_client: AIClient, answering: UUID, strava_client: StravaClient,
-    edit_ai: AIClient,
+    edit_ai: AIClient, today: date,
 ) -> dict:
     """Ask the model to answer the stored conversation and store its reply.
 
@@ -187,7 +188,7 @@ async def _reply(
         response = await ai_client.generate(
             build_messages(
                 profile, goal, plan, history, facts=facts, declined=declined, summary=summary, activities=activities,
-                edits=edits_block,
+                edits=edits_block, today=today,
             )
         )
         content, proposed_fact = split_proposal(response.content)
@@ -201,7 +202,7 @@ async def _reply(
     edit = None
     if edit_request and plan and goal:
         runner_message = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
-        edit = await propose_edit(db, runner_id, edit_ai, plan, goal, edit_request, runner_message)
+        edit = await propose_edit(db, runner_id, edit_ai, plan, goal, edit_request, runner_message, today)
 
     messages = ChatMessageRepository(db, runner_id)
     last = await messages.last()
@@ -228,12 +229,13 @@ async def send_message(
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
     strava_client: StravaClient = Depends(get_strava_client),
     edit_ai: AIClient = Depends(get_plan_edit_ai_client_dep),
+    today: date = Depends(runner_today),
 ) -> dict:
     # The runner's message is stored before the model is called, so a failure loses nothing.
     async with _turn_lock(db, runner_id):
         stored = await ChatMessageRepository(db, runner_id).add("user", req.message)
         await db.commit()
-        reply = await _reply(db, runner_id, ai_client, stored["id"], strava_client, edit_ai)
+        reply = await _reply(db, runner_id, ai_client, stored["id"], strava_client, edit_ai, today)
         out = await _outs(db, runner_id, [stored, reply])
     return {"messages": out}
 
@@ -245,6 +247,7 @@ async def retry(
     ai_client: AIClient = Depends(get_chat_ai_client_dep),
     strava_client: StravaClient = Depends(get_strava_client),
     edit_ai: AIClient = Depends(get_plan_edit_ai_client_dep),
+    today: date = Depends(runner_today),
 ) -> dict:
     """Answer the last message again after a failed call (it is still stored, unanswered)."""
     async with _turn_lock(db, runner_id):
@@ -252,7 +255,7 @@ async def retry(
         await db.commit()
         if last is None or last["role"] != "user":
             raise HTTPException(status_code=409, detail="Nothing to answer")
-        reply = await _reply(db, runner_id, ai_client, last["id"], strava_client, edit_ai)
+        reply = await _reply(db, runner_id, ai_client, last["id"], strava_client, edit_ai, today)
         out = await _outs(db, runner_id, [reply])
     return {"messages": out}
 
@@ -310,13 +313,16 @@ async def _message_edit_id(db: AsyncConnection, runner_id: UUID, message_id: UUI
 
 @router.post("/messages/{message_id}/edit/confirm")
 async def confirm_edit(
-    message_id: UUID, db: AsyncConnection = Depends(get_db), runner_id: UUID = Depends(require_runner)
+    message_id: UUID,
+    db: AsyncConnection = Depends(get_db),
+    runner_id: UUID = Depends(require_runner),
+    today: date = Depends(runner_today),
 ) -> dict:
     """Apply the proposed Plan edit, checked again against the Plan as it is now, and log it."""
     async with _turn_lock(db, runner_id):
         edit_id = await _message_edit_id(db, runner_id, message_id)
         try:
-            applied = await apply_edit(db, runner_id, edit_id)
+            applied = await apply_edit(db, runner_id, edit_id, today)
         except EditConflict as conflict:
             raise HTTPException(status_code=409, detail=conflict.detail)
         except LookupError:

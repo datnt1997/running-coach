@@ -406,3 +406,24 @@ async def test_an_unmatched_run_carries_the_plan_workout_and_zone_for_analysis(c
     assert "Plan that day: easy" in system and "target Z2" in system
     assert "average heart rate falls in Z" in system
     assert "Analyse any run the runner asks about, matched or not" in system
+
+
+async def test_the_prompt_uses_today_in_the_runners_timezone(client, chat_ai):
+    from app.timezone import TZ_HEADER, today_in
+    for tz in ("Etc/GMT+12", "Etc/GMT-14"):  # UTC-12 and UTC+14: their dates always differ
+        client.headers[TZ_HEADER] = tz
+        await _say(client, "Hôm nay thứ mấy?")
+        assert f"- {today_in(tz).strftime('%A')} {today_in(tz).isoformat()}." in _prompt_text(chat_ai.calls[-1], "system")
+
+
+def test_the_prompts_carry_the_return_after_a_break_rule():
+    # Daniels Table 15.2 (p. 384), group I: after up to 5 days off, run E only for as many days
+    # as were missed, at no more than the earlier load, then train normally.
+    from app.agent.plan_chat import SYSTEM_PROMPT
+    from app.agent.plan_edits import EDIT_SYSTEM_PROMPT
+
+    assert "RETURNING AFTER TIME OFF" in SYSTEM_PROMPT
+    assert "as many days as were missed" in SYSTEM_PROMPT
+    assert "Quality workout falling in those days becomes an Easy run" in SYSTEM_PROMPT
+    assert "propose the change" in SYSTEM_PROMPT
+    assert "Quality workout becomes an Easy run" in EDIT_SYSTEM_PROMPT
